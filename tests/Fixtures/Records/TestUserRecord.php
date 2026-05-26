@@ -32,5 +32,6 @@ final class TestUserRecord extends AbstractRecord
         public readonly StringTypedCollection $tags = new StringTypedCollection,
         public readonly ProductRecordCollection $products = new ProductRecordCollection,
         public readonly ?TestProductRecord $featuredProduct = null,
+        public readonly ?TestIso8601DateTime $createdAt = null,
     ) {}
 }

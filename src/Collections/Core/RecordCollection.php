@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace AndyDefer\DomainStructures\Collections;
+namespace AndyDefer\DomainStructures\Collections\Core;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;

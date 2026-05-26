@@ -15,7 +15,7 @@ abstract class AbstractRecord implements RecordInterface
 {
     use Hydratable;
 
-    public function normalize(bool $includeNulls = true, NormalizeMode $mode = NormalizeMode::ARRAY): array|string
+    public function normalize(NormalizeMode $mode = NormalizeMode::ARRAY, bool $includeNulls = true): array|string
     {
         $reflection = new ReflectionClass($this);
         $properties = $reflection->getProperties(ReflectionProperty::IS_PUBLIC);

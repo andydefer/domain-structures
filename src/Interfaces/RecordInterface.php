@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Interfaces;
 
-use AndyDefer\DomainStructures\Collections\RecordCollection;
+use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
+use AndyDefer\DomainStructures\Collections\Core\RecordCollection;
 use AndyDefer\DomainStructures\Enums\NormalizeMode;
 
 /**
@@ -22,7 +23,7 @@ interface RecordInterface
      * @param  NormalizeMode  $mode  Output mode: ARRAY or JSON
      * @return array<string, mixed>|string
      */
-    public function normalize(bool $includeNulls = true, NormalizeMode $mode = NormalizeMode::ARRAY): array|string;
+    public function normalize(NormalizeMode $mode = NormalizeMode::ARRAY, bool $includeNulls = true): array|string;
 
     /**
      * Create a Record instance from any object (Record, ValueObject, stdClass, etc.).
@@ -38,5 +39,5 @@ interface RecordInterface
      * @param  NormalizeMode  $mode  Output mode: ARRAY or JSON
      * @return array<int, static>|string
      */
-    public static function collect(RecordCollection $collection, NormalizeMode $mode = NormalizeMode::ARRAY): array|string;
+    public static function collect(TypedCollectionInterface $collection, NormalizeMode $mode = NormalizeMode::ARRAY): array|string;
 }
