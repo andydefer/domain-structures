@@ -7,6 +7,7 @@ namespace AndyDefer\DomainStructures\Tests\Fixtures\Records;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ProductRecordCollection;
+use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestUserRoleCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserRole;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
@@ -29,8 +30,9 @@ final class TestUserRecord extends AbstractRecord
         public readonly ?TestUserRole $role = TestUserRole::USER,
         public readonly ?TestUserGrade $grade = TestUserGrade::BRONZE,
         public readonly ?TestIso8601DateTime $emailVerifiedAt = null,
-        public readonly StringTypedCollection $tags = new StringTypedCollection,
-        public readonly ProductRecordCollection $products = new ProductRecordCollection,
+        public readonly ?StringTypedCollection $tags = new StringTypedCollection,
+        public readonly ?ProductRecordCollection $products = new ProductRecordCollection,
+        public readonly ?TestUserRoleCollection $roles = null,
         public readonly ?TestProductRecord $featuredProduct = null,
         public readonly ?TestIso8601DateTime $createdAt = null,
     ) {}

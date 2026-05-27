@@ -16,6 +16,6 @@ final class TestProductData extends AbstractData
         public readonly string $name,
         public readonly float $price,
         public readonly ?StringTypedCollection $metadata = null,
-        public readonly bool $isFeatured = false,
+        public readonly ?bool $isFeatured = false,
     ) {}
 }

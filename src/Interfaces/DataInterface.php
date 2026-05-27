@@ -4,10 +4,6 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Interfaces;
 
-use AndyDefer\DomainStructures\Collections\Core\DataCollection;
-use AndyDefer\DomainStructures\Enums\NormalizeMode;
-use InvalidArgumentException;
-
 /**
  * Contract for Data DTO objects.
  *
@@ -20,7 +16,7 @@ use InvalidArgumentException;
 interface DataInterface
 {
     /**
-     * Normalizes the Data DTO to array or JSON for API responses.
+     * Normalizes the Data DTO to an array for API responses.
      *
      * The conversion handles:
      * - Nested Data objects (recursive conversion)
@@ -30,26 +26,7 @@ interface DataInterface
      * - DateTime objects (converted to ISO 8601 format)
      * - Property keys remain in camelCase
      *
-     * @param  NormalizeMode  $mode  Output mode: ARRAY or JSON
-     * @return array<string, mixed>|string Associative array or JSON string
+     * @return array<string, mixed> Associative array
      */
-    public function normalize(NormalizeMode $mode = NormalizeMode::ARRAY): array|string;
-
-    /**
-     * Create a Data instance from any object (Record, ValueObject, stdClass, etc.).
-     *
-     * @param  object  $source  Source object to convert from
-     */
-    public static function from(object $source): static;
-
-    /**
-     * Creates an array of Data DTO instances from a DataCollection.
-     *
-     * @param  DataCollection  $collection  Collection of Data objects
-     * @param  NormalizeMode  $mode  Output mode: ARRAY or JSON
-     * @return array<int, static>|string Array of DTO instances or JSON string
-     *
-     * @throws InvalidArgumentException When the collection contains invalid items
-     */
-    public static function collect(DataCollection $collection, NormalizeMode $mode = NormalizeMode::ARRAY): array|string;
+    public function normalize(): array;
 }

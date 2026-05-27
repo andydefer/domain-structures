@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Collections\Utility;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
+use AndyDefer\DomainStructures\Traits\Hydratable;
 
 /**
  * Type-safe collection for string values.
@@ -35,7 +36,7 @@ final class StringTypedCollection extends AbstractTypedCollection
      */
     public function toLowercase(): self
     {
-        return $this->map(fn ($item): string => strtolower($item));
+        return $this->map(fn($item): string => strtolower($item));
     }
 
     /**
@@ -45,7 +46,7 @@ final class StringTypedCollection extends AbstractTypedCollection
      */
     public function toUppercase(): self
     {
-        return $this->map(fn ($item): string => strtoupper($item));
+        return $this->map(fn($item): string => strtoupper($item));
     }
 
     /**
@@ -56,7 +57,7 @@ final class StringTypedCollection extends AbstractTypedCollection
      */
     public function containsSubstring(string $search): self
     {
-        return $this->filter(fn ($item): bool => str_contains($item, $search));
+        return $this->filter(fn($item): bool => str_contains($item, $search));
     }
 
     /**
@@ -67,7 +68,7 @@ final class StringTypedCollection extends AbstractTypedCollection
      */
     public function startsWith(string $prefix): self
     {
-        return $this->filter(fn ($item): bool => str_starts_with($item, $prefix));
+        return $this->filter(fn($item): bool => str_starts_with($item, $prefix));
     }
 
     /**
@@ -78,7 +79,7 @@ final class StringTypedCollection extends AbstractTypedCollection
      */
     public function endsWith(string $suffix): self
     {
-        return $this->filter(fn ($item): bool => str_ends_with($item, $suffix));
+        return $this->filter(fn($item): bool => str_ends_with($item, $suffix));
     }
 
     /**
@@ -91,7 +92,7 @@ final class StringTypedCollection extends AbstractTypedCollection
      */
     public function filterEmpty(): self
     {
-        return $this->filter(fn ($item): bool => $item !== '');
+        return $this->filter(fn($item): bool => $item !== '');
     }
 
     /**
@@ -102,7 +103,7 @@ final class StringTypedCollection extends AbstractTypedCollection
      */
     public function trim(string $characters = " \n\r\t\v\0"): self
     {
-        return $this->map(fn ($item): string => trim($item, $characters));
+        return $this->map(fn($item): string => trim($item, $characters));
     }
 
     /**
@@ -122,7 +123,7 @@ final class StringTypedCollection extends AbstractTypedCollection
                 return $item;
             }
 
-            return substr($item, 0, $length).$suffix;
+            return substr($item, 0, $length) . $suffix;
         });
     }
 
@@ -141,7 +142,7 @@ final class StringTypedCollection extends AbstractTypedCollection
             throw new \InvalidArgumentException(sprintf('Invalid regular expression pattern: "%s"', $pattern));
         }
 
-        return $this->filter(fn ($item): bool => preg_match($pattern, $item) === 1);
+        return $this->filter(fn($item): bool => preg_match($pattern, $item) === 1);
     }
 
     /**
@@ -181,7 +182,7 @@ final class StringTypedCollection extends AbstractTypedCollection
      */
     public function pad(int $length, string $padString = ' ', int $padType = STR_PAD_RIGHT): self
     {
-        return $this->map(fn ($item): string => str_pad($item, $length, $padString, $padType));
+        return $this->map(fn($item): string => str_pad($item, $length, $padString, $padType));
     }
 
     /**
@@ -193,7 +194,7 @@ final class StringTypedCollection extends AbstractTypedCollection
      */
     public function replace(string|array $search, string|array $replace): self
     {
-        return $this->map(fn ($item): string => str_replace($search, $replace, $item));
+        return $this->map(fn($item): string => str_replace($search, $replace, $item));
     }
 
     /**
@@ -203,7 +204,7 @@ final class StringTypedCollection extends AbstractTypedCollection
      */
     public function firstCharacter(): self
     {
-        return $this->map(fn ($item): string => substr($item, 0, 1));
+        return $this->map(fn($item): string => substr($item, 0, 1));
     }
 
     /**
@@ -213,7 +214,7 @@ final class StringTypedCollection extends AbstractTypedCollection
      */
     public function lastCharacter(): self
     {
-        return $this->map(fn ($item): string => substr($item, -1));
+        return $this->map(fn($item): string => substr($item, -1));
     }
 
     /**
@@ -316,7 +317,7 @@ final class StringTypedCollection extends AbstractTypedCollection
      */
     public function removeWhitespace(): self
     {
-        return $this->map(fn ($item): string => preg_replace('/\s+/', '', $item));
+        return $this->map(fn($item): string => preg_replace('/\s+/', '', $item));
     }
 
     /**
@@ -352,7 +353,7 @@ final class StringTypedCollection extends AbstractTypedCollection
     {
         $suffix = $suffix ?? $prefix;
 
-        return $this->map(fn ($item): string => $prefix.$item.$suffix);
+        return $this->map(fn($item): string => $prefix . $item . $suffix);
     }
 
     /**

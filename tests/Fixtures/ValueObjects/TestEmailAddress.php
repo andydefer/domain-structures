@@ -14,18 +14,21 @@ final class TestEmailAddress extends AbstractValueObject
 {
     private function __construct(public readonly string $value) {}
 
-    public static function fromString(string $email): self
+    public static function from(mixed $source): static
     {
-        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            throw new InvalidArgumentException("Invalid email: {$email}");
+        if ($source instanceof self) {
+            return $source;
         }
 
-        return new self($email);
-    }
+        if (!is_string($source)) {
+            throw new InvalidArgumentException('Email must be a string');
+        }
 
-    public static function from(...$values): static
-    {
-        return self::fromString($values[0]);
+        if (!filter_var($source, FILTER_VALIDATE_EMAIL)) {
+            throw new InvalidArgumentException("Invalid email: {$source}");
+        }
+
+        return new self($source);
     }
 
     public function getValue(): string

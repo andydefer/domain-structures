@@ -1,26 +1,44 @@
 <?php
 
+declare(strict_types=1);
+
 namespace AndyDefer\DomainStructures\Abstracts;
 
 use AndyDefer\DomainStructures\Enums\NormalizeMode;
+use AndyDefer\DomainStructures\Utils\DataObject;
+use AndyDefer\DomainStructures\Interfaces\Transformable;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
-use stdClass;
 use UnitEnum;
 
-abstract class AbstractValueObject
+abstract class AbstractValueObject implements Transformable
 {
     protected function __construct() {}
 
-    abstract protected static function from(...$values): static;
+    /**
+     * Returns the raw value of the Value Object.
+     * Can return scalar, enum, record, data, collection, or DataObject.
+     *
+     * @return int|string|float|bool|null|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|AbstractTypedCollection|DataObject
+     */
+    abstract public function getValue(): int|string|float|bool|null|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|AbstractTypedCollection|DataObject;
 
-    abstract public function getValue(): int|string|float|bool|null|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|AbstractTypedCollection|stdClass;
+    /**
+     * Force children to define from() logic for their specific construction.
+     *
+     * @param mixed $source
+     * @return static
+     */
+    abstract public static function from(mixed $source): static;
 
-    public function normalize(NormalizeMode $mode = NormalizeMode::ARRAY): array|string
+    /**
+     * Normalize to value (always returns the raw value, not an array).
+     *
+     * @return mixed
+     */
+    public function normalize(): mixed
     {
         $value = $this->getValue();
-        $normalized = NormalizerChain::get()->normalize($value, $mode, true);
-
-        return $mode === NormalizeMode::JSON ? json_encode($normalized, JSON_THROW_ON_ERROR) : $normalized;
+        return NormalizerChain::get()->normalize($value);
     }
 
     public function equals(self $other): bool
@@ -30,6 +48,6 @@ abstract class AbstractValueObject
 
     public function __toString(): string
     {
-        return $this->normalize(NormalizeMode::JSON);
+        return json_encode($this->normalize(), JSON_THROW_ON_ERROR);
     }
 }

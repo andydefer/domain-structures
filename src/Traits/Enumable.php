@@ -97,6 +97,75 @@ trait Enumable
     }
 
     /**
+     * Creates an enum instance from any source for hydration.
+     *
+     * This method is used by the Hydratable trait to convert any source value
+     * into the correct enum case. It handles:
+     * - If source is already an enum instance, returns it directly
+     * - For backed enums, converts from string/int via tryFrom()
+     * - For pure enums, matches by case name
+     *
+     * @param mixed $source The source value (string, int, or existing enum)
+     * @return self The matching enum case
+     * @throws \InvalidArgumentException If the source cannot be converted
+     */
+    public static function from(mixed $source): self
+    {
+        dd($source);
+        // Si c'est déjà une instance du même enum, la retourner directement
+        if ($source instanceof self) {
+            return $source;
+        }
+
+        // Pour les backed enums (avec valeur scalaire)
+        if (self::isBackedEnum()) {
+            // Si c'est une string ou un entier
+            if (is_string($source) || is_int($source)) {
+                $enum = self::tryFrom($source);
+                if ($enum !== null) {
+                    return $enum;
+                }
+            }
+
+            // Si c'est un objet avec une propriété value
+            if (is_object($source) && property_exists($source, 'value')) {
+                return self::from($source->value);
+            }
+
+            // Si c'est un tableau avec une clé value
+            if (is_array($source) && isset($source['value'])) {
+                return self::from($source['value']);
+            }
+
+            throw new \InvalidArgumentException(sprintf(
+                'Cannot convert value to enum %s: expected string|int, got %s',
+                self::class,
+                is_object($source) ? $source::class : gettype($source)
+            ));
+        }
+
+        // Pour les pure enums (sans valeur scalaire)
+        if (is_string($source)) {
+            foreach (self::cases() as $case) {
+                if ($case->name === $source) {
+                    return $case;
+                }
+            }
+        }
+
+        // Si c'est un objet, essayer de lire la propriété name
+        if (is_object($source) && property_exists($source, 'name')) {
+            return self::from($source->name);
+        }
+
+        throw new \InvalidArgumentException(sprintf(
+            'Cannot convert value to pure enum %s: expected string, got %s',
+            self::class,
+            is_object($source) ? $source::class : gettype($source)
+        ));
+    }
+
+    /**
      * Checks if the enum is a backed enum (has scalar values).
      *
      * @return bool True if the enum is backed, false if it's a pure enum

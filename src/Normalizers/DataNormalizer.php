@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Normalizers;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractData;
-use AndyDefer\DomainStructures\Enums\NormalizeMode;
+use AndyDefer\DomainStructures\Normalizers\Core\AbstractNormalizer;
 
 final class DataNormalizer extends AbstractNormalizer
 {
@@ -14,12 +14,12 @@ final class DataNormalizer extends AbstractNormalizer
         return $value instanceof AbstractData;
     }
 
-    public function normalize(mixed $value, NormalizeMode $mode = NormalizeMode::ARRAY, bool $includeNulls = true): mixed
+    public function normalize(mixed $value): mixed
     {
-        if (! $value instanceof AbstractData) {
-            return $this->next($value, $mode, $includeNulls);
+        if (!$value instanceof AbstractData) {
+            return $this->next($value);
         }
 
-        return $value->normalize(NormalizeMode::ARRAY);
+        return $value->normalize();
     }
 }

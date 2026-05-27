@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Normalizers;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
-use AndyDefer\DomainStructures\Enums\NormalizeMode;
+use AndyDefer\DomainStructures\Normalizers\Core\AbstractNormalizer;
 
 final class RecordNormalizer extends AbstractNormalizer
 {
@@ -14,12 +14,14 @@ final class RecordNormalizer extends AbstractNormalizer
         return $value instanceof AbstractRecord;
     }
 
-    public function normalize(mixed $value, NormalizeMode $mode = NormalizeMode::ARRAY, bool $includeNulls = true): mixed
+    public function normalize(mixed $value): mixed
     {
-        if (! $value instanceof AbstractRecord) {
-            return $this->next($value, $mode, $includeNulls);
+        if (!$value instanceof AbstractRecord) {
+            return $this->next($value);
         }
 
-        return $value->normalize($includeNulls, NormalizeMode::ARRAY);
+        // AbstractRecord::normalize() retourne TOUJOURS un tableau
+        // Le paramètre includeNulls est géré par le Record lui-même
+        return $value->normalize(true);
     }
 }

@@ -1,0 +1,1138 @@
+<?php
+
+declare(strict_types=1);
+
+namespace AndyDefer\DomainStructures\Tests\Unit\Abstracts;
+
+use AndyDefer\DomainStructures\Abstracts\AbstractData;
+use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
+use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
+use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
+use AndyDefer\DomainStructures\Collections\Core\DataCollection;
+use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
+use AndyDefer\DomainStructures\Collections\Utility\IntTypedCollection;
+use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\DomainStructures\Utils\DataObject;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
+use AndyDefer\DomainStructures\Normalizers\RootNormalizer;
+use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
+use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestBackedIntEnum;
+use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestBackedStringEnum;
+use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestPureEnum;
+use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
+use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserRole;
+use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
+use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
+use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
+use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
+use AndyDefer\DomainStructures\Tests\TestCase;
+use AndyDefer\DomainStructures\Utils\EmptyData;
+use InvalidArgumentException;
+use UnitEnum;
+
+final class AbstractTypedCollectionTest extends TestCase
+{
+    private TestEmailAddress $testEmail;
+    private TestIso8601DateTime $now;
+    private RootNormalizer $rootNormalizer;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->testEmail = TestEmailAddress::from('test@example.com');
+        $this->now = TestIso8601DateTime::from('2024-01-01T12:00:00+00:00');
+        $this->rootNormalizer = new RootNormalizer();
+    }
+
+    // ==================== CONSTRUCTOR AND TYPE VALIDATION TESTS ====================
+
+    public function test_constructor_accepts_valid_scalar_types(): void
+    {
+        $intCollection = new TypedCollection('int');
+        $stringCollection = new TypedCollection('string');
+        $floatCollection = new TypedCollection('float');
+        $boolCollection = new TypedCollection('bool');
+        $nullCollection = new TypedCollection('null');
+
+        $this->assertSame(['int'], $intCollection->getAllowedTypes());
+        $this->assertSame(['string'], $stringCollection->getAllowedTypes());
+        $this->assertSame(['float'], $floatCollection->getAllowedTypes());
+        $this->assertSame(['bool'], $boolCollection->getAllowedTypes());
+        $this->assertSame(['null'], $nullCollection->getAllowedTypes());
+    }
+
+    public function test_constructor_accepts_enum_types(): void
+    {
+        $collection1 = new TypedCollection(UnitEnum::class);
+        $collection2 = new TypedCollection(TestUserStatus::class);
+        $collection3 = new TypedCollection(TestUserRole::class);
+        $collection4 = new TypedCollection(TestUserGrade::class);
+
+        $this->assertSame([UnitEnum::class], $collection1->getAllowedTypes());
+        $this->assertSame([TestUserStatus::class], $collection2->getAllowedTypes());
+        $this->assertSame([TestUserRole::class], $collection3->getAllowedTypes());
+        $this->assertSame([TestUserGrade::class], $collection4->getAllowedTypes());
+    }
+
+    public function test_constructor_accepts_abstract_record_type(): void
+    {
+        $collection = new TypedCollection(AbstractRecord::class);
+        $recordCollection = new TypedCollection(TestUserRecord::class);
+
+        $this->assertSame([AbstractRecord::class], $collection->getAllowedTypes());
+        $this->assertSame([TestUserRecord::class], $recordCollection->getAllowedTypes());
+    }
+
+    public function test_constructor_accepts_abstract_value_object_type(): void
+    {
+        $collection = new TypedCollection(AbstractValueObject::class);
+        $voCollection = new TypedCollection(TestEmailAddress::class);
+
+        $this->assertSame([AbstractValueObject::class], $collection->getAllowedTypes());
+        $this->assertSame([TestEmailAddress::class], $voCollection->getAllowedTypes());
+    }
+
+    public function test_constructor_accepts_abstract_data_type(): void
+    {
+        $collection = new TypedCollection(AbstractData::class);
+        $this->assertSame([AbstractData::class], $collection->getAllowedTypes());
+    }
+
+    public function test_constructor_accepts_typed_collection_type(): void
+    {
+        $collection = new TypedCollection(AbstractTypedCollection::class);
+        $typedCollection = new TypedCollection(TypedCollection::class);
+
+        $this->assertSame([AbstractTypedCollection::class], $collection->getAllowedTypes());
+        $this->assertSame([TypedCollection::class], $typedCollection->getAllowedTypes());
+    }
+
+    public function test_constructor_accepts_data_object_type(): void
+    {
+        $collection = new TypedCollection(DataObject::class);
+        $this->assertSame([DataObject::class], $collection->getAllowedTypes());
+    }
+
+    public function test_constructor_accepts_multiple_types(): void
+    {
+        $collection = new TypedCollection('int', 'string', TestUserStatus::class, DataObject::class);
+
+        $this->assertSame(['int', 'string', TestUserStatus::class, DataObject::class], $collection->getAllowedTypes());
+    }
+
+    public function test_constructor_throws_exception_when_no_types_provided(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('At least one type must be provided');
+
+        new class extends AbstractTypedCollection
+        {
+            public function __construct()
+            {
+                parent::__construct();
+            }
+        };
+    }
+
+    public function test_constructor_throws_exception_for_non_existent_class(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Type "NonExistentClass" is not allowed');
+
+        new TypedCollection('NonExistentClass');
+    }
+
+    public function test_constructor_throws_exception_for_disallowed_type(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('is not allowed');
+
+        new TypedCollection('array');
+    }
+
+    // ==================== ADD AND VALIDATION TESTS ====================
+
+    public function test_add_accepts_valid_integer(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(42);
+
+        $this->assertCount(1, $collection);
+        $this->assertSame(42, $collection->toArray()[0]);
+    }
+
+    public function test_add_accepts_valid_string(): void
+    {
+        $collection = new TypedCollection('string');
+        $collection->add('hello');
+
+        $this->assertCount(1, $collection);
+        $this->assertSame('hello', $collection->toArray()[0]);
+    }
+
+    public function test_add_accepts_valid_float(): void
+    {
+        $collection = new TypedCollection('float');
+        $collection->add(3.14);
+
+        $this->assertCount(1, $collection);
+        $this->assertSame(3.14, $collection->toArray()[0]);
+    }
+
+    public function test_add_accepts_valid_boolean(): void
+    {
+        $collection = new TypedCollection('bool');
+        $collection->add(true);
+        $collection->add(false);
+
+        $this->assertCount(2, $collection);
+        $this->assertTrue($collection->toArray()[0]);
+        $this->assertFalse($collection->toArray()[1]);
+    }
+
+    public function test_add_accepts_null(): void
+    {
+        $collection = new TypedCollection('null');
+        $collection->add(null);
+
+        $this->assertCount(1, $collection);
+        $this->assertNull($collection->toArray()[0]);
+    }
+
+    public function test_add_accepts_backed_string_enum(): void
+    {
+        $collection = new TypedCollection(TestBackedStringEnum::class);
+        $collection->add(TestBackedStringEnum::VALUE_ONE);
+
+        $this->assertCount(1, $collection);
+        $this->assertSame(TestBackedStringEnum::VALUE_ONE, $collection->toArray()[0]);
+    }
+
+    public function test_add_accepts_backed_int_enum(): void
+    {
+        $collection = new TypedCollection(TestBackedIntEnum::class);
+        $collection->add(TestBackedIntEnum::VALUE_ONE);
+
+        $this->assertCount(1, $collection);
+        $this->assertSame(TestBackedIntEnum::VALUE_ONE, $collection->toArray()[0]);
+    }
+
+    public function test_add_accepts_pure_enum(): void
+    {
+        $collection = new TypedCollection(TestPureEnum::class);
+        $collection->add(TestPureEnum::VALUE_ONE);
+
+        $this->assertCount(1, $collection);
+        $this->assertSame(TestPureEnum::VALUE_ONE, $collection->toArray()[0]);
+    }
+
+    public function test_add_accepts_abstract_record_instance(): void
+    {
+        $collection = new TypedCollection(TestUserRecord::class);
+        $record = new TestUserRecord(name: 'John', email: $this->testEmail);
+        $collection->add($record);
+
+        $this->assertCount(1, $collection);
+        $this->assertSame($record, $collection->toArray()[0]);
+    }
+
+    public function test_add_accepts_abstract_value_object_instance(): void
+    {
+        $collection = new TypedCollection(TestEmailAddress::class);
+        $vo = TestEmailAddress::from('test@example.com');
+        $collection->add($vo);
+
+        $this->assertCount(1, $collection);
+        $this->assertSame($vo, $collection->toArray()[0]);
+    }
+
+    public function test_add_accepts_abstract_data_instance(): void
+    {
+        $collection = new TypedCollection(AbstractData::class);
+        $collection->add(new EmptyData);
+
+        $this->assertCount(1, $collection);
+    }
+
+    public function test_add_accepts_typed_collection_instance(): void
+    {
+        $collection = new TypedCollection(TypedCollection::class);
+        $innerCollection = new TypedCollection('int');
+        $collection->add($innerCollection);
+
+        $this->assertCount(1, $collection);
+        $this->assertSame($innerCollection, $collection->toArray()[0]);
+    }
+
+    public function test_add_accepts_data_object_instance(): void
+    {
+        $collection = new TypedCollection(DataObject::class);
+        $object = new DataObject(['name' => 'test']);
+        $collection->add($object);
+
+        $this->assertCount(1, $collection);
+        $this->assertSame($object, $collection->toArray()[0]);
+    }
+
+    public function test_add_accepts_multiple_items_at_once(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3, 4, 5);
+
+        $this->assertCount(5, $collection);
+        $this->assertSame([1, 2, 3, 4, 5], $collection->toArray());
+    }
+
+    public function test_add_returns_self_for_chaining(): void
+    {
+        $collection = new TypedCollection('int');
+        $result = $collection->add(1)->add(2)->add(3);
+
+        $this->assertSame($collection, $result);
+        $this->assertCount(3, $collection);
+    }
+
+    public function test_add_throws_exception_for_invalid_type(): void
+    {
+        $collection = new TypedCollection('int');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Expected type(s) int, got string');
+
+        $collection->add('not an integer');
+    }
+
+    public function test_add_throws_exception_for_invalid_enum(): void
+    {
+        $collection = new TypedCollection(TestUserStatus::class);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/Expected type\(s\) .*TestUserStatus.*/');
+
+        $collection->add(TestUserRole::ADMIN);
+    }
+
+    public function test_add_throws_exception_for_disallowed_object_type(): void
+    {
+        $collection = new TypedCollection('int');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/Expected type\(s\) int, got .*DataObject/');
+
+        $collection->add(new DataObject());
+    }
+
+    // ==================== ALL METHOD TESTS ====================
+
+    public function test_all_returns_new_collection_with_same_items(): void
+    {
+        $original = new TypedCollection('int');
+        $original->add(1, 2, 3);
+
+        $newCollection = $original->all();
+
+        $this->assertNotSame($original, $newCollection);
+        $this->assertEquals($original->toArray(), $newCollection->toArray());
+    }
+
+    public function test_all_on_empty_collection_returns_empty_collection(): void
+    {
+        $original = new TypedCollection('int');
+        $newCollection = $original->all();
+
+        $this->assertNotSame($original, $newCollection);
+        $this->assertCount(0, $newCollection);
+    }
+
+    // ==================== TO_ARRAY METHOD TESTS ====================
+
+    public function test_to_array_returns_plain_array_of_items(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3);
+
+        $array = $collection->toArray();
+
+        $this->assertIsArray($array);
+        $this->assertSame([1, 2, 3], $array);
+    }
+
+    public function test_to_array_on_empty_collection_returns_empty_array(): void
+    {
+        $collection = new TypedCollection('int');
+        $array = $collection->toArray();
+
+        $this->assertIsArray($array);
+        $this->assertEmpty($array);
+    }
+
+    // ==================== GET_ALLOWED_TYPES METHOD TESTS ====================
+
+    public function test_get_allowed_types_returns_configured_types(): void
+    {
+        $collection = new TypedCollection('int', 'string', TestUserStatus::class);
+        $types = $collection->getAllowedTypes();
+
+        $this->assertSame(['int', 'string', TestUserStatus::class], $types);
+    }
+
+    // ==================== COUNT AND EMPTINESS TESTS ====================
+
+    public function test_count_returns_correct_number_of_items(): void
+    {
+        $collection = new TypedCollection('int');
+
+        $this->assertSame(0, $collection->count());
+
+        $collection->add(1);
+        $this->assertSame(1, $collection->count());
+
+        $collection->add(2, 3);
+        $this->assertSame(3, $collection->count());
+    }
+
+    public function test_is_empty_returns_true_for_empty_collection(): void
+    {
+        $collection = new TypedCollection('int');
+
+        $this->assertTrue($collection->isEmpty());
+        $this->assertFalse($collection->isNotEmpty());
+    }
+
+    public function test_is_empty_returns_false_for_non_empty_collection(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1);
+
+        $this->assertFalse($collection->isEmpty());
+        $this->assertTrue($collection->isNotEmpty());
+    }
+
+    // ==================== MAP METHOD TESTS ====================
+
+    public function test_map_transforms_each_item_and_returns_new_collection(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3, 4, 5);
+
+        $doubled = $collection->map(fn($item) => $item * 2);
+
+        $this->assertNotSame($collection, $doubled);
+        $this->assertSame([2, 4, 6, 8, 10], $doubled->toArray());
+        $this->assertSame([1, 2, 3, 4, 5], $collection->toArray());
+    }
+
+    public function test_map_can_change_collection_type(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3);
+
+        $stringCollection = $collection->map(fn($item) => "Number: {$item}");
+
+        $this->assertSame(['string'], $stringCollection->getAllowedTypes());
+        $this->assertSame(['Number: 1', 'Number: 2', 'Number: 3'], $stringCollection->toArray());
+    }
+
+    public function test_map_on_empty_collection_returns_empty_collection(): void
+    {
+        $emptyCollection = new TypedCollection('int');
+        $result = $emptyCollection->map(fn($item) => $item * 2);
+
+        $this->assertCount(0, $result);
+    }
+
+    // ==================== FILTER METHOD TESTS ====================
+
+    public function test_filter_keeps_only_items_satisfying_callback(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+
+        $evenNumbers = $collection->filter(fn($item) => $item % 2 === 0);
+
+        $this->assertSame([2, 4, 6, 8, 10], $evenNumbers->toArray());
+    }
+
+    public function test_filter_returns_new_collection_instance(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3);
+
+        $filtered = $collection->filter(fn($item) => $item > 1);
+
+        $this->assertNotSame($collection, $filtered);
+        $this->assertSame([1, 2, 3], $collection->toArray());
+        $this->assertSame([2, 3], $filtered->toArray());
+    }
+
+    public function test_filter_on_empty_collection_returns_empty_collection(): void
+    {
+        $emptyCollection = new TypedCollection('int');
+        $result = $emptyCollection->filter(fn($item) => $item > 0);
+
+        $this->assertCount(0, $result);
+    }
+
+    // ==================== REDUCE METHOD TESTS ====================
+
+    public function test_reduce_aggregates_values_correctly(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3, 4, 5);
+
+        $sum = $collection->reduce(fn($carry, $item) => $carry + $item, 0);
+
+        $this->assertSame(15, $sum);
+    }
+
+    public function test_reduce_with_string_concatenation_works(): void
+    {
+        $collection = new TypedCollection('string');
+        $collection->add('Hello', ' ', 'World', '!');
+
+        $result = $collection->reduce(fn($carry, $item) => $carry . $item, '');
+
+        $this->assertSame('Hello World!', $result);
+    }
+
+    public function test_reduce_on_empty_collection_returns_initial_value(): void
+    {
+        $emptyCollection = new TypedCollection('int');
+        $result = $emptyCollection->reduce(fn($carry, $item) => $carry + $item, 100);
+
+        $this->assertSame(100, $result);
+    }
+
+    // ==================== FIND METHOD TESTS ====================
+
+    public function test_find_returns_first_item_matching_predicate(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 3, 5, 6, 7, 8);
+
+        $firstEven = $collection->find(fn($item) => $item % 2 === 0);
+
+        $this->assertSame(6, $firstEven);
+    }
+
+    public function test_find_returns_null_when_no_item_matches(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 3, 5, 7);
+
+        $result = $collection->find(fn($item) => $item % 2 === 0);
+
+        $this->assertNull($result);
+    }
+
+    public function test_find_on_empty_collection_returns_null(): void
+    {
+        $emptyCollection = new TypedCollection('int');
+        $result = $emptyCollection->find(fn($item) => true);
+
+        $this->assertNull($result);
+    }
+
+    // ==================== EVERY METHOD TESTS ====================
+
+    public function test_every_returns_true_when_all_items_satisfy_predicate(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(2, 4, 6, 8, 10);
+
+        $allEven = $collection->every(fn($item) => $item % 2 === 0);
+
+        $this->assertTrue($allEven);
+    }
+
+    public function test_every_returns_false_when_any_item_fails_predicate(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(2, 4, 5, 6, 8);
+
+        $allEven = $collection->every(fn($item) => $item % 2 === 0);
+
+        $this->assertFalse($allEven);
+    }
+
+    public function test_every_on_empty_collection_returns_true(): void
+    {
+        $emptyCollection = new TypedCollection('int');
+        $result = $emptyCollection->every(fn($item) => $item > 100);
+
+        $this->assertTrue($result);
+    }
+
+    // ==================== SOME METHOD TESTS ====================
+
+    public function test_some_returns_true_when_at_least_one_item_satisfies_predicate(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 3, 5, 6, 7, 9);
+
+        $hasEven = $collection->some(fn($item) => $item % 2 === 0);
+
+        $this->assertTrue($hasEven);
+    }
+
+    public function test_some_returns_false_when_no_items_satisfy_predicate(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 3, 5, 7, 9);
+
+        $hasEven = $collection->some(fn($item) => $item % 2 === 0);
+
+        $this->assertFalse($hasEven);
+    }
+
+    public function test_some_on_empty_collection_returns_false(): void
+    {
+        $emptyCollection = new TypedCollection('int');
+        $result = $emptyCollection->some(fn($item) => true);
+
+        $this->assertFalse($result);
+    }
+
+    // ==================== SORT METHOD TESTS ====================
+
+    public function test_sort_orders_items_in_ascending_order(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(5, 2, 8, 1, 9, 3);
+
+        $sorted = $collection->sort();
+
+        $this->assertSame([1, 2, 3, 5, 8, 9], $sorted->toArray());
+    }
+
+    public function test_sort_returns_new_collection_instance(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(3, 1, 2);
+
+        $sorted = $collection->sort();
+
+        $this->assertNotSame($collection, $sorted);
+        $this->assertSame([1, 2, 3], $sorted->toArray());
+        $this->assertSame([3, 1, 2], $collection->toArray());
+    }
+
+    public function test_sort_on_empty_collection_returns_empty_collection(): void
+    {
+        $emptyCollection = new TypedCollection('int');
+        $sorted = $emptyCollection->sort();
+
+        $this->assertCount(0, $sorted);
+    }
+
+    // ==================== REVERSE METHOD TESTS ====================
+
+    public function test_reverse_reverses_order_of_items(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3, 4, 5);
+
+        $reversed = $collection->reverse();
+
+        $this->assertSame([5, 4, 3, 2, 1], $reversed->toArray());
+    }
+
+    public function test_reverse_returns_new_collection_instance(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3);
+
+        $reversed = $collection->reverse();
+
+        $this->assertNotSame($collection, $reversed);
+        $this->assertSame([1, 2, 3], $collection->toArray());
+        $this->assertSame([3, 2, 1], $reversed->toArray());
+    }
+
+    public function test_reverse_on_empty_collection_returns_empty_collection(): void
+    {
+        $emptyCollection = new TypedCollection('int');
+        $reversed = $emptyCollection->reverse();
+
+        $this->assertCount(0, $reversed);
+    }
+
+    // ==================== MERGE METHOD TESTS ====================
+
+    public function test_merge_combines_two_collections(): void
+    {
+        $collection1 = new TypedCollection('int');
+        $collection2 = new TypedCollection('int');
+        $collection1->add(1, 2, 3);
+        $collection2->add(4, 5, 6);
+
+        $merged = $collection1->merge($collection2);
+
+        $this->assertSame([1, 2, 3, 4, 5, 6], $merged->toArray());
+    }
+
+    public function test_merge_returns_new_collection_instance(): void
+    {
+        $collection1 = new TypedCollection('int');
+        $collection2 = new TypedCollection('int');
+        $collection1->add(1, 2);
+        $collection2->add(3, 4);
+
+        $merged = $collection1->merge($collection2);
+
+        $this->assertNotSame($collection1, $merged);
+        $this->assertNotSame($collection2, $merged);
+        $this->assertSame([1, 2], $collection1->toArray());
+        $this->assertSame([3, 4], $collection2->toArray());
+    }
+
+    public function test_merge_with_empty_collection_returns_original_items(): void
+    {
+        $collection1 = new TypedCollection('int');
+        $emptyCollection = new TypedCollection('int');
+        $collection1->add(1, 2, 3);
+
+        $merged = $collection1->merge($emptyCollection);
+
+        $this->assertSame([1, 2, 3], $merged->toArray());
+    }
+
+    // ==================== CONTAINS METHOD TESTS ====================
+
+    public function test_contains_returns_true_when_value_exists(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3, 4, 5);
+
+        $this->assertTrue($collection->contains(3));
+        $this->assertTrue($collection->contains(1));
+        $this->assertTrue($collection->contains(5));
+    }
+
+    public function test_contains_returns_false_when_value_does_not_exist(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3);
+
+        $this->assertFalse($collection->contains(4));
+        $this->assertFalse($collection->contains(0));
+    }
+
+    public function test_contains_works_with_objects(): void
+    {
+        $record1 = new TestUserRecord(name: 'John', email: $this->testEmail);
+        $record2 = new TestUserRecord(name: 'Jane', email: $this->testEmail);
+        $collection = new TypedCollection(TestUserRecord::class);
+        $collection->add($record1, $record2);
+
+        $this->assertTrue($collection->contains($record1));
+        $this->assertTrue($collection->contains($record2));
+
+        $newRecord = new TestUserRecord(name: 'John', email: $this->testEmail);
+        $this->assertFalse($collection->contains($newRecord));
+    }
+
+    // ==================== EACH METHOD TESTS ====================
+
+    public function test_each_executes_callback_for_each_item(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3);
+        $sum = 0;
+
+        $result = $collection->each(function ($item) use (&$sum) {
+            $sum += $item;
+        });
+
+        $this->assertSame(6, $sum);
+        $this->assertSame($collection, $result);
+    }
+
+    public function test_each_returns_self_for_chaining(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3);
+        $logs = [];
+
+        $result = $collection->each(function ($item) use (&$logs) {
+            $logs[] = $item;
+        })->add(4, 5);
+
+        $this->assertSame($collection, $result);
+        $this->assertSame([1, 2, 3, 4, 5], $collection->toArray());
+    }
+
+    // ==================== NORMALIZATION TESTS ====================
+
+    public function test_normalize_returns_array_by_default(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3);
+
+        $result = $collection->normalize();
+
+        $this->assertIsArray($result);
+        $this->assertSame([1, 2, 3], $result);
+    }
+
+    public function test_normalize_excludes_nulls_when_include_nulls_false(): void
+    {
+        $collection = new TypedCollection('int', 'null');
+        $collection->add(1, null, 2, null, 3);
+
+        $result = $collection->normalize(false);
+
+        $this->assertSame([1, 2, 3], $result);
+    }
+
+    public function test_normalize_on_empty_collection_returns_empty_array(): void
+    {
+        $emptyCollection = new TypedCollection('int');
+        $result = $emptyCollection->normalize();
+
+        $this->assertIsArray($result);
+        $this->assertEmpty($result);
+    }
+
+    // ==================== JSON SERIALIZATION TESTS ====================
+
+    public function test_collection_implements_json_serializable(): void
+    {
+        $collection = new TypedCollection('int');
+        $this->assertInstanceOf(\JsonSerializable::class, $collection);
+    }
+
+    public function test_json_serialize_returns_items_array(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3);
+
+        $serialized = $collection->jsonSerialize();
+
+        $this->assertSame([1, 2, 3], $serialized);
+    }
+
+    public function test_collection_can_be_json_encoded(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3);
+
+        $json = json_encode($collection);
+
+        $this->assertSame('[1,2,3]', $json);
+    }
+
+    // ==================== MAGIC TO_STRING TESTS ====================
+
+    public function test_to_string_returns_json_representation(): void
+    {
+        $collection = new TypedCollection('string');
+        $collection->add('a', 'b', 'c');
+
+        $string = (string) $collection;
+
+        $this->assertIsString($string);
+        $this->assertJson($string);
+        $this->assertSame('["a","b","c"]', $string);
+    }
+
+    // ==================== CLONING TESTS ====================
+
+    public function test_clone_creates_deep_copy_of_collection(): void
+    {
+        $original = new TypedCollection('int');
+        $original->add(1, 2, 3);
+
+        $cloned = clone $original;
+        $cloned->add(4, 5);
+
+        $this->assertSame([1, 2, 3], $original->toArray());
+        $this->assertSame([1, 2, 3, 4, 5], $cloned->toArray());
+    }
+
+    public function test_clone_creates_deep_copy_of_object_items(): void
+    {
+        $original = new TypedCollection(TestUserRecord::class);
+        $user = new TestUserRecord(name: 'John', email: $this->testEmail);
+        $original->add($user);
+
+        $cloned = clone $original;
+        $originalItem = $original->toArray()[0];
+        $clonedItem = $cloned->toArray()[0];
+
+        $this->assertNotSame($originalItem, $clonedItem);
+        $this->assertEquals($originalItem, $clonedItem);
+    }
+
+    // ==================== ARRAY ACCESS TESTS ====================
+
+    public function test_array_access_offset_get_returns_item_at_index(): void
+    {
+        $collection = new TypedCollection('string');
+        $collection->add('a', 'b', 'c');
+
+        $this->assertSame('a', $collection[0]);
+        $this->assertSame('b', $collection[1]);
+        $this->assertSame('c', $collection[2]);
+    }
+
+    public function test_array_access_offset_exists_checks_index_existence(): void
+    {
+        $collection = new TypedCollection('string');
+        $collection->add('a', 'b', 'c');
+
+        $this->assertTrue(isset($collection[0]));
+        $this->assertTrue(isset($collection[1]));
+        $this->assertTrue(isset($collection[2]));
+        $this->assertFalse(isset($collection[3]));
+    }
+
+    public function test_array_access_offset_set_adds_item_at_specified_index(): void
+    {
+        $collection = new TypedCollection('string');
+        $collection->add('a', 'b');
+
+        $collection[2] = 'c';
+
+        $this->assertSame('c', $collection[2]);
+        $this->assertCount(3, $collection);
+    }
+
+    public function test_array_access_offset_set_with_null_index_appends(): void
+    {
+        $collection = new TypedCollection('string');
+        $collection[] = 'a';
+        $collection[] = 'b';
+        $collection[] = 'c';
+
+        $this->assertSame(['a', 'b', 'c'], $collection->toArray());
+    }
+
+    public function test_array_access_offset_set_validates_type(): void
+    {
+        $collection = new TypedCollection('int');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Expected type(s) int, got string');
+
+        $collection[0] = 'not an integer';
+    }
+
+    public function test_array_access_offset_unset_removes_item(): void
+    {
+        $collection = new TypedCollection('string');
+        $collection->add('a', 'b', 'c');
+
+        unset($collection[1]);
+
+        $this->assertCount(2, $collection);
+        $this->assertSame('a', $collection[0]);
+        $this->assertSame('c', $collection[2]);
+    }
+
+    // ==================== ITERATOR TESTS ====================
+
+    public function test_collection_is_traversable_with_foreach(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3, 4, 5);
+        $items = [];
+
+        foreach ($collection as $item) {
+            $items[] = $item;
+        }
+
+        $this->assertSame([1, 2, 3, 4, 5], $items);
+    }
+
+    public function test_get_iterator_returns_array_iterator(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3);
+
+        $iterator = $collection->getIterator();
+
+        $this->assertInstanceOf(\ArrayIterator::class, $iterator);
+        $this->assertSame([1, 2, 3], iterator_to_array($iterator));
+    }
+
+    // ==================== STATIC HELPER METHOD TESTS ====================
+
+    public function test_get_allowed_types_list_returns_all_allowed_types(): void
+    {
+        $collection = new TypedCollection();
+        $allowedTypes = $collection->getAllowedTypes();
+
+        $this->assertContains('int', $allowedTypes);
+        $this->assertContains('string', $allowedTypes);
+        $this->assertContains('float', $allowedTypes);
+        $this->assertContains('bool', $allowedTypes);
+        $this->assertContains('null', $allowedTypes);
+        $this->assertContains(UnitEnum::class, $allowedTypes);
+        $this->assertContains(AbstractRecord::class, $allowedTypes);
+        $this->assertContains(AbstractValueObject::class, $allowedTypes);
+        $this->assertContains(AbstractData::class, $allowedTypes);
+        $this->assertContains(AbstractTypedCollection::class, $allowedTypes);
+        $this->assertContains(DataObject::class, $allowedTypes);
+    }
+
+    // ==================== COMPLEX WORKFLOW TESTS ====================
+
+    public function test_complete_workflow_with_chaining_operations(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(5, 2, 8, 1, 9, 3, 6, 4, 7);
+
+        $result = $collection
+            ->filter(fn($n) => $n % 2 === 0)
+            ->map(fn($n) => $n * 10)
+            ->sort()
+            ->reverse();
+
+        $this->assertSame([80, 60, 40, 20], $result->toArray());
+    }
+
+    public function test_collection_with_mixed_types_works(): void
+    {
+        $collection = new TypedCollection('int', 'string', 'float', 'bool', 'null');
+
+        $collection->add(42, 'hello', 3.14, true, null);
+        $filtered = $collection->filter(fn($item) => $item !== null);
+        $mapped = $filtered->map(fn($item) => is_string($item) ? strtoupper($item) : $item);
+
+        $this->assertCount(5, $collection);
+        $this->assertCount(4, $filtered);
+        $this->assertSame([42, 'HELLO', 3.14, true], $mapped->toArray());
+    }
+
+    public function test_collection_with_nested_collections_works(): void
+    {
+        $outer = new TypedCollection(TypedCollection::class);
+
+        $inner1 = new TypedCollection('int');
+        $inner1->add(1, 2, 3);
+
+        $inner2 = new TypedCollection('string');
+        $inner2->add('a', 'b', 'c');
+
+        $outer->add($inner1, $inner2);
+
+        $this->assertCount(2, $outer);
+        $this->assertSame([1, 2, 3], $outer->toArray()[0]->toArray());
+        $this->assertSame(['a', 'b', 'c'], $outer->toArray()[1]->toArray());
+    }
+
+    // ==================== FROM METHOD TESTS ====================
+
+    public function test_string_typed_collection_from_array_of_strings(): void
+    {
+        $source = ['apple', 'banana', 'cherry'];
+        $collection = StringTypedCollection::from($source);
+
+        $this->assertCount(3, $collection);
+        $this->assertSame(['apple', 'banana', 'cherry'], $collection->toArray());
+    }
+
+    public function test_string_typed_collection_from_existing_collection(): void
+    {
+        $original = new StringTypedCollection();
+        $original->add('a', 'b', 'c');
+
+        $collection = StringTypedCollection::from($original);
+
+        $this->assertSame($original, $collection);
+    }
+
+    public function test_string_typed_collection_from_non_iterable_throws_exception(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        StringTypedCollection::from('not an iterable');
+    }
+
+    public function test_int_typed_collection_from_array_of_ints(): void
+    {
+        $source = [1, 2, 3, 4, 5];
+        $collection = IntTypedCollection::from($source);
+
+        $this->assertSame([1, 2, 3, 4, 5], $collection->toArray());
+    }
+
+    public function test_data_collection_from_array_of_data_objects(): void
+    {
+        $user1 = new TestUserData(
+            name: 'John Doe',
+            email: $this->testEmail,
+            status: TestUserStatus::ACTIVE,
+            role: TestUserRole::USER,
+            grade: TestUserGrade::BRONZE,
+            id: 1,
+            createdAt: $this->now
+        );
+
+        $user2 = new TestUserData(
+            name: 'Jane Doe',
+            email: TestEmailAddress::from('jane@example.com'),
+            status: TestUserStatus::ACTIVE,
+            role: TestUserRole::ADMIN,
+            grade: TestUserGrade::GOLD,
+            id: 2,
+            createdAt: $this->now
+        );
+
+        $collection = DataCollection::from([$user1, $user2]);
+
+        $this->assertCount(2, $collection);
+        $this->assertSame($user1, $collection[0]);
+        $this->assertSame($user2, $collection[1]);
+    }
+
+    public function test_data_collection_from_existing_collection(): void
+    {
+        $original = new DataCollection();
+        $user = new TestUserData(
+            name: 'John Doe',
+            email: $this->testEmail,
+            status: TestUserStatus::ACTIVE,
+            role: TestUserRole::USER,
+            grade: TestUserGrade::BRONZE,
+            id: 1,
+            createdAt: $this->now
+        );
+        $original->add($user);
+
+        $collection = DataCollection::from($original);
+
+        $this->assertSame($original, $collection);
+    }
+
+    public function test_collection_with_records_from_array_of_records(): void
+    {
+        $record1 = new TestUserRecord(
+            id: 1,
+            name: 'John Doe',
+            email: $this->testEmail,
+            status: TestUserStatus::ACTIVE,
+            role: TestUserRole::USER,
+            grade: TestUserGrade::BRONZE
+        );
+
+        $record2 = new TestUserRecord(
+            id: 2,
+            name: 'Jane Doe',
+            email: TestEmailAddress::from('jane@example.com'),
+            status: TestUserStatus::ACTIVE,
+            role: TestUserRole::ADMIN,
+            grade: TestUserGrade::GOLD
+        );
+
+        $collection = new TypedCollection(TestUserRecord::class);
+        foreach ([$record1, $record2] as $item) {
+            $collection->add($item);
+        }
+
+        $this->assertCount(2, $collection);
+        $this->assertSame($record1, $collection[0]);
+        $this->assertSame($record2, $collection[1]);
+    }
+}

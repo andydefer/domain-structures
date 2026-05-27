@@ -6,10 +6,14 @@ namespace AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\DomainStructures\Utils\DataObject;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestUserRoleCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserProfileRecord;
+use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
+use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
+use InvalidArgumentException;
 
 /**
  * Value Object representing a user profile.
@@ -28,9 +32,26 @@ final class TestUserProfile extends AbstractValueObject
         public readonly TestIso8601DateTime $createdAt,
     ) {}
 
-    public static function from(...$values): static
+    public static function from(mixed $source): static
     {
-        return new self(...$values);
+        if ($source instanceof self) {
+            return $source;
+        }
+
+        // Normalisation : tableau ou objet → DataObject
+        $data = DataObject::from($source);
+
+        return new self(
+            id: $data->id ?? throw new InvalidArgumentException('Missing id'),
+            name: $data->name ?? throw new InvalidArgumentException('Missing name'),
+            email: TestEmailAddress::from($data->email ?? throw new InvalidArgumentException('Missing email')),
+            status: TestUserStatus::from($data->status ?? throw new InvalidArgumentException('Missing status')),
+            roles: TestUserRoleCollection::from($data->roles ?? throw new InvalidArgumentException('Missing roles')),
+            grade: TestUserGrade::from($data->grade ?? throw new InvalidArgumentException('Missing grade')),
+            emailVerifiedAt: isset($data->emailVerifiedAt) ? TestIso8601DateTime::from($data->emailVerifiedAt) : null,
+            tags: StringTypedCollection::from($data->tags ?? throw new InvalidArgumentException('Missing tags')),
+            createdAt: TestIso8601DateTime::from($data->createdAt ?? throw new InvalidArgumentException('Missing createdAt')),
+        );
     }
 
     public function getValue(): TestUserProfileRecord

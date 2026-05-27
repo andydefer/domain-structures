@@ -14,20 +14,20 @@ use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 
 /**
  * Test User Data DTO for unit tests.
- *
- * Used to test the transformation of User records into API responses.
  */
 final class TestUserData extends AbstractData
 {
     public function __construct(
-        public readonly string $id,
+        // REQUIRED PARAMETERS FIRST
         public readonly string $name,
         public readonly TestEmailAddress $email,
         public readonly TestUserStatus $status,
         public readonly TestUserRole $role,
         public readonly TestUserGrade $grade,
-        public readonly ?TestIso8601DateTime $emailVerifiedAt,
-        public readonly StringTypedCollection $tags,
-        public readonly TestIso8601DateTime $createdAt,
+        // OPTIONAL PARAMETERS AFTER
+        public readonly ?int $id = null,
+        public readonly ?TestIso8601DateTime $emailVerifiedAt = null,
+        public readonly StringTypedCollection $tags = new StringTypedCollection,
+        public readonly ?TestIso8601DateTime $createdAt = null,
     ) {}
 }

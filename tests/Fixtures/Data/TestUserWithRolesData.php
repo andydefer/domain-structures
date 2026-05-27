@@ -20,7 +20,7 @@ use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 final class TestUserWithRolesData extends AbstractData
 {
     public function __construct(
-        public readonly string $id,
+        public readonly int $id,
         public readonly string $name,
         public readonly TestEmailAddress $email,
         public readonly TestUserStatus $status,

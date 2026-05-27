@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Normalizers;
 
-use AndyDefer\DomainStructures\Enums\NormalizeMode;
+use AndyDefer\DomainStructures\Normalizers\Core\AbstractNormalizer;
 use UnitEnum;
 
 final class EnumNormalizer extends AbstractNormalizer
@@ -14,12 +14,18 @@ final class EnumNormalizer extends AbstractNormalizer
         return $value instanceof UnitEnum;
     }
 
-    public function normalize(mixed $value, NormalizeMode $mode = NormalizeMode::ARRAY, bool $includeNulls = true): mixed
+    public function normalize(mixed $value): mixed
     {
-        if (! $value instanceof UnitEnum) {
-            return $this->next($value, $mode, $includeNulls);
+        if (!$value instanceof UnitEnum) {
+            return $this->next($value);
         }
 
-        return $value instanceof \BackedEnum ? $value->value : $value->name;
+        // Pour les backed enums, retourner la valeur
+        if ($value instanceof \BackedEnum) {
+            return $value->value;
+        }
+
+        // Pour les pure enums, retourner le nom
+        return $value->name;
     }
 }

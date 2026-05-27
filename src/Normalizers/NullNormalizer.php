@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Normalizers;
 
-use AndyDefer\DomainStructures\Enums\NormalizeMode;
+use AndyDefer\DomainStructures\Normalizers\Core\AbstractNormalizer;
 
 final class NullNormalizer extends AbstractNormalizer
 {
@@ -13,8 +13,12 @@ final class NullNormalizer extends AbstractNormalizer
         return $value === null;
     }
 
-    public function normalize(mixed $value, NormalizeMode $mode = NormalizeMode::ARRAY, bool $includeNulls = true): mixed
+    public function normalize(mixed $value): mixed
     {
-        return null;
+        if ($value === null) {
+            return null;
+        }
+
+        return $this->next($value);
     }
 }

@@ -13,7 +13,7 @@ final class TestProductRecord extends AbstractRecord
         public readonly ?int $id = null,
 
         public readonly ?string $name = null,
-        public readonly ?int $price = null,
+        public readonly ?float $price = null,
         /**
          * @param  array<string, mixed>|null  $metadata  JSON metadata (key-value pairs)
          */

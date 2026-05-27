@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Normalizers;
 
-use AndyDefer\DomainStructures\Enums\NormalizeMode;
+use AndyDefer\DomainStructures\Normalizers\Core\AbstractNormalizer;
 
 final class ArrayNormalizer extends AbstractNormalizer
 {
@@ -13,19 +13,15 @@ final class ArrayNormalizer extends AbstractNormalizer
         return is_array($value);
     }
 
-    public function normalize(mixed $value, NormalizeMode $mode = NormalizeMode::ARRAY, bool $includeNulls = true): mixed
+    public function normalize(mixed $value): mixed
     {
-        if (! is_array($value)) {
-            return $this->next($value, $mode, $includeNulls);
+        if (!is_array($value)) {
+            return $this->next($value);
         }
 
         $result = [];
         foreach ($value as $key => $item) {
-            $normalized = $this->next($item, $mode, $includeNulls);
-            if (! $includeNulls && $normalized === null) {
-                continue;
-            }
-            $result[$key] = $normalized;
+            $result[$key] = $this->next($item);
         }
 
         return $result;

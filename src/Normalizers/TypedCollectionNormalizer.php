@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Normalizers;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
-use AndyDefer\DomainStructures\Enums\NormalizeMode;
+use AndyDefer\DomainStructures\Normalizers\Core\AbstractNormalizer;
 
 final class TypedCollectionNormalizer extends AbstractNormalizer
 {
@@ -14,19 +14,15 @@ final class TypedCollectionNormalizer extends AbstractNormalizer
         return $value instanceof AbstractTypedCollection;
     }
 
-    public function normalize(mixed $value, NormalizeMode $mode = NormalizeMode::ARRAY, bool $includeNulls = true): mixed
+    public function normalize(mixed $value): mixed
     {
-        if (! $value instanceof AbstractTypedCollection) {
-            return $this->next($value, $mode, $includeNulls);
+        if (!$value instanceof AbstractTypedCollection) {
+            return $this->next($value);
         }
 
         $result = [];
         foreach ($value->all() as $item) {
-            $normalized = $this->next($item, $mode, $includeNulls);
-            if (! $includeNulls && $normalized === null) {
-                continue;
-            }
-            $result[] = $normalized;
+            $result[] = $this->next($item);
         }
 
         return $result;

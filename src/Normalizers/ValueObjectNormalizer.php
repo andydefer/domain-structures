@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Normalizers;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
-use AndyDefer\DomainStructures\Enums\NormalizeMode;
+use AndyDefer\DomainStructures\Normalizers\Core\AbstractNormalizer;
 
 final class ValueObjectNormalizer extends AbstractNormalizer
 {
@@ -14,14 +14,13 @@ final class ValueObjectNormalizer extends AbstractNormalizer
         return $value instanceof AbstractValueObject;
     }
 
-    public function normalize(mixed $value, NormalizeMode $mode = NormalizeMode::ARRAY, bool $includeNulls = true): mixed
+    public function normalize(mixed $value): mixed
     {
-        if (! $value instanceof AbstractValueObject) {
-            return $this->next($value, $mode, $includeNulls);
+        if (!$value instanceof AbstractValueObject) {
+            return $this->next($value);
         }
 
         $voValue = $value->getValue();
-
-        return $this->next($voValue, $mode, $includeNulls);
+        return $this->next($voValue);
     }
 }

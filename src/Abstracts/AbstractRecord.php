@@ -1,21 +1,22 @@
 <?php
 
-// FILE: src/Abstracts/AbstractRecord.php
+declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Abstracts;
 
 use AndyDefer\DomainStructures\Enums\NormalizeMode;
 use AndyDefer\DomainStructures\Interfaces\RecordInterface;
+use AndyDefer\DomainStructures\Interfaces\Transformable;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Traits\Hydratable;
 use ReflectionClass;
 use ReflectionProperty;
 
-abstract class AbstractRecord implements RecordInterface
+abstract class AbstractRecord implements RecordInterface, Transformable
 {
     use Hydratable;
 
-    public function normalize(NormalizeMode $mode = NormalizeMode::ARRAY, bool $includeNulls = true): array|string
+    public function normalize(bool $includeNulls = true): array
     {
         $reflection = new ReflectionClass($this);
         $properties = $reflection->getProperties(ReflectionProperty::IS_PUBLIC);
@@ -29,7 +30,8 @@ abstract class AbstractRecord implements RecordInterface
                 continue;
             }
 
-            $normalizedValue = NormalizerChain::get()->normalize($value, $mode, $includeNulls);
+            // 🔥 Toujours normaliser en ARRAY
+            $normalizedValue = NormalizerChain::get()->normalize($value, NormalizeMode::ARRAY, $includeNulls);
 
             if (! $includeNulls && $normalizedValue === null) {
                 continue;
@@ -38,11 +40,16 @@ abstract class AbstractRecord implements RecordInterface
             $result[$key] = $normalizedValue;
         }
 
-        return $mode === NormalizeMode::JSON ? json_encode($result, JSON_THROW_ON_ERROR) : $result;
+        return $result;
     }
 
     private function convertCamelToSnake(string $input): string
     {
         return strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $input));
+    }
+
+    public function __toString(): string
+    {
+        return json_encode($this->normalize(false), JSON_THROW_ON_ERROR);
     }
 }

@@ -4,109 +4,80 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Traits;
 
-use AndyDefer\DomainStructures\Abstracts\AbstractData;
-use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
-use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
-use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
-use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
-use InvalidArgumentException;
+use AndyDefer\DomainStructures\Enums\PhpType;
+use AndyDefer\DomainStructures\Interfaces\Transformable;
+use AndyDefer\DomainStructures\Utils\DataObject;
 use ReflectionClass;
 use ReflectionNamedType;
 use ReflectionUnionType;
 use RuntimeException;
 
 /**
- * Trait for Hydratable objects to enable creation from any source.
- *
- * Allows creating instances from:
- * - AbstractRecord
- * - AbstractValueObject
- * - AbstractData
- * - stdClass
- * - Any object with matching properties
+ * Trait for automatic hydration of objects.
+ * 
+ * Provides the from() method which analyzes the constructor and hydrates
+ * the object automatically.
  */
 trait Hydratable
 {
-    /**
-     * Create an instance from any source object.
-     *
-     * @param  object  $source  The source object (Record, ValueObject, Data, stdClass, etc.)
-     *
-     * @throws InvalidArgumentException If source is invalid
-     * @throws RuntimeException If a required property is missing or type mismatch
-     */
-    public static function from(object $source): static
-    {
-        if (! is_object($source)) {
-            throw new InvalidArgumentException('Source must be an object');
-        }
+    private const VALUE_ABSENT = '__ABSENT__';
 
+    /**
+     * Creates an instance from a source.
+     *
+     * @param mixed $source The source data
+     * @return static
+     * @throws RuntimeException
+     */
+    public static function from(mixed $source): static
+    {
+        // Normalize source to DataObject (handles camelCase/snake_case)
+        $dataObject = DataObject::from($source);
+
+        // Analyze the constructor
         $reflection = new ReflectionClass(static::class);
         $constructor = $reflection->getConstructor();
 
-        if (! $constructor) {
+        if (!$constructor) {
             throw new RuntimeException(sprintf('%s must have a constructor', static::class));
         }
 
         $parameters = [];
-        $missingProperties = [];
-        $typeMismatches = [];
 
         foreach ($constructor->getParameters() as $parameter) {
             $paramName = $parameter->getName();
             $paramType = $parameter->getType();
-            $isNullable = $parameter->allowsNull();
-            $hasDefault = $parameter->isDefaultValueAvailable();
 
-            try {
-                $value = self::extractValueFromSource($source, $paramName, $paramType);
+            // Extract raw value from DataObject (or VALUE_ABSENT if key doesn't exist)
+            $rawValue = self::getValueFromDataObject($dataObject, $paramName);
+            $isAbsent = $rawValue === self::VALUE_ABSENT;
 
-                if ($value === null && ! $isNullable && ! $hasDefault) {
-                    $missingProperties[] = $paramName;
+            // Convert value only if present (null is a valid value)
+            $value = $isAbsent ? null : self::convertToType($rawValue, $paramType, $paramName);
 
-                    continue;
-                }
-
-                if ($value !== null && ! self::isCompatibleType($value, $paramType)) {
-                    $expectedType = self::getTypeName($paramType);
-                    $actualType = is_object($value) ? $value::class : gettype($value);
-                    $typeMismatches[] = sprintf(
-                        '%s: expected %s, got %s',
-                        $paramName,
-                        $expectedType,
-                        $actualType
-                    );
-
-                    continue;
-                }
-
-                if ($value === null && $hasDefault) {
-                    $value = $parameter->getDefaultValue();
-                }
-
-                $parameters[$paramName] = $value;
-            } catch (\Exception $e) {
-                throw new RuntimeException(
-                    sprintf('Failed to extract property "%s": %s', $paramName, $e->getMessage()),
-                    0,
-                    $e
-                );
+            // CASE 1: Value is ABSENT (source doesn't have the key) -> use default value
+            if ($isAbsent && $parameter->isDefaultValueAvailable()) {
+                $parameters[] = $parameter->getDefaultValue();
+                continue;
             }
-        }
 
-        if (! empty($missingProperties)) {
-            throw new RuntimeException(sprintf(
-                'Missing required properties: %s. Source type: %s',
-                implode(', ', $missingProperties),
-                $source::class
-            ));
-        }
+            // CASE 2: Explicit NULL (source has key with null value) -> keep null
+            if ($value === null && $parameter->allowsNull()) {
+                $parameters[] = null;
+                continue;
+            }
 
-        if (! empty($typeMismatches)) {
+            // CASE 3: Normal value (not null) -> use it
+            if ($value !== null) {
+                $parameters[] = $value;
+                continue;
+            }
+
+            // CASE 4: Missing required parameter (no default, not nullable, and value is null)
             throw new RuntimeException(sprintf(
-                'Type mismatches: %s. Source type: %s',
-                implode('; ', $typeMismatches),
-                $source::class
+                'Missing required parameter "$%s" for %s::__construct',
+                $paramName,
+                static::class
             ));
         }
 
@@ -114,162 +85,205 @@ trait Hydratable
     }
 
     /**
-     * Create an array of instances from a TypedCollection.
+     * Hydrates a collection of sources.
      *
-     * @param  AbstractTypedCollection<object>  $collection
-     * @return array<int, static>
+     * @param iterable<mixed> $sources
+     * @return array<static>
      */
-    public static function collect(AbstractTypedCollection $collection): array
+    public static function collect(iterable $sources): array
     {
-        $result = [];
-
-        foreach ($collection->all() as $item) {
-            $result[] = static::from($item);
+        $results = [];
+        foreach ($sources as $source) {
+            $results[] = static::from($source);
         }
-
-        return $result;
+        return $results;
     }
 
     /**
-     * Extract a value from the source object using the NormalizerChain.
+     * Gets a value from DataObject.
+     * Returns VALUE_ABSENT sentinel if the key doesn't exist.
      *
-     * @param  object  $source  The source object
-     * @param  string  $paramName  The parameter name to look for
-     * @param  \ReflectionType|null  $paramType  The expected parameter type
+     * @param DataObject $dataObject
+     * @param string $paramName
+     * @return mixed
      */
-    private static function extractValueFromSource(object $source, string $paramName, ?\ReflectionType $paramType): mixed
+    private static function getValueFromDataObject(DataObject $dataObject, string $paramName): mixed
     {
-        $reflection = new ReflectionClass($source);
+        if ($dataObject->has($paramName)) {
+            return $dataObject->get($paramName);
+        }
+        return self::VALUE_ABSENT;
+    }
 
-        // Cas 1: Propriété directe
-        if ($reflection->hasProperty($paramName)) {
-            $property = $reflection->getProperty($paramName);
-            $property->setAccessible(true);
-
-            return $property->getValue($source);
+    /**
+     * Converts raw value to expected parameter type.
+     *
+     * @param mixed $rawValue
+     * @param \ReflectionType|null $paramType
+     * @param string $paramName
+     * @return mixed
+     * @throws RuntimeException
+     */
+    private static function convertToType(
+        mixed $rawValue,
+        ?\ReflectionType $paramType,
+        string $paramName
+    ): mixed {
+        if ($paramType === null || $rawValue === null) {
+            return $rawValue;
         }
 
-        // Cas 2: Getter
-        $getterCandidates = [
-            'get'.ucfirst($paramName),
-            'is'.ucfirst($paramName),
-            'has'.ucfirst($paramName),
-        ];
-
-        foreach ($getterCandidates as $getter) {
-            if ($reflection->hasMethod($getter)) {
-                $method = $reflection->getMethod($getter);
-                if ($method->isPublic()) {
-                    return $method->invoke($source);
+        // Union types
+        if ($paramType instanceof ReflectionUnionType) {
+            foreach ($paramType->getTypes() as $type) {
+                if ($type instanceof ReflectionNamedType) {
+                    try {
+                        return self::convertToNamedType($rawValue, $type, $paramName);
+                    } catch (RuntimeException) {
+                        continue;
+                    }
                 }
             }
+            throw new RuntimeException(sprintf(
+                'Unable to convert value for parameter $%s: no matching union type',
+                $paramName
+            ));
         }
 
-        // Cas 3: Value Object -> getValue()
-        if ($source instanceof AbstractValueObject) {
-            try {
-                return $source->getValue();
-            } catch (RuntimeException) {
-                // VO multi-propriétés, continuer
-            }
-        }
-
-        // Cas 4: Record/Data -> normalize() pour obtenir un array
-        if ($source instanceof AbstractRecord || $source instanceof AbstractData) {
-            $normalized = $source->normalize();
-            if (is_array($normalized) && array_key_exists($paramName, $normalized)) {
-                return $normalized[$paramName];
-            }
-        }
-
-        // Cas 5: toArray() method
-        if (method_exists($source, 'toArray')) {
-            $array = $source->toArray();
-            if (array_key_exists($paramName, $array)) {
-                return $array[$paramName];
-            }
-        }
-
-        // Cas 6: stdClass property
-        if ($source instanceof \stdClass && property_exists($source, $paramName)) {
-            return $source->$paramName;
-        }
-
-        return null;
-    }
-
-    /**
-     * Check if a value is compatible with a given type.
-     *
-     * @param  mixed  $value  The value to check
-     * @param  \ReflectionType|null  $paramType  The expected parameter type
-     */
-    private static function isCompatibleType(mixed $value, ?\ReflectionType $paramType): bool
-    {
-        if ($paramType === null) {
-            return true;
-        }
-
+        // Named types
         if ($paramType instanceof ReflectionNamedType) {
-            $typeName = $paramType->getName();
+            return self::convertToNamedType($rawValue, $paramType, $paramName);
+        }
 
-            // Enum handling
-            if (is_subclass_of($typeName, \UnitEnum::class)) {
-                if ($value instanceof $typeName) {
-                    return true;
-                }
-                if ($value instanceof \BackedEnum && method_exists($typeName, 'tryFrom')) {
-                    return $typeName::tryFrom($value->value) !== null;
-                }
+        return $rawValue;
+    }
 
-                return false;
-            }
+    /**
+     * Converts to a named type using PhpType.
+     *
+     * @param mixed $rawValue
+     * @param ReflectionNamedType $type
+     * @param string $paramName
+     * @return mixed
+     * @throws RuntimeException
+     */
+    private static function convertToNamedType(
+        mixed $rawValue,
+        ReflectionNamedType $type,
+        string $paramName
+    ): mixed {
+        $typeName = $type->getName();
+        $phpType = PhpType::fromTypeString($typeName);
 
-            // Scalar and object type checking
+        // If value is already of the correct type, return it directly
+        if ($rawValue instanceof $typeName) {
+            return $rawValue;
+        }
+
+        // Scalar types - explicit conversion
+        if ($phpType->isScalar()) {
             return match ($typeName) {
-                'int' => is_int($value),
-                'string' => is_string($value),
-                'float' => is_float($value),
-                'bool' => is_bool($value),
-                'array' => is_array($value),
-                'null' => $value === null,
-                'mixed' => true,
-                default => $value instanceof $typeName,
+                'int' => self::toInt($rawValue, $paramName),
+                'float' => self::toFloat($rawValue, $paramName),
+                'string' => self::toString($rawValue, $paramName),
+                'bool' => self::toBool($rawValue, $paramName),
+                'null' => null,
+                default => $rawValue,
             };
         }
 
-        if ($paramType instanceof ReflectionUnionType) {
-            foreach ($paramType->getTypes() as $type) {
-                if (self::isCompatibleType($value, $type)) {
-                    return true;
-                }
+        // Enums (BackedEnum) - native conversion via tryFrom()
+        if ($phpType->isEnum()) {
+            $enum = $typeName::tryFrom($rawValue);
+            if ($enum !== null) {
+                return $enum;
             }
+            throw new RuntimeException(sprintf(
+                'Invalid value "%s" for enum %s (parameter $%s)',
+                $rawValue,
+                $typeName,
+                $paramName
+            ));
         }
 
-        return false;
+        // Transformable - call from() recursively
+        if (is_subclass_of($typeName, Transformable::class)) {
+            return $typeName::from($rawValue);
+        }
+
+        throw new RuntimeException(sprintf(
+            'Cannot convert value for parameter $%s: type %s does not implement Transformable',
+            $paramName,
+            $typeName
+        ));
     }
 
     /**
-     * Get the string representation of a type.
+     * Converts a value to integer.
      *
-     * @param  \ReflectionType|null  $type  The reflection type
+     * @param mixed $rawValue
+     * @param string $paramName
+     * @return int
+     * @throws RuntimeException
      */
-    private static function getTypeName(?\ReflectionType $type): string
+    private static function toInt(mixed $rawValue, string $paramName): int
     {
-        if ($type === null) {
-            return 'mixed';
+        if (is_numeric($rawValue)) {
+            return (int) $rawValue;
         }
+        throw new RuntimeException(sprintf(
+            'Cannot convert value to int for parameter $%s',
+            $paramName
+        ));
+    }
 
-        if ($type instanceof ReflectionNamedType) {
-            return $type->getName();
+    /**
+     * Converts a value to float.
+     *
+     * @param mixed $rawValue
+     * @param string $paramName
+     * @return float
+     * @throws RuntimeException
+     */
+    private static function toFloat(mixed $rawValue, string $paramName): float
+    {
+        if (is_numeric($rawValue)) {
+            return (float) $rawValue;
         }
+        throw new RuntimeException(sprintf(
+            'Cannot convert value to float for parameter $%s',
+            $paramName
+        ));
+    }
 
-        if ($type instanceof ReflectionUnionType) {
-            $names = array_map(fn ($t) => self::getTypeName($t), $type->getTypes());
-
-            return implode('|', $names);
+    /**
+     * Converts a value to string.
+     *
+     * @param mixed $rawValue
+     * @param string $paramName
+     * @return string
+     * @throws RuntimeException
+     */
+    private static function toString(mixed $rawValue, string $paramName): string
+    {
+        if (is_scalar($rawValue) || method_exists($rawValue, '__toString')) {
+            return (string) $rawValue;
         }
+        throw new RuntimeException(sprintf(
+            'Cannot convert value to string for parameter $%s',
+            $paramName
+        ));
+    }
 
-        return 'unknown';
+    /**
+     * Converts a value to boolean.
+     *
+     * @param mixed $rawValue
+     * @param string $paramName
+     * @return bool
+     */
+    private static function toBool(mixed $rawValue, string $paramName): bool
+    {
+        return filter_var($rawValue, FILTER_VALIDATE_BOOLEAN);
     }
 }

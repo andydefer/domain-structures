@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace AndyDefer\DomainStructures;
+namespace AndyDefer\DomainStructures\Utils;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractData;
 

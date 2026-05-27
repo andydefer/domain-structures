@@ -69,4 +69,23 @@ final class FloatTypedCollection extends AbstractNumberTypedCollection
     {
         return $this->map(fn ($item): float => round($item, $decimals));
     }
+
+    /**
+     * Convert all float values to integers (truncates decimal part).
+     *
+     * Floats are truncated toward zero (same as (int) cast).
+     * Note: This loses decimal precision.
+     *
+     * @return IntTypedCollection New collection with all values as integers
+     */
+    public function toIntegers(): IntTypedCollection
+    {
+        $collection = new IntTypedCollection;
+
+        foreach ($this->toArray() as $item) {
+            $collection->add((int) $item);
+        }
+
+        return $collection;
+    }
 }

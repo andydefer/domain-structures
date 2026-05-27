@@ -8,11 +8,11 @@ use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
+use AndyDefer\DomainStructures\Utils\DataObject;
 use Closure;
 use Countable;
 use IteratorAggregate;
 use JsonSerializable;
-use stdClass;
 use Stringable;
 use Traversable;
 use UnitEnum;
@@ -30,7 +30,7 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
      * @param  TValue  ...$items
      * @return static<TValue>
      */
-    public function add(int|string|float|bool|null|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|AbstractTypedCollection|stdClass ...$items): static;
+    public function add(int|string|float|bool|null|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|AbstractTypedCollection|DataObject ...$items): static;
 
     /**
      * Get all items as a new collection.
@@ -89,7 +89,7 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
     /**
      * Check if the collection contains a specific value.
      */
-    public function contains(int|string|float|bool|null|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|AbstractTypedCollection|stdClass $value): bool;
+    public function contains(int|string|float|bool|null|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|AbstractTypedCollection|DataObject $value): bool;
 
     /**
      * Execute callback on each item (for side effects).

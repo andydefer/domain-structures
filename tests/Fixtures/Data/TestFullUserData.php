@@ -26,7 +26,7 @@ final class TestFullUserData extends AbstractData
         public readonly string $name,
         public readonly string $email,
         public readonly TestUserStatus $status,
-        public readonly TestUserRoleCollection $roles,
+        public readonly ?TestUserRoleCollection $roles,
         public readonly TestUserGrade $grade,
         public readonly ?string $emailVerifiedAt,
         public readonly StringTypedCollection $tags,

@@ -4,88 +4,45 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Abstracts;
 
-use AndyDefer\DomainStructures\Enums\NormalizeMode;
+use AndyDefer\DomainStructures\Enums\PhpType;
+use AndyDefer\DomainStructures\Interfaces\Transformable;
 use AndyDefer\DomainStructures\Interfaces\TypedCollectionInterface;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
-use AndyDefer\DomainStructures\Traits\ArrayableTrait;
-use AndyDefer\DomainStructures\TypeDetectors\TypeDetectorChain;
+use AndyDefer\DomainStructures\Utils\DataObject;
+use ArrayIterator;
 use Closure;
 use InvalidArgumentException;
-use stdClass;
+use Traversable;
 use UnitEnum;
 
 /**
  * Abstract type-safe collection for records, value objects, data DTOs, enums, and scalar values.
  *
  * @template TValue of object|string|int|float|bool
+ * @implements TypedCollectionInterface<TValue>
+ * @implements Transformable<static>
  */
-abstract class AbstractTypedCollection implements TypedCollectionInterface
+abstract class AbstractTypedCollection implements TypedCollectionInterface, Transformable, \ArrayAccess, \JsonSerializable
 {
-    use ArrayableTrait;
-
     /** @var array<TValue> */
     protected array $items = [];
 
-    /** @var array<class-string<AbstractRecord>|class-string<AbstractValueObject>|class-string<AbstractData>|class-string<UnitEnum>|string> */
+    /** @var array<string> */
     private array $allowedTypes = [];
-
-    private const TYPE_MAPPING = [
-        'integer' => 'int',
-        'double' => 'float',
-        'string' => 'string',
-        'boolean' => 'bool',
-        'NULL' => 'null',
-        'object' => 'object',
-    ];
-
-    private static ?array $scalarTypes = null;
 
     private static ?array $allowedTypesList = null;
 
-    private static function getScalarTypes(): array
-    {
-        if (self::$scalarTypes === null) {
-            self::$scalarTypes = array_values(self::TYPE_MAPPING);
-        }
+    // ==================== CONSTRUCTOR & VALIDATION ====================
 
-        return self::$scalarTypes;
-    }
-
-    /**
-     * Get the list of all allowed types that can be stored in a collection.
-     *
-     * @return array<int, string>
-     */
     final protected static function getAllowedTypesList(): array
     {
-        if (self::$allowedTypesList === null) {
-            self::$allowedTypesList = [
-                'int',
-                'string',
-                'float',
-                'bool',
-                'null',
-                UnitEnum::class,
-                AbstractRecord::class,
-                AbstractValueObject::class,
-                AbstractData::class,
-                self::class,
-                stdClass::class,
-            ];
-        }
-
-        return self::$allowedTypesList;
+        return self::$allowedTypesList ??= PhpType::getAllowedTypesList();
     }
 
-    public function __construct(...$types)
+    protected function __construct(string ...$types)
     {
         $this->validateTypes($types);
         $this->allowedTypes = $types;
-    }
-
-    private static function normalizeType(string $type): string
-    {
-        return self::TYPE_MAPPING[$type] ?? $type;
     }
 
     private function validateTypes(array $types): void
@@ -95,53 +52,42 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
         }
 
         foreach ($types as $type) {
-            $this->validateSingleType($type);
+            if (PhpType::isValidType($type)) {
+                continue;
+            }
+
+            throw new InvalidArgumentException(sprintf(
+                'Type "%s" is not allowed. Must be %s',
+                $type,
+                PhpType::getAllowedTypeDescription()
+            ));
         }
     }
 
-    private function validateSingleType(string $type): void
-    {
-        $isValid = match (true) {
-            in_array($type, self::getScalarTypes(), true) => true,
-            $type === UnitEnum::class || is_subclass_of($type, UnitEnum::class) => true,
-            $type === self::class || (class_exists($type) && is_subclass_of($type, self::class)) => true,
-            $type === AbstractRecord::class || (class_exists($type) && is_subclass_of($type, AbstractRecord::class)) => true,
-            $type === AbstractValueObject::class || (class_exists($type) && is_subclass_of($type, AbstractValueObject::class)) => true,
-            $type === AbstractData::class || (class_exists($type) && is_subclass_of($type, AbstractData::class)) => true,
-            $type === stdClass::class => true,
-            default => false,
-        };
-
-        if ($isValid) {
-            return;
-        }
-
-        if (! class_exists($type)) {
-            throw new InvalidArgumentException(sprintf('Type "%s" is not a valid class', $type));
-        }
-
-        throw new InvalidArgumentException(sprintf(
-            'Type "%s" is not allowed. Must be a scalar, Enum, Record, ValueObject, Data, TypedCollection, or stdClass',
-            $type
-        ));
-    }
+    // ==================== TYPE MATCHING HELPERS ====================
 
     private function matchesAllowedType(mixed $value): bool
     {
-        $valueType = self::normalizeType(gettype($value));
+        $valueType = PhpType::fromValue($value);
+        $valueTypeName = $valueType->getNormalizedName();
 
         foreach ($this->allowedTypes as $allowedType) {
-            $result = match (true) {
-                $valueType === $allowedType => true,
-                $allowedType === UnitEnum::class && $value instanceof UnitEnum => true,
-                is_subclass_of($allowedType, UnitEnum::class) && $value instanceof $allowedType => true,
-                $allowedType === self::class && $value instanceof self => true,
-                $allowedType === stdClass::class && $value instanceof stdClass => true,
-                $value instanceof $allowedType => true,
-                default => false,
-            };
+            if (in_array($allowedType, PhpType::getScalarTypeNames(), true) && $valueTypeName === $allowedType) {
+                return true;
+            }
 
-            if ($result) {
+            if ($allowedType === DataObject::class && $value instanceof DataObject) {
+                return true;
+            }
+
+            if ($valueType->isEnum()) {
+                if ($allowedType === UnitEnum::class || $value instanceof $allowedType) {
+                    return true;
+                }
+                continue;
+            }
+
+            if (class_exists($allowedType) && $value instanceof $allowedType) {
                 return true;
             }
         }
@@ -149,44 +95,35 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
         return false;
     }
 
-    private function getValueTypeName(mixed $value): string
+    private function isAllowedObjectType(PhpType $type): bool
     {
-        return TypeDetectorChain::get()->getTypeName($value);
+        return $type->isEnum() || $type->isRecord() || $type->isValueObject() ||
+            $type->isData() || $type->isCollection() || $type->isDataObject();
     }
 
     private function validateItem(mixed $item): void
     {
-        if ($item instanceof UnitEnum) {
-            if (! $this->matchesAllowedType($item)) {
-                $allowedTypesStr = implode('|', $this->allowedTypes);
+        $itemType = PhpType::fromValue($item);
+
+        if (!$this->matchesAllowedType($item)) {
+            if ($itemType->isObject() && !$this->isAllowedObjectType($itemType)) {
                 throw new InvalidArgumentException(sprintf(
-                    'Expected type(s) %s, got %s',
-                    $allowedTypesStr,
-                    $this->getValueTypeName($item)
+                    'Object of type "%s" is not allowed. Only DataObject, UnitEnum, AbstractRecord, AbstractValueObject, AbstractData, and TypedCollection are allowed.',
+                    $item::class
                 ));
             }
 
-            return;
-        }
-
-        if (is_object($item) && ! ($item instanceof stdClass) && ! ($item instanceof AbstractRecord) && ! ($item instanceof AbstractValueObject) && ! ($item instanceof AbstractData) && ! ($item instanceof self)) {
-            throw new InvalidArgumentException(sprintf(
-                'Object of type "%s" is not allowed. Only stdClass, UnitEnum, AbstractRecord, AbstractValueObject, AbstractData, and TypedCollection are allowed.',
-                $item::class
-            ));
-        }
-
-        if (! $this->matchesAllowedType($item)) {
-            $allowedTypesStr = implode('|', $this->allowedTypes);
             throw new InvalidArgumentException(sprintf(
                 'Expected type(s) %s, got %s',
-                $allowedTypesStr,
-                $this->getValueTypeName($item)
+                implode('|', $this->allowedTypes),
+                $itemType->getDisplayName($item)
             ));
         }
     }
 
-    final public function add(int|string|float|bool|null|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|self|stdClass ...$items): static
+    // ==================== CORE COLLECTION METHODS ====================
+
+    final public function add(DataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|self|int|string|float|bool|null ...$items): static
     {
         foreach ($items as $item) {
             $this->validateItem($item);
@@ -199,7 +136,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
     final public function all(): static
     {
         $result = new static(...$this->allowedTypes);
-        $result->add(...$this->items);
+        $result->items = $this->items;
 
         return $result;
     }
@@ -226,83 +163,65 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
 
     final public function isNotEmpty(): bool
     {
-        return ! $this->isEmpty();
+        return !$this->isEmpty();
     }
 
-    public function normalize(NormalizeMode $mode = NormalizeMode::ARRAY, bool $includeNulls = true): array|string
+    // ==================== NORMALIZATION ====================
+
+    /**
+     * Normalize the collection to an array.
+     *
+     * @param bool $includeNulls Whether to include null values
+     * @return array<int, mixed>
+     */
+    public function normalize(bool $includeNulls = true): array
     {
+        $normalizer = NormalizerChain::get();
         $result = [];
+
         foreach ($this->items as $item) {
-            $normalized = NormalizerChain::get()->normalize($item, $mode, $includeNulls);
-            if (! $includeNulls && $normalized === null) {
+            $normalized = $normalizer->normalize($item);
+
+            if (!$includeNulls && $normalized === null) {
                 continue;
             }
+
             $result[] = $normalized;
         }
 
-        return $mode === NormalizeMode::JSON ? json_encode($result, JSON_THROW_ON_ERROR) : $result;
+        return $result;
     }
 
-    /**
-     * Transform each item in the collection into a new collection.
-     *
-     * Applies the callback to every item in the collection and returns a new
-     * collection containing the transformed values. The new collection's allowed
-     * type is automatically determined from the first transformed item.
-     *
-     * @template TReturn
-     *
-     * @param  Closure(TValue): TReturn  $callback  The transformation function
-     * @return static<TReturn> New collection with transformed items
-     *
-     * @throws InvalidArgumentException If callback returns an invalid type
-     */
+    // ==================== TRANSFORMATION METHODS ====================
+
     final public function map(Closure $callback): static
     {
         if (empty($this->items)) {
             return new static(...$this->allowedTypes);
         }
 
-        $mappedItems = [];
-        foreach ($this->items as $item) {
-            $mappedItems[] = $callback($item);
-        }
+        /** @var array<TReturn> $mappedItems */
+        $mappedItems = array_map($callback, $this->items);
 
         if (empty($mappedItems)) {
             return new static(...$this->allowedTypes);
         }
 
-        $firstResult = $mappedItems[0];
-        $detector = TypeDetectorChain::get()->detect($firstResult);
-        $returnType = $detector->getClassString($firstResult);
+        // Collect unique types from mapped items
+        $uniqueTypes = [];
+        foreach ($mappedItems as $item) {
+            $type = PhpType::fromValue($item)->getClassString();
+            $uniqueTypes[$type] = $type;
+        }
+        $uniqueTypes = array_values($uniqueTypes);
 
         /** @var static<TReturn> $result */
-        $result = new static($returnType);
+        $result = new static(...$uniqueTypes);
+
         foreach ($mappedItems as $item) {
-            /** @var int|string|float|bool|null|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|AbstractTypedCollection|stdClass $item */
+            /** @var DataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|AbstractTypedCollection|int|string|float|bool|null $item */
             $result->add($item);
         }
-
-        return $result;
-    }
-
-    /**
-     * Sort the collection in ascending order.
-     *
-     * Returns a new collection with items sorted in ascending order.
-     * For mixed-type collections, the behavior may be unpredictable.
-     * Use sortBy() for specific property sorting on objects.
-     *
-     * @param  int  $flags  Sorting flags (SORT_REGULAR, SORT_NUMERIC, SORT_STRING, etc.)
-     * @return static<TValue> New collection with sorted items
-     */
-    final public function sort(int $flags = SORT_REGULAR): static
-    {
-        $items = $this->items;
-        sort($items, $flags);
-
-        $result = new static(...$this->allowedTypes);
-        $result->items = $items;
 
         return $result;
     }
@@ -315,31 +234,30 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
         return $result;
     }
 
-    final public function contains(int|string|float|bool|null|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|TypedCollectionInterface|stdClass $value): bool
+    final public function sort(int $flags = SORT_REGULAR): static
     {
-        return in_array($value, $this->items, true);
-    }
+        $items = $this->items;
+        sort($items, $flags);
 
-    final public function each(Closure $callback): static
-    {
-        foreach ($this->items as $item) {
-            $callback($item);
-        }
-
-        return $this;
-    }
-
-    final public function merge(TypedCollectionInterface $collection): static
-    {
         $result = new static(...$this->allowedTypes);
-        $result->items = array_merge($this->items, $collection->toArray());
+        $result->items = $items;
 
         return $result;
     }
 
-    final public function reduce(Closure $callback, mixed $initial = null): mixed
+    final public function reverse(): static
     {
-        return array_reduce($this->items, $callback, $initial);
+        $result = new static(...$this->allowedTypes);
+        $result->items = array_reverse($this->items);
+
+        return $result;
+    }
+
+    // ==================== QUERY METHODS ====================
+
+    final public function contains(DataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|TypedCollectionInterface|int|string|float|bool|null $value): bool
+    {
+        return in_array($value, $this->items, true);
     }
 
     final public function find(Closure $callback): mixed
@@ -356,7 +274,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
     final public function every(Closure $callback): bool
     {
         foreach ($this->items as $item) {
-            if (! $callback($item)) {
+            if (!$callback($item)) {
                 return false;
             }
         }
@@ -375,35 +293,134 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
         return false;
     }
 
-    final public function reverse(): static
+    final public function reduce(Closure $callback, mixed $initial = null): mixed
+    {
+        return array_reduce($this->items, $callback, $initial);
+    }
+
+    // ==================== ITERATION METHODS ====================
+
+    final public function each(Closure $callback): static
+    {
+        foreach ($this->items as $item) {
+            $callback($item);
+        }
+
+        return $this;
+    }
+
+    final public function merge(TypedCollectionInterface $collection): static
     {
         $result = new static(...$this->allowedTypes);
-        $result->items = array_reverse($this->items);
+        $result->items = array_merge($this->items, $collection->toArray());
 
         return $result;
     }
 
-    final public function getIterator(): \Traversable
+    // ==================== ARRAY ACCESS METHODS ====================
+
+    public function offsetExists(mixed $offset): bool
     {
-        return new \ArrayIterator($this->items);
+        return isset($this->items[$offset]);
     }
+
+    public function offsetGet(mixed $offset): mixed
+    {
+        return $this->items[$offset] ?? null;
+    }
+
+    public function offsetSet(mixed $offset, mixed $value): void
+    {
+        $this->validateItem($value);
+
+        if ($offset === null) {
+            $this->items[] = $value;
+        } else {
+            $this->items[$offset] = $value;
+        }
+    }
+
+    public function offsetUnset(mixed $offset): void
+    {
+        unset($this->items[$offset]);
+    }
+
+    // ==================== ITERATOR METHODS ====================
+
+    final public function getIterator(): Traversable
+    {
+        return new ArrayIterator($this->items);
+    }
+
+    // ==================== JSON SERIALIZATION ====================
 
     final public function jsonSerialize(): array
     {
-        return $this->toArray();
+        return $this->items;
     }
+
+    // ==================== MAGIC METHODS ====================
 
     public function __toString(): string
     {
-        return $this->normalize(NormalizeMode::JSON);
+        return json_encode($this->normalize(false), JSON_THROW_ON_ERROR);
     }
 
     final public function __clone()
     {
-        $newItems = [];
-        foreach ($this->items as $item) {
-            $newItems[] = $item instanceof self ? clone $item : $item;
+        $this->items = array_map(
+            fn($item) => is_object($item) ? clone $item : $item,
+            $this->items
+        );
+    }
+
+    // ==================== TRANSFORMABLE IMPLEMENTATION ====================
+
+    final public static function from(mixed $source): static
+    {
+        if ($source instanceof static) {
+            return $source;
         }
-        $this->items = $newItems;
+
+        $allowedType = static::getAllowedTypesList()[0] ?? null;
+
+        if ($allowedType === null) {
+            throw new InvalidArgumentException('Cannot determine type to hydrate');
+        }
+
+        if (!is_iterable($source)) {
+            throw new InvalidArgumentException(sprintf(
+                'Cannot hydrate %s from non-iterable source',
+                static::class
+            ));
+        }
+
+        $collection = new static();
+
+        foreach ($source as $item) {
+            if ($item instanceof $allowedType) {
+                $collection->add($item);
+                continue;
+            }
+
+            if (in_array($allowedType, PhpType::getScalarTypeNames(), true)) {
+                $collection->add($item);
+                continue;
+            }
+
+            if (is_subclass_of($allowedType, Transformable::class)) {
+                $collection->add($allowedType::from($item));
+                continue;
+            }
+
+            throw new InvalidArgumentException(sprintf(
+                'Cannot hydrate %s: item of type %s cannot be converted to %s',
+                static::class,
+                is_object($item) ? $item::class : gettype($item),
+                $allowedType
+            ));
+        }
+
+        return $collection;
     }
 }

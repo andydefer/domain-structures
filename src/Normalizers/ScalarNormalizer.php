@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Normalizers;
 
-use AndyDefer\DomainStructures\Enums\NormalizeMode;
+use AndyDefer\DomainStructures\Normalizers\Core\AbstractNormalizer;
 
 final class ScalarNormalizer extends AbstractNormalizer
 {
@@ -13,8 +13,12 @@ final class ScalarNormalizer extends AbstractNormalizer
         return is_scalar($value);
     }
 
-    public function normalize(mixed $value, NormalizeMode $mode = NormalizeMode::ARRAY, bool $includeNulls = true): mixed
+    public function normalize(mixed $value): mixed
     {
+        if (!is_scalar($value)) {
+            return $this->next($value);
+        }
+
         return $value;
     }
 }

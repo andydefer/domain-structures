@@ -9,38 +9,37 @@ use DateTime;
 use DateTimeInterface;
 use InvalidArgumentException;
 
-/**
- * Value Object representing an ISO 8601 datetime string.
- */
 final class TestIso8601DateTime extends AbstractValueObject
 {
     private const FORMAT = 'Y-m-d\TH:i:sP';
 
     private function __construct(public readonly string $value) {}
 
-    public static function fromString(string $datetime): self
+    public static function from(mixed $source): static
     {
-        $date = DateTime::createFromFormat(self::FORMAT, $datetime);
-        if (! $date || $date->format(self::FORMAT) !== $datetime) {
-            throw new InvalidArgumentException("Invalid ISO 8601 datetime: {$datetime}");
+        // Si c'est déjà un TestIso8601DateTime
+        if ($source instanceof self) {
+            return $source;
         }
 
-        return new self($datetime);
-    }
+        // Si c'est une string ISO
+        if (is_string($source)) {
+            $date = DateTime::createFromFormat(self::FORMAT, $source);
+            if (!$date || $date->format(self::FORMAT) !== $source) {
+                throw new InvalidArgumentException("Invalid ISO 8601 datetime: {$source}");
+            }
+            return new self($source);
+        }
 
-    public static function fromDateTime(DateTimeInterface $datetime): self
-    {
-        return new self($datetime->format(self::FORMAT));
-    }
+        // Si c'est un DateTime ou Carbon
+        if ($source instanceof DateTimeInterface) {
+            return new self($source->format(self::FORMAT));
+        }
 
-    public static function now(): self
-    {
-        return new self((new DateTime)->format(self::FORMAT));
-    }
-
-    public static function from(...$values): static
-    {
-        return self::fromString($values[0]);
+        throw new InvalidArgumentException(sprintf(
+            'Cannot create TestIso8601DateTime from %s',
+            is_object($source) ? $source::class : gettype($source)
+        ));
     }
 
     public function getValue(): string
