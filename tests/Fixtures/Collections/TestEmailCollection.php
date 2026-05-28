@@ -21,8 +21,6 @@ final class TestEmailCollection extends AbstractTypedCollection
 
     /**
      * Returns a new collection with unique email values (case-insensitive).
-     *
-     * @return self
      */
     public function unique(): self
     {
@@ -31,7 +29,7 @@ final class TestEmailCollection extends AbstractTypedCollection
 
         foreach ($this->items as $email) {
             $value = strtolower($email->getValue());
-            if (!in_array($value, $seen, true)) {
+            if (! in_array($value, $seen, true)) {
                 $seen[] = $value;
                 $result->add($email);
             }
@@ -42,13 +40,10 @@ final class TestEmailCollection extends AbstractTypedCollection
 
     /**
      * Returns a new collection with emails from a specific domain.
-     *
-     * @param  string  $domain
-     * @return self
      */
     public function fromDomain(string $domain): self
     {
-        return $this->filter(fn(TestEmailAddress $email) => str_ends_with($email->getValue(), '@' . $domain));
+        return $this->filter(fn (TestEmailAddress $email) => str_ends_with($email->getValue(), '@'.$domain));
     }
 
     /**
@@ -58,7 +53,7 @@ final class TestEmailCollection extends AbstractTypedCollection
      */
     public function getDomains(): array
     {
-        return $this->map(fn(TestEmailAddress $email) => explode('@', $email->getValue())[1])->toArray();
+        return $this->map(fn (TestEmailAddress $email) => explode('@', $email->getValue())[1])->toArray();
     }
 
     /**
@@ -73,12 +68,9 @@ final class TestEmailCollection extends AbstractTypedCollection
 
     /**
      * Returns a new collection with emails that have a specific domain.
-     *
-     * @param  string  $domain
-     * @return self
      */
     public function withDomain(string $domain): self
     {
-        return $this->filter(fn(TestEmailAddress $email) => str_ends_with($email->getValue(), '@' . $domain));
+        return $this->filter(fn (TestEmailAddress $email) => str_ends_with($email->getValue(), '@'.$domain));
     }
 }

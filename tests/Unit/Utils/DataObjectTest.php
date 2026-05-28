@@ -429,6 +429,7 @@ final class DataObjectTest extends TestCase
         $source = new class
         {
             public string $name = 'John';
+
             public string $email = 'john@example.com';
         };
 

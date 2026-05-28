@@ -1,606 +1,714 @@
-```markdown
-# Record - Documentation
+# Records - Documentation du Package
 
-## 1. Définition
+## Table des matières
 
-Un **Record** est une structure de données **pure**, **immutable** et **stateless** utilisée pour la communication **interne** entre les couches de l'application (Services, Repositories, Tasks). Il remplace les tableaux bruts (`array`) par des structures **typées**, **prévisibles** et **testables**.
-
-```
-Record → Transporteur de données typé pour la communication interne
-```
-
-> ⚠️ **Un Record est STRICTEMENT réservé à l'usage interne. Il ne peut en aucun cas être retourné comme réponse HTTP.**
+1. [Définition et concepts fondamentaux](#1-définition-et-concepts-fondamentaux)
+2. [Record vs Value Object vs Data](#2-record-vs-value-object-vs-data)
+3. [Pourquoi utiliser des Records ?](#3-pourquoi-utiliser-des-records-)
+4. [Record vs DTO traditionnel](#4-record-vs-dto-traditionnel)
+5. [Installation et prérequis](#5-installation-et-prérequis)
+6. [Créer son premier Record](#6-créer-son-premier-record)
+7. [Les types autorisés dans un Record](#7-les-types-autorisés-dans-un-record)
+8. [Les méthodes fondamentales](#8-les-méthodes-fondamentales)
+9. [Hydratation : le point d'entrée unique `from()`](#9-hydratation--le-point-dentrée-unique-from)
+10. [Hydratation JSON : `fromJson()`](#10-hydratation-json--fromjson)
+11. [Collections de Records : `collect()`](#11-collections-de-records--collect)
+12. [Normalisation : snake_case pour la base de données](#12-normalisation--snake_case-pour-la-base-de-données)
+13. [Les Value Objects au cœur des Records](#13-les-value-objects-au-cœur-des-records)
+14. [Les collections typées avec des Records](#14-les-collections-typées-avec-des-records)
+15. [Bonnes pratiques](#15-bonnes-pratiques)
+16. [Récapitulatif des contraintes](#16-récapitulatif-des-contraintes)
 
 ---
 
-## 2. Record vs Value Object vs Data : Quand utiliser quoi ?
+## 1. Définition et concepts fondamentaux
+
+Un **Record** est une structure de données **immutable** conçue pour le **transport et la communication interne** entre les couches de votre application. Contrairement aux Value Objects qui encapsulent de la logique métier, les Records sont de **simples conteneurs de données** typées.
+
+```
+Record → Transport de données → Communication interne → Immutable → Typé
+```
+
+> 💡 **Un Record est idéal pour :**
+> - La communication entre Repository et Service
+> - Le mapping avec une base de données
+> - Les résultats de requêtes
+> - L'échange de données entre couches
+
+### Caractéristiques essentielles
+
+| Caractéristique | Description |
+|-----------------|-------------|
+| **Immutable** | Une fois créé, ne peut jamais être modifié |
+| **Type-safe** | Toutes les propriétés sont typées |
+| **Sans logique métier** | Ne contient que des données |
+| **Hydratable** | Peut être créé depuis n'importe quelle source |
+| **Normalisable** | S'exporte en tableau (snake_case) |
+
+---
+
+## 2. Record vs Value Object vs Data
 
 | Aspect | Record | Value Object | Data DTO |
 |--------|--------|--------------|----------|
-| **Usage principal** | Communication interne (Services, Repositories) | Concepts métier avec comportements | Réponses HTTP |
-| **Logique métier** | ❌ Aucune | ✅ Peut en avoir (calculs, validation) | ❌ Transformation uniquement |
-| **Méthodes** | ❌ Aucune (sauf héritées) | ✅ Oui (comportements métier) | ❌ Seulement `fromRecord()` / `fromValueObject()` |
-| **Validation** | ❌ Optionnelle | ✅ OBLIGATOIRE (constructeur privé) | ❌ Optionnelle |
-| **Constructeur** | Public | Privé (factory methods) | Public |
-| **Peut contenir** | VO, scalaires, TypedCollection | VO, scalaires, TypedCollection | Records, VO, Data, TypedCollection |
-| **Peut contenir des Models** | ❌ INTERDIT | ❌ INTERDIT | ❌ INTERDIT |
-| **Peut contenir du Cache/Log** | ❌ INTERDIT | ❌ INTERDIT | ❌ INTERDIT |
-| **Effets de bord** | ❌ INTERDIT | ❌ INTERDIT | ❌ INTERDIT |
-| **Testabilité** | ✅ Excellente (pure) | ✅ Excellente (pure) | ✅ Excellente (pure) |
-| **Nommage** | `{Description}Record` | `{Description}` | `{Description}Data` |
+| **Usage principal** | Communication interne | Concepts métier | Réponses HTTP |
+| **Logique métier** | ❌ Aucune | ✅ **Peut en avoir** | ❌ Transformation uniquement |
+| **Validation** | ❌ Optionnelle | ✅ **OBLIGATOIRE** | ❌ Optionnelle |
+| **Constructeur** | Public | **Privé (factory)** | Public |
+| **Effets de bord** | ❌ Interdit | ❌ **Interdit** | ❌ Interdit |
+| **Peut contenir** | VO, scalaires, TypedCollection, Enum | **VO, scalaires, TypedCollection, Enums** | Data, TypedCollection |
+| **Peut contenir des Records** | ✅ Oui | ❌ **Interdit** | ✅ Oui |
+| **Nommage** | `UserRecord` | `EmailAddress`, `Money` | `UserData` |
+| **Normalisation** | `snake_case` | `mixed` (selon type) | `camelCase` |
 
 ---
 
-## 3. Pourquoi les Records ?
+## 3. Pourquoi utiliser des Records ?
 
-### 3.1. Le problème des tableaux bruts
+### 3.1. Type-safety à travers l'application
 
 ```php
-// ❌ MAUVAIS - On ne sait pas ce qu'il y a dans le tableau
-function updateUser(array $credentials): void
-{
-    // Que contient $credentials ?
-    // ['email' => '...', 'password' => '...'] ?
-    // ['name' => '...', 'id' => ...] ?
-    // On n'en sait rien !
-}
+// ❌ Tableau associatif non typé
+$user = $repository->find(1);
+echo $user['name']; // Pas d'autocomplétion
+$user['email'] = 'invalid'; // Pas de validation
 
-// ✅ BON - On sait exactement ce qu'on reçoit
-function updateUser(UserCredentialsRecord $credentials): void
-{
-    // $credentials->email est un string
-    // $credentials->password est un string
-    // Le type est explicite et garanti
-}
+// ✅ Record typé
+$user = $repository->find(1);
+echo $user->name; // ✅ Autocomplétion IDE
+$user->email = 'invalid'; // ❌ Impossible (readonly)
 ```
 
-### 3.2. Le Record : Un transporteur bête mais type-safe
+### 3.2. Communication claire entre couches
 
 ```php
-// Un Record est "bête" : il ne fait que transporter des données
-final class UserCredentialsRecord extends AbstractRecord
+// ❌ Tableau non documenté
+public function createUser(array $data): UserRecord
 {
-    public function __construct(
-        public readonly ?string $email = null,
-        public readonly ?string $password = null,
-        public readonly ?UserRole $role = null,
-    ) {}
+    // On ne sait pas ce que contient $data
 }
 
-// Pas de méthodes métier
-// Pas de validation
-// Pas d'effets de bord
-// Juste des données typées
-```
-
----
-
-## 4. Règles fondamentales
-
-### 4.1. Un Record est STATELESS
-
-> **⚠️ RÈGLE ABSOLUE : Un Record ne doit JAMAIS avoir d'état mutable ni d'effets de bord.**
-
-```php
-// ✅ BON - Record pur, sans état mutable
-final class UserRecord extends AbstractRecord
+// ✅ Record auto-documenté
+public function createUser(UserRecord $record): UserRecord
 {
-    public function __construct(
-        public readonly string $name,
-        public readonly string $email,
-    ) {}
-}
-
-// ❌ MAUVAIS - Record avec état mutable
-final class BadRecord extends AbstractRecord
-{
-    private int $counter = 0;  // ← État mutable !
-    
-    public function increment(): void  // ← Méthode qui modifie l'état !
-    {
-        $this->counter++;
-    }
-}
-```
-
-### 4.2. Ce qu'un Record peut contenir
-
-| Type | Exemple | Autorisation |
-|------|---------|--------------|
-| `int` | `public readonly int $id` | ✅ Oui |
-| `string` | `public readonly string $name` | ✅ Oui |
-| `float` | `public readonly float $price` | ✅ Oui |
-| `bool` | `public readonly bool $isActive` | ✅ Oui |
-| `null` | `public readonly ?string $value` | ✅ Oui |
-| `Enum` | `public readonly UserRole $role` | ✅ Oui |
-| `Value Object` | `public readonly EmailAddress $email` | ✅ Oui |
-| `Record` | `public readonly AddressRecord $address` | ✅ Oui |
-| `TypedCollection` | `public readonly TypedCollection $items` | ✅ Oui |
-
-### 4.3. Ce qu'un Record NE PEUT PAS contenir (⚠️ RÈGLE STRICTISSIME)
-
-| Type interdit | Raison | Alternative |
-|---------------|--------|-------------|
-| `array` brut | On ne sait pas ce qu'il contient | `TypedCollection` |
-| `Model` (Eloquent) | Contient de la logique et des relations | `UserId` (VO) ou `UserRecord` |
-| `Collection` Laravel | Structure non typée | `TypedCollection` |
-| `Carbon` / `DateTime` | Contient de la logique et des comportements | `string` ISO 8601 |
-| `Cache`, `Log`, `DB`, `Http` | Effets de bord, appels statiques | Injecter des services |
-| `mixed` | Pas de typage | Type explicite |
-| `object` | Pas de typage | Type explicite |
-
-```php
-// ✅ BON - Record valide
-final class OrderRecord extends AbstractRecord
-{
-    public function __construct(
-        public readonly int $id,
-        public readonly Money $total,           // ← Value Object
-        public readonly EmailAddress $email,    // ← Value Object
-        public readonly TypedCollection $items, // ← TypedCollection<OrderItemRecord>
-        public readonly string $createdAt,      // ← ISO 8601 string
-    ) {}
-}
-
-// ❌ MAUVAIS - Record invalide
-final class BadOrderRecord extends AbstractRecord
-{
-    public function __construct(
-        public array $items,                    // ❌ array brut
-        public Order $order,                    // ❌ Model Eloquent
-        public Collection $products,            // ❌ Collection Laravel
-        public Carbon $createdAt,               // ❌ Carbon
-        public Cache $cache,                    // ❌ Cache (effet de bord)
-    ) {}
-}
-```
-
-### 4.4. Pourquoi interdire les Models ?
-
-```php
-// ❌ MAUVAIS - Record qui contient un Model
-final class OrderRecord extends AbstractRecord
-{
-    public function __construct(
-        public readonly Order $order,  // ← Model Eloquent avec DB
-    ) {}
-}
-
-// Problèmes :
-// 1. Impossible de tester sans base de données
-// 2. Le Model a des méthodes (save(), delete(), etc.) → violation de la pureté
-// 3. Le Record n'est plus un simple transporteur
-// 4. Couplage fort avec la couche de persistance
-
-// ✅ BON - Record qui utilise des Value Objects
-final class OrderRecord extends AbstractRecord
-{
-    public function __construct(
-        public readonly OrderId $orderId,      // ← Value Object
-        public readonly Money $total,          // ← Value Object
-        public readonly OrderStatus $status,   // ← Enum
-        public readonly string $createdAt,     // ← ISO string
-    ) {}
-}
-```
-
-### 4.5. Pourquoi interdire les effets de bord ?
-
-```php
-// ❌ MAUVAIS - Record qui utilise Cache
-final class UserRecord extends AbstractRecord
-{
-    public function __construct(
-        public readonly int $id,
-    ) {}
-    
-    public function getCachedData(): mixed  // ❌ Effet de bord !
-    {
-        return Cache::get('user_' . $this->id);
-    }
-}
-
-// ❌ MAUVAIS - Record qui appelle une API
-final class WeatherRecord extends AbstractRecord
-{
-    public function getTemperature(): float  // ❌ Appel HTTP !
-    {
-        return Http::get('api.weather.com')->json('temp');
-    }
-}
-
-// ✅ BON - La logique est dans un Service, pas dans le Record
-final class WeatherService
-{
-    public function getTemperature(LocationRecord $location): float
-    {
-        // Le Service fait l'appel HTTP, pas le Record
-        return Http::get('api.weather.com', ['lat' => $location->lat])->json('temp');
-    }
-}
-```
-
----
-
-## 5. Avantages pour la testabilité
-
-### 5.1. Testabilité parfaite
-
-```php
-// Un Record est une simple structure de données
-final class UserUpdateRecord extends AbstractRecord
-{
-    public function __construct(
-        public readonly ?string $name = null,
-        public readonly ?string $email = null,
-        public readonly ?UserRole $role = null,
-    ) {}
-}
-
-// Test unitaire ultra simple - pas de mocks, pas de DB !
-final class UserUpdateRecordTest extends TestCase
-{
-    public function test_can_create_record_with_partial_data(): void
-    {
-        $record = new UserUpdateRecord(name: 'John');
-        
-        $this->assertSame('John', $record->name);
-        $this->assertNull($record->email);
-        $this->assertNull($record->role);
-    }
-    
-    public function test_can_create_record_with_all_data(): void
-    {
-        $record = new UserUpdateRecord(
-            name: 'John',
-            email: 'john@example.com',
-            role: UserRole::ADMIN,
-        );
-        
-        $this->assertSame('John', $record->name);
-        $this->assertSame('john@example.com', $record->email);
-        $this->assertSame(UserRole::ADMIN, $record->role);
-    }
-}
-```
-
-### 5.2. Test des Services avec des Records
-
-```php
-final class UserServiceTest extends TestCase
-{
-    public function test_update_user_with_valid_record(): void
-    {
-        // Création simple du Record - pas besoin de base de données
-        $record = new UserUpdateRecord(
-            name: 'John Doe',
-            email: 'john@example.com',
-        );
-        
-        $repository = $this->createMock(UserRepository::class);
-        $repository->expects($this->once())
-            ->method('update')
-            ->with($this->callback(function (UserUpdateRecord $record) {
-                return $record->name === 'John Doe'
-                    && $record->email === 'john@example.com';
-            }));
-        
-        $service = new UserService($repository);
-        $service->updateUser(1, $record);
-    }
-}
-```
-
-### 5.3. Test des Repositories avec des Records
-
-```php
-final class UserRepositoryTest extends TestCase
-{
-    public function test_create_user_from_record(): void
-    {
-        // Record simple à créer
-        $record = new UserCreateRecord(
-            name: 'John Doe',
-            email: 'john@example.com',
-            role: UserRole::USER,
-        );
-        
-        $repository = new UserRepository();
-        $user = $repository->create($record);
-        
-        $this->assertDatabaseHas('users', [
-            'name' => 'John Doe',
-            'email' => 'john@example.com',
-            'role' => 'user',
-        ]);
-    }
-}
-```
-
----
-
-## 6. Record avec Value Objects (La combinaison gagnante)
-
-```php
-// Value Object : Concept métier avec validation
-final class EmailAddress extends AbstractValueObject
-{
-    private function __construct(public readonly string $value) {}
-    
-    public static function fromString(string $email): self
-    {
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            throw new InvalidArgumentException("Invalid email: {$email}");
-        }
-        return new self($email);
-    }
-}
-
-// Record : Transporteur qui utilise le VO
-final class UserRecord extends AbstractRecord
-{
-    public function __construct(
-        public readonly EmailAddress $email,  // ← VO déjà validé !
-        public readonly string $name,
-    ) {}
-}
-
-// Service : Pas besoin de valider l'email, le VO l'a déjà fait
-final class UserService
-{
-    public function createUser(UserRecord $record): void
-    {
-        // L'email est déjà garanti valide !
-        $this->repository->create($record);
-    }
-}
-
-// Test : Création simple du Record avec VO
-final class UserServiceTest extends TestCase
-{
-    public function test_create_user(): void
-    {
-        // On peut créer le VO séparément ou directement
-        $email = EmailAddress::fromString('john@example.com');
-        $record = new UserRecord($email, 'John Doe');
-        
-        $service = new UserService();
-        $service->createUser($record);
-    }
-}
-```
-
----
-
-## 7. Exemples concrets
-
-### 7.1. Record simple pour création
-
-```php
-final class UserCreateRecord extends AbstractRecord
-{
-    public function __construct(
-        public readonly string $name,
-        public readonly string $email,
-        public readonly UserRole $role = UserRole::USER,
-    ) {}
+    // Le type parle de lui-même
 }
 
 // Utilisation
-$record = new UserCreateRecord(
-    name: 'John Doe',
-    email: 'john@example.com',
-    role: UserRole::ADMIN,
-);
+$record = UserRecord::from([
+    'name' => 'John Doe',
+    'email' => 'john@example.com'
+]);
 ```
 
-### 7.2. Record pour mise à jour (champs optionnels)
+### 3.3. Hydratation automatique depuis n'importe quelle source
 
 ```php
-final class UserUpdateRecord extends AbstractRecord
-{
-    public function __construct(
-        public readonly ?string $name = null,
-        public readonly ?string $email = null,
-        public readonly ?UserRole $role = null,
-    ) {}
-}
+// Depuis un tableau
+$record = UserRecord::from($array);
 
-// Utilisation : on ne met à jour que le nom
-$record = new UserUpdateRecord(name: 'Jane Doe');
+// Depuis un objet
+$record = UserRecord::from($object);
 
-// Utilisation : mise à jour partielle
-$record = new UserUpdateRecord(
-    name: 'Jane Doe',
-    email: 'jane@example.com',
-);
+// Depuis un DataObject
+$record = UserRecord::from($dataObject);
+
+// Depuis une requête SQL
+$record = UserRecord::from($dbRow);
 ```
 
-### 7.3. Record avec Value Objects
+---
+
+## 4. Record vs DTO traditionnel
 
 ```php
-final class OrderRecord extends AbstractRecord
+// ❌ DTO traditionnel (mutable, sans typage fort)
+class UserDTO
+{
+    public $id;
+    public $name;
+    public $email;
+}
+
+// ✅ Record (immutable, type-safe)
+final class UserRecord extends AbstractRecord
 {
     public function __construct(
-        public readonly OrderId $orderId,
-        public readonly Money $total,
-        public readonly EmailAddress $customerEmail,
-        public readonly TypedCollection $items,
+        public readonly ?int $id,
+        public readonly string $name,
+        public readonly EmailAddress $email,
     ) {}
 }
 ```
 
-### 7.4. Record pour filtres de recherche
+| Aspect | DTO traditionnel | Record |
+|--------|------------------|--------|
+| **Mutabilité** | Mutable | Immutable (`readonly`) |
+| **Typage** | Optionnel | Fort (type hint) |
+| **Hydratation** | Manuelle | Automatique (`from()`) |
+| **Normalisation** | Manuelle | Automatique (`normalize()`) |
+| **Collection** | Tableau générique | TypedCollection |
+
+---
+
+## 5. Installation et prérequis
+
+```bash
+composer require andydefer/domain-structures
+```
+
+**Prérequis :**
+- PHP 8.1 ou supérieur
+- Extension JSON activée
+
+---
+
+## 6. Créer son premier Record
 
 ```php
-final class UserFiltersRecord extends AbstractRecord
+<?php
+
+declare(strict_types=1);
+
+namespace App\Records;
+
+use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
+use App\ValueObjects\EmailAddress;
+use App\ValueObjects\Iso8601DateTime;
+
+final class UserRecord extends AbstractRecord
 {
     public function __construct(
-        public readonly ?string $name = null,
-        public readonly ?string $email = null,
-        public readonly ?UserRole $role = null,
-        public readonly ?UserStatus $status = null,
+        public readonly ?int $id,
+        public readonly string $name,
+        public readonly EmailAddress $email,
+        public readonly UserRole $role,
+        public readonly Iso8601DateTime $createdAt,
     ) {}
 }
+```
 
-// Utilisation dans un Repository
-final class UserRepository
+---
+
+## 7. Les types autorisés dans un Record
+
+Les Records ne peuvent contenir que des types spécifiques, garantissant ainsi la cohérence et la sérialisabilité.
+
+### Types scalaires
+
+```php
+public readonly ?int $id;      // Entier
+public readonly string $name;  // Chaîne
+public readonly float $price;  // Flottant
+public readonly bool $active;  // Booléen
+public readonly ?null $value;  // Null
+```
+
+### Types objets autorisés
+
+```php
+// ✅ Value Objects
+public readonly EmailAddress $email;        // VO
+public readonly Iso8601DateTime $createdAt; // VO
+public readonly Money $price;               // VO
+
+// ✅ Enums (UnitEnum)
+public readonly UserRole $role;             // Enum
+public readonly OrderStatus $status;        // Enum
+
+// ✅ Collections typées
+public readonly TagCollection $tags;        // TypedCollection
+
+// ✅ Autres Records
+public readonly UserRecord $parent;         // Record
+```
+
+### Types objets INTERDITS
+
+```php
+// ❌ DataObject (réservé aux APIs)
+public readonly DataObject $metadata;
+
+// ❌ AbstractData (réservé aux réponses HTTP)
+public readonly UserData $userData;
+
+// ❌ DateTime / DateTimeImmutable (utiliser Iso8601DateTime VO)
+public readonly \DateTimeImmutable $createdAt;
+```
+
+### Pourquoi `\DateTimeImmutable` est interdit ?
+
+```php
+// ❌ Mauvais
+public readonly \DateTimeImmutable $createdAt;
+
+// ✅ Bon - Utiliser le Value Object Iso8601DateTime
+public readonly Iso8601DateTime $createdAt;
+```
+
+**Raisons :**
+1. `\DateTimeImmutable` n'implémente pas `Transformable`
+2. Ne peut pas être hydraté automatiquement depuis une string
+3. Le format de sérialisation n'est pas standardisé
+4. `Iso8601DateTime` garantit un format ISO 8601 valide
+
+---
+
+## 8. Les méthodes fondamentales
+
+Tous les Records héritent de `AbstractRecord` et bénéficient de ces méthodes via le trait `Hydratable` :
+
+### 8.1. `from(mixed $source): static`
+
+Crée un Record depuis n'importe quelle source :
+
+```php
+$record = UserRecord::from([
+    'id' => 1,
+    'name' => 'John Doe',
+    'email' => 'john@example.com',
+    'role' => 'admin',
+    'created_at' => '2024-01-01T12:00:00+00:00'
+]);
+```
+
+### 8.2. `fromJson(string $json): static`
+
+Crée un Record depuis une chaîne JSON :
+
+```php
+$json = '{"id":1,"name":"John Doe","email":"john@example.com","role":"admin","created_at":"2024-01-01T12:00:00+00:00"}';
+$record = UserRecord::fromJson($json);
+```
+
+### 8.3. `collect(iterable $sources, string $collectionClass): TypedCollection`
+
+Crée une collection typée de Records :
+
+```php
+$users = UserRecord::collect($dbResults);
+$activeUsers = $users->filter(fn($user) => $user->status === 'active');
+```
+
+### 8.4. `__toString(): string`
+
+Convertit automatiquement en JSON (snake_case) :
+
+```php
+echo $record; // JSON avec clés snake_case
+```
+
+---
+
+## 9. Hydratation : le point d'entrée unique `from()`
+
+La méthode `from()` accepte de multiples formats :
+
+```php
+// 1. Depuis un tableau
+$record = UserRecord::from([
+    'id' => 1,
+    'name' => 'John',
+    'email' => 'john@example.com'
+]);
+
+// 2. Depuis un objet
+$record = UserRecord::from($someObject);
+
+// 3. Depuis un DataObject
+$dataObject = DataObject::from(['name' => 'John', 'email' => 'john@example.com']);
+$record = UserRecord::from($dataObject);
+
+// 4. Depuis un autre Record (retourne l'original)
+$record2 = UserRecord::from($record);
+```
+
+### Gestion des types imbriqués
+
+```php
+// Le Record hydrate automatiquement les Value Objects
+$record = UserRecord::from([
+    'name' => 'John Doe',
+    'email' => 'john@example.com',      // Devient EmailAddress
+    'created_at' => '2024-01-01T12:00:00+00:00'  // Devient Iso8601DateTime
+]);
+
+echo $record->email->getDomain();        // 'example.com'
+echo $record->createdAt->toDateTime();   // DateTime object
+```
+
+---
+
+## 10. Hydratation JSON : `fromJson()`
+
+```php
+$json = '{"id":1,"name":"John Doe","email":"john@example.com","role":"admin"}';
+$record = UserRecord::fromJson($json);
+```
+
+**Gestion des erreurs JSON :**
+
+```php
+try {
+    $record = UserRecord::fromJson('{invalid json}');
+} catch (RuntimeException $e) {
+    echo $e->getMessage(); // 'Invalid JSON: Syntax error'
+}
+```
+
+---
+
+## 11. Collections de Records : `collect()`
+
+```php
+// À partir d'un tableau de données
+$users = UserRecord::collect([
+    ['id' => 1, 'name' => 'Alice', 'email' => 'alice@example.com'],
+    ['id' => 2, 'name' => 'Bob', 'email' => 'bob@example.com'],
+]);
+
+// À partir d'une collection existante
+$filtered = UserRecord::collect($users->toArray())
+    ->filter(fn($user) => $user->name === 'Alice');
+
+// Avec une collection personnalisée
+$collection = UserRecord::collect($sources, UserRecordCollection::class);
+```
+
+### Cas d'usage typiques
+
+```php
+// Résultat de base de données
+$users = UserRecord::collect($db->fetchAll());
+
+// Réponse d'API
+$users = UserRecord::collect(json_decode($apiResponse, true));
+
+// Traitement par lots
+$batch = UserRecord::collect($chunk);
+$batch->each(fn($user) => $this->process($user));
+```
+
+---
+
+## 12. Normalisation : snake_case pour la base de données
+
+Les Records se normalisent automatiquement en `snake_case` pour faciliter le mapping avec les bases de données :
+
+```php
+$record = UserRecord::from([
+    'id' => 1,
+    'name' => 'John Doe',
+    'email' => 'john@example.com',
+    'emailVerifiedAt' => '2024-01-01T12:00:00+00:00',
+    'createdAt' => '2024-01-01T12:00:00+00:00'
+]);
+
+$normalized = NormalizerChain::get()->normalize($record);
+// Résultat :
+// [
+//     'id' => 1,
+//     'name' => 'John Doe',
+//     'email' => 'john@example.com',
+//     'email_verified_at' => '2024-01-01T12:00:00+00:00',  // snake_case
+//     'created_at' => '2024-01-01T12:00:00+00:00'          // snake_case
+// ]
+```
+
+### Utilisation avec une base de données
+
+```php
+// Enregistrer en base
+$record = UserRecord::from($formData);
+$db->insert('users', NormalizerChain::get()->normalize($record));
+
+// Lire depuis la base
+$row = $db->fetch('SELECT * FROM users WHERE id = 1');
+$record = UserRecord::from($row);
+```
+
+---
+
+## 13. Les Value Objects au cœur des Records
+
+La vraie puissance des Records vient de leur capacité à utiliser des Value Objects pour les propriétés complexes :
+
+```php
+final class UserRecord extends AbstractRecord
 {
-    public function findBy(UserFiltersRecord $filters): TypedCollection
+    public function __construct(
+        public readonly ?int $id,
+        public readonly string $name,
+        public readonly EmailAddress $email,        // VO
+        public readonly PhoneNumber $phone,         // VO
+        public readonly Password $password,         // VO
+        public readonly Address $address,           // VO
+        public readonly Iso8601DateTime $createdAt, // VO pour les dates
+        public readonly Iso8601DateTime $updatedAt, // VO pour les dates
+        public readonly UserRole $role,             // Enum
+        public readonly UserStatus $status,         // Enum
+    ) {}
+}
+```
+
+### Avantages
+
+```php
+// ✅ L'email est GARANTI valide
+$record = UserRecord::from([
+    'email' => 'john@example.com'  // Validé par EmailAddress::from()
+]);
+
+// ✅ La date est GARANTIE au format ISO 8601
+$record = UserRecord::from([
+    'created_at' => '2024-01-01T12:00:00+00:00'  // Validé par Iso8601DateTime::from()
+]);
+
+// ✅ Comportement disponible
+$domain = $record->email->getDomain();                    // 'example.com'
+$isAfter = $record->createdAt->isAfter($otherDate);      // Comparaison
+
+// ✅ Pas de duplication de validation
+// La validation est centralisée dans les Value Objects
+```
+
+---
+
+## 14. Les collections typées avec des Records
+
+```php
+// Définir une collection spécifique
+final class UserRecordCollection extends AbstractTypedCollection
+{
+    public function __construct()
     {
-        $query = User::query();
-        
-        if ($filters->name !== null) {
-            $query->where('name', 'like', "%{$filters->name}%");
-        }
-        
-        if ($filters->email !== null) {
-            $query->where('email', $filters->email);
-        }
-        
-        if ($filters->role !== null) {
-            $query->where('role', $filters->role->value);
-        }
-        
-        return UserRecord::collect($query->get());
+        parent::__construct(UserRecord::class);
     }
-}
-```
-
-### 7.5. Record pour pagination
-
-```php
-final class PaginationRecord extends AbstractRecord
-{
-    public function __construct(
-        public readonly int $perPage = 15,
-        public readonly int $page = 1,
-        public readonly ?string $sortBy = null,
-        public readonly string $sortDir = 'asc',
-    ) {}
+    
+    public function active(): self
+    {
+        return $this->filter(fn(UserRecord $user) => $user->status === UserStatus::ACTIVE);
+    }
+    
+    public function withRole(UserRole $role): self
+    {
+        return $this->filter(fn(UserRecord $user) => $user->role === $role);
+    }
+    
+    public function createdAfter(Iso8601DateTime $date): self
+    {
+        return $this->filter(fn(UserRecord $user) => $user->createdAt->isAfter($date));
+    }
 }
 
 // Utilisation
-$pagination = new PaginationRecord(perPage: 20, page: 2, sortBy: 'created_at');
-$users = $userRepository->paginate($pagination);
+$users = UserRecordCollection::from($dbResults);
+$activeAdmins = $users->active()->withRole(UserRole::ADMIN);
+$recentUsers = $users->createdAfter(Iso8601DateTime::from('2024-01-01T00:00:00+00:00'));
 ```
+
+### Avantages des collections typées
+
+| Sans collection typée | Avec collection typée |
+|----------------------|----------------------|
+| `array<UserRecord>` | `TypedCollection<UserRecord>` |
+| Pas de méthodes de filtrage | `filter()`, `map()`, `reduce()`, etc. |
+| Pas de type-safety | Type-safety garantie |
+| Pas d'immutabilité | Collections immutables |
 
 ---
 
-## 8. Ce qu'un Record ne doit PAS faire (RAPPEL)
+## 15. Bonnes pratiques
 
-| Interdit | Pourquoi | Alternative |
-|----------|----------|-------------|
-| `Cache::get()` | Effet de bord | Injecter un service |
-| `Log::info()` | Effet de bord | Injecter un logger |
-| `Http::get()` | Effet de bord | Injecter un client HTTP |
-| `DB::table()` | Effet de bord + DB | Repository |
-| `Mail::send()` | Effet de bord | Task dédiée |
-| `Queue::push()` | Effet de bord | Task dédiée |
-| `new User::find(1)` | Appel DB + Model | Repository |
-| `array` brut | Non typé | `TypedCollection` |
+### 15.1. Toujours utiliser `from()` pour créer des Records
 
 ```php
-// ❌ MAUVAIS - Record avec effets de bord
-final class BadRecord extends AbstractRecord
-{
-    public function process(): void
-    {
-        Cache::put('key', 'value');     // ❌
-        Log::info('processing');        // ❌
-        Http::get('api.com');           // ❌
-        Mail::send($email);             // ❌
-        Queue::push(new Job());         // ❌
-        $user = User::find(1);          // ❌
-    }
-}
+// ✅ Bon
+$record = UserRecord::from($data);
 
-// ✅ BON - La logique est dans un Service ou une Task
-final class ProcessService
+// ❌ Mauvais - on perd l'hydratation automatique
+$record = new UserRecord(...);
+```
+
+### 15.2. Combiner Records et Value Objects
+
+```php
+// ✅ Bon - validation déléguée aux VOs
+final class UserRecord extends AbstractRecord
 {
     public function __construct(
-        private readonly CacheInterface $cache,
-        private readonly LoggerInterface $logger,
-        private readonly HttpClient $http,
-        private readonly MailerInterface $mailer,
-        private readonly QueueInterface $queue,
-        private readonly UserRepository $userRepository,
+        public readonly EmailAddress $email,        // Validation intégrée
+        public readonly Iso8601DateTime $createdAt, // Validation intégrée
+        public readonly Password $password,         // Validation intégrée
     ) {}
-    
-    public function process(ProcessRecord $record): void
-    {
-        $this->cache->set('key', 'value');
-        $this->logger->info('processing');
-        $this->http->get('api.com');
-        $this->mailer->send($email);
-        $this->queue->push(new Job());
-        $user = $this->userRepository->find(1);
+}
+
+// ❌ Mauvais - validation dans le Record
+final class UserRecord extends AbstractRecord
+{
+    public function __construct(
+        public readonly string $email,      // Validation à faire ailleurs
+        public readonly string $createdAt,  // Pas de garantie de format
+        public readonly string $password,   // Pas de validation
+    ) {}
+}
+```
+
+### 15.3. Utiliser des enums pour les champs à valeurs fixes
+
+```php
+// ✅ Bon - Enum pour valeurs fixes
+enum UserRole: string
+{
+    case ADMIN = 'admin';
+    case USER = 'user';
+    case DOCTOR = 'doctor';
+}
+
+final class UserRecord extends AbstractRecord
+{
+    public function __construct(
+        public readonly UserRole $role,  // Valeurs limitées et connues
+    ) {}
+}
+```
+
+### 15.4. Toujours utiliser `Iso8601DateTime` pour les dates
+
+```php
+// ✅ Bon
+final class UserRecord extends AbstractRecord
+{
+    public function __construct(
+        public readonly Iso8601DateTime $createdAt,
+        public readonly Iso8601DateTime $updatedAt,
+    ) {}
+}
+
+// ❌ Mauvais
+final class UserRecord extends AbstractRecord
+{
+    public function __construct(
+        public readonly string $createdAt,           // Format non garanti
+        public readonly \DateTimeImmutable $updatedAt, // Non hydratable
+    ) {}
+}
+```
+
+### 15.5. Profiter des collections typées
+
+```php
+// ✅ Bon
+$activeUsers = UserRecord::collect($dbResults)
+    ->filter(fn($user) => $user->status === UserStatus::ACTIVE)
+    ->map(fn($user) => $user->name);
+
+// ❌ Mauvais
+$activeUsers = [];
+foreach ($dbResults as $row) {
+    $user = UserRecord::from($row);
+    if ($user->status === UserStatus::ACTIVE) {
+        $activeUsers[] = $user->name;
     }
 }
 ```
 
----
+### 15.6. Normaliser pour la base de données
 
-## 9. Organisation des dossiers
+```php
+// ✅ Bon
+$record = UserRecord::from($formData);
+$db->insert('users', NormalizerChain::get()->normalize($record));
 
-```
-app/
-├── Records/
-│   ├── UserCreateRecord.php
-│   ├── UserUpdateRecord.php
-│   ├── UserFiltersRecord.php
-│   ├── PaginationRecord.php
-│   └── OrderRecord.php
-├── ValueObjects/
-│   ├── EmailAddress.php
-│   ├── Money.php
-│   └── UserId.php
-├── Collections/
-│   └── OrderCollection.php
-├── Services/
-│   └── UserService.php
-├── Repositories/
-│   └── UserRepository.php
-└── Tasks/
-    └── SendEmailTask.php
+// ❌ Mauvais - accès direct aux propriétés (camelCase)
+$db->insert('users', [
+    'id' => $record->id,
+    'createdAt' => $record->createdAt,  // La base attend 'created_at'
+]);
 ```
 
 ---
 
-## 10. Récapitulatif des contraintes
+## 16. Récapitulatif des contraintes
 
 | Contrainte | Règle |
 |------------|-------|
-| **Nommage** | `{Description}Record` |
 | **Héritage** | Étend `AbstractRecord` |
+| **Constructeur** | Public (mais `readonly`) |
 | **Propriétés** | `public readonly` |
-| **Types autorisés** | `int`, `string`, `float`, `bool`, `null`, `Enum`, `ValueObject`, `Record`, `TypedCollection` |
-| **Types interdits** | `array` brut, `Model`, `Collection`, `Carbon`, `DateTime`, `mixed`, `object`, `Cache`, `Log`, `Http`, `DB`, `Mail`, `Queue` |
-| **Logique métier** | ❌ AUCUNE |
-| **Méthodes** | ❌ AUCUNE (sauf héritées) |
-| **Effets de bord** | ❌ AUCUN |
-| **État mutable** | ❌ AUCUN |
-| **Appels statiques** | ❌ AUCUN |
-| **Utilisation** | Communication interne UNIQUEMENT (pas de réponse HTTP) |
-| **Testabilité** | ✅ Doit être testable unitairement (pas de mocks complexes) |
+| **Types scalaires autorisés** | `int`, `string`, `float`, `bool`, `null` |
+| **Types objets autorisés** | `ValueObject`, `Enum`, `TypedCollection`, `Record` |
+| **Types INTERDITS** | `DataObject`, `AbstractData`, `DateTime`, `DateTimeImmutable` |
+| **Logique métier** | ❌ **INTERDITE** |
+| **Validation** | Délégation aux VOs |
+| **Hydratation** | `from()`, `fromJson()`, `collect()` |
+| **Normalisation** | Automatique (`snake_case`) |
 
 ---
 
-## 11. Règle d'or
+## En résumé : Quand utiliser quoi ?
 
-> **Un Record est un transporteur de données bête, purement passif, sans aucune logique métier. Il ne fait que transporter des données typées d'un point A à un point B. Il ne peut pas interagir avec la base de données, le cache, les logs, ou quoi que ce soit d'externe. Sa seule responsabilité est de garantir le typage des données.**
+| Situation | Solution | Exemple |
+|-----------|----------|---------|
+| **Communication interne** | **Record** | `UserRecord`, `OrderRecord` |
+| **Concept métier avec comportement** | **Value Object** | `EmailAddress`, `Money`, `Iso8601DateTime` |
+| **Valeurs FIXES** | **Enum** | `UserRole`, `OrderStatus` |
+| **Réponse API** | **Data** | `UserData`, `OrderData` |
+| **Transport de données flexible** | **DataObject** | Configuration, paramètres |
+| **Dates et heures** | **Iso8601DateTime (VO)** | `createdAt`, `updatedAt` |
+
+---
+
+## 17. Exemple complet
 
 ```php
-// Le Record parfait (bête et efficace)
+// 1. Définir les Value Objects
+final class EmailAddress extends AbstractValueObject { /* ... */ }
+final class Iso8601DateTime extends AbstractValueObject { /* ... */ }
+
+// 2. Définir les Enums
+enum UserRole: string { case ADMIN = 'admin'; case USER = 'user'; }
+enum UserStatus: string { case ACTIVE = 'active'; case INACTIVE = 'inactive'; }
+
+// 3. Définir le Record
 final class UserRecord extends AbstractRecord
 {
     public function __construct(
-        public readonly UserId $id,           // ← Value Object
-        public readonly string $name,         // ← scalaire
-        public readonly EmailAddress $email,  // ← Value Object
-        public readonly UserRole $role,       // ← Enum
-        public readonly TypedCollection $tags, // ← TypedCollection<string>
-        public readonly string $createdAt,    // ← ISO string
+        public readonly ?int $id,
+        public readonly string $name,
+        public readonly EmailAddress $email,
+        public readonly UserRole $role,
+        public readonly UserStatus $status,
+        public readonly Iso8601DateTime $createdAt,
+        public readonly ?Iso8601DateTime $updatedAt,
     ) {}
 }
+
+// 4. Utilisation
+$record = UserRecord::from([
+    'name' => 'John Doe',
+    'email' => 'john@example.com',
+    'role' => 'admin',
+    'status' => 'active',
+    'created_at' => '2024-01-01T12:00:00+00:00'
+]);
+
+// 5. Collection
+$users = UserRecord::collect($dbResults);
+$activeAdmins = $users
+    ->filter(fn($u) => $u->status === UserStatus::ACTIVE)
+    ->filter(fn($u) => $u->role === UserRole::ADMIN)
+    ->filter(fn($u) => $u->createdAt->isAfter(Iso8601DateTime::from('2024-01-01T00:00:00+00:00')));
+
+// 6. Normalisation pour la base de données
+$db->insert('users', NormalizerChain::get()->normalize($record));
 ```
+
+---
+
+## Support
+
+Pour toute question ou suggestion, n'hésitez pas à :
+- Ouvrir une issue sur GitHub
+- Consulter la documentation complète
+- Contacter l'équipe de développement

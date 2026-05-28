@@ -1,18 +1,30 @@
-# Value Object - Documentation (Version finale)
-
-## 1. Définition
-
-Un **Value Object (VO)** est une structure de données **immutable**, **stateless** et **auto-validante** qui représente un **concept métier** avec son propre comportement. Contrairement au Record (simple transporteur de données), un Value Object encapsule de la **logique métier** et garantit sa **validité** à l'instantiation.
-
-```
-Value Object → Concept métier avec comportement → Validation OBLIGATOIRE → Pas d'identité propre
-```
-
-> ⚠️ **Un Value Object est STRICTEMENT stateless et ne peut contenir aucune logique avec effets de bord (cache, DB, HTTP, logs).**
+# Value Objects - Documentation du Package
 
 ---
 
-## 2. Record vs Value Object vs Data : Différences fondamentales
+## 1. Définition et concepts fondamentaux
+
+Un **Value Object (VO)** est une structure de données **immutable**, **stateless** et **auto-validante** qui représente un **concept métier** avec son propre comportement.
+
+```
+Value Object → Concept métier → Validation OBLIGATOIRE → Pas d'identité propre → Immutable
+```
+
+> ⚠️ **Un Value Object est STRICTEMENT stateless et ne peut contenir aucune logique avec effets de bord (cache, base de données, HTTP, logs).**
+
+### Caractéristiques essentielles
+
+| Caractéristique | Description |
+|-----------------|-------------|
+| **Immutable** | Une fois créé, ne peut jamais être modifié |
+| **Sans identifiant** | Pas de propriété `id`, l'identité est définie par ses valeurs |
+| **Auto-validant** | Se valide à la construction, jamais d'état invalide |
+| **Égalité par valeur** | Deux VOs sont égaux si toutes leurs propriétés sont égales |
+| **Comportement métier** | Encapsule la logique liée au concept |
+
+---
+
+## 2. Record vs Value Object vs Data
 
 | Aspect | Record | Value Object | Data DTO |
 |--------|--------|--------------|----------|
@@ -23,25 +35,23 @@ Value Object → Concept métier avec comportement → Validation OBLIGATOIRE �
 | **Effets de bord** | ❌ Interdit | ❌ **Interdit** | ❌ Interdit |
 | **Peut contenir** | VO, scalaires, TypedCollection | **VO, scalaires, TypedCollection, Enums** | Data, TypedCollection |
 | **Peut contenir des Records** | ✅ Oui | ❌ **Interdit** | ✅ Oui |
-| **Peut contenir des Data** | ❌ Interdit | ❌ **Interdit** | ✅ Oui |
 | **Nommage** | `UserRecord` | `EmailAddress`, `Money` | `UserData` |
-| **Testabilité** | ✅ Excellente | ✅ **Excellente** | ✅ Excellente |
 
 ---
 
-## 3. Pourquoi les Value Objects ?
+## 3. Pourquoi utiliser des Value Objects ?
 
 ### 3.1. Le problème des types primitifs
 
 ```php
-// ❌ MAUVAIS - On ne sait pas ce qu'est cette chaîne
+// ❌ On ne sait pas ce qu'est cette chaîne
 function sendEmail(string $email): void
 {
     // L'email n'est pas validé
     // Pas de comportement attaché
 }
 
-// ✅ BON - Le type explicite le concept
+// ✅ Le type explicite le concept
 function sendEmail(EmailAddress $email): void
 {
     // L'email est GARANTI valide
@@ -52,655 +62,49 @@ function sendEmail(EmailAddress $email): void
 ### 3.2. Validation centralisée
 
 ```php
-// ❌ MAUVAIS - Validation dispersée
+// ❌ Validation dispersée dans plusieurs services
 class UserService {
     public function updateEmail(string $email): void {
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { ... }
     }
 }
-class OrderService {
-    public function notify(string $email): void {
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { ... }
-    }
-}
 
-// ✅ BON - Validation dans le VO
+// ✅ Validation centralisée dans le Value Object
 final class EmailAddress extends AbstractValueObject
 {
-    private function __construct(public readonly string $value) {}
-    
-    public static function fromString(string $email): self
+    public static function from(mixed $source): static
     {
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            throw new InvalidArgumentException("Invalid email: {$email}");
+        if (!filter_var($source, FILTER_VALIDATE_EMAIL)) {
+            throw new InvalidArgumentException("Invalid email: {$source}");
         }
-        return new self($email);
+        return new self($source);
     }
-    
-    public function getDomain(): string { ... }
-    public function isGmail(): bool { ... }
+}
+```
+
+### 3.3. Comportement attaché à la donnée
+
+```php
+// ❌ Logique métier dispersée
+if (str_ends_with($email, '@gmail.com')) {
+    // ...
+}
+
+// ✅ Comportement attaché au concept
+if ($email->isGmail()) {
+    // ...
 }
 ```
 
 ---
 
-## 4. Enum vs Value Object : La différence fondamentale (⚠️ IMPORTANT)
+## 4. Enum vs Value Object
 
 > **Enum = ensemble FIXE de valeurs (fini, connu à l'avance)**
 > **Value Object = concept OUVERT avec validation (infini, règles métier)**
 
 ```php
-// ENUM : Quand les valeurs sont LIMITÉES et CONNUES à l'avance
-enum UserRole: string
-{
-    case ADMIN = 'admin';
-    case USER = 'user';
-    case DOCTOR = 'doctor';
-    
-    public function getLabel(): string
-    {
-        return match($this) {
-            self::ADMIN => 'Administrateur',
-            self::USER => 'Utilisateur',
-            self::DOCTOR => 'Médecin',
-        };
-    }
-    
-    public function isAdmin(): bool
-    {
-        return $this === self::ADMIN;
-    }
-}
-
-// VALUE OBJECT : Quand les valeurs sont ILLIMITÉES mais suivent des RÈGLES
-final class EmailAddress extends AbstractValueObject
-{
-    private function __construct(public readonly string $value) {}
-    
-    public static function fromString(string $email): self
-    {
-        // Des MILLIARDS de valeurs possibles !
-        // Mais TOUTES doivent suivre cette règle
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            throw new InvalidArgumentException("Invalid email: {$email}");
-        }
-        return new self($email);
-    }
-    
-    public function getDomain(): string { ... }
-    public function isGmail(): bool { ... }
-}
-```
-
-### 4.1. Exemple concret : Les pays
-
-```php
-// ENUM : Les pays de l'UE sont FIXES et CONNUS
-enum EuCountry: string
-{
-    case FR = 'FR';
-    case DE = 'DE';
-    case ES = 'ES';
-    case IT = 'IT';
-    case NL = 'NL';
-    case BE = 'BE';
-    case LU = 'LU';
-    
-    public function getLabel(): string
-    {
-        return match($this) {
-            self::FR => 'France',
-            self::DE => 'Allemagne',
-            self::ES => 'Espagne',
-            self::IT => 'Italie',
-            self::NL => 'Pays-Bas',
-            self::BE => 'Belgique',
-            self::LU => 'Luxembourg',
-        };
-    }
-    
-    public static function getAllCodes(): array
-    {
-        return array_column(self::cases(), 'value');
-    }
-}
-
-// VALUE OBJECT : Un pays peut être N'IMPORTE LEQUEL des 197 pays du monde
-// Pas un nombre fixe, juste des règles de validation
-final class Country extends AbstractValueObject
-{
-    private function __construct(public readonly string $code) {}
-    
-    public static function fromCode(string $code): self
-    {
-        // Règle : code ISO 3166-1 alpha-2 (2 lettres)
-        if (!preg_match('/^[A-Z]{2}$/', $code)) {
-            throw new InvalidArgumentException("Invalid country code: {$code}");
-        }
-        return new self($code);
-    }
-    
-    public function isInEuropeanUnion(): bool
-    {
-        // Délégation à l'Enum pour la liste des pays de l'UE
-        return in_array($this->code, EuCountry::getAllCodes());
-    }
-    
-    public function getLabel(): string
-    {
-        // Délégation à l'Enum si c'est un pays de l'UE
-        $euCountry = EuCountry::tryFrom($this->code);
-        if ($euCountry) {
-            return $euCountry->getLabel();
-        }
-        
-        // Sinon, mapping externe ou API
-        return GeoService::getCountryName($this->code);
-    }
-}
-
-// Utilisation
-$country = Country::fromCode('FR');
-if ($country->isInEuropeanUnion()) {  // true
-    echo $country->getLabel();  // 'France'
-}
-
-$country = Country::fromCode('US');  // Valide (US existe)
-if (!$country->isInEuropeanUnion()) {  // true
-    echo $country->getLabel();  // 'États-Unis' (via service)
-}
-```
-
-### 4.2. Quand utiliser Enum vs Value Object ?
-
-| Situation | Solution | Exemple |
-|-----------|----------|---------|
-| **Valeurs FIXES et CONNUES à l'avance** | **Enum** | `UserRole`, `OrderStatus`, `EuCountry` |
-| **Valeurs ILLIMITÉES mais avec RÈGLES** | **Value Object** | `EmailAddress`, `PhoneNumber`, `Age` |
-| **Concept métier avec validation complexe** | **Value Object** | `Money`, `Password`, `ZipCode` |
-| **Ensemble restreint de valeurs** | **Enum** | `Currency`, `PaymentMethod`, `Language` |
-
-```php
-// ENUM : ensemble FIXE (3 valeurs possibles)
-enum UserRole: string
-{
-    case ADMIN = 'admin';
-    case USER = 'user';
-    case DOCTOR = 'doctor';
-    
-    public function getLabel(): string { ... }
-}
-
-// VALUE OBJECT : nombre INFINI de valeurs possibles
-final class EmailAddress extends AbstractValueObject
-{
-    // Des MILLIONS d'emails possibles !
-    public static function fromString(string $email): self { ... }
-    public function getDomain(): string { ... }
-}
-
-// VALUE OBJECT : nombre INFINI mais avec règle (0-150)
-final class Age extends AbstractValueObject
-{
-    public static function fromInt(int $age): self
-    {
-        if ($age < 0 || $age > 150) {
-            throw new InvalidArgumentException("Invalid age: {$age}");
-        }
-        return new self($age);
-    }
-    public function canVote(): bool { return $this->value >= 18; }
-}
-```
-
----
-
-## 5. Règles fondamentales
-
-### 5.1. Un Value Object est STATELESS
-
-> **Un Value Object ne doit JAMAIS avoir d'effets de bord.**
-
-```php
-// ✅ BON - Pur, sans effets de bord
-final class EmailAddress extends AbstractValueObject
-{
-    private function __construct(public readonly string $value) {}
-    
-    public static function fromString(string $email): self
-    {
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            throw new InvalidArgumentException("Invalid email: {$email}");
-        }
-        return new self($email);
-    }
-    
-    public function getDomain(): string
-    {
-        return substr(strrchr($this->value, "@"), 1);
-    }
-}
-
-// ❌ MAUVAIS - Effets de bord interdits !
-final class BadEmail extends AbstractValueObject
-{
-    public function isUnique(): bool
-    {
-        return User::where('email', $this->value)->count() === 0;  // ❌ DB
-    }
-    
-    public function sendWelcome(): void
-    {
-        Mail::send($this->value);  // ❌ Email
-    }
-}
-```
-
-### 5.2. Ce qu'un Value Object peut contenir
-
-| Type | Exemple | Autorisation |
-|------|---------|--------------|
-| `int`, `string`, `float`, `bool` | `public readonly int $value` | ✅ Oui |
-| `Enum` | `public readonly Currency $currency` | ✅ Oui |
-| `Value Object` | `public readonly EmailAddress $email` | ✅ Oui |
-| `TypedCollection` | `public readonly TypedCollection $tags` | ✅ Oui |
-
-### 5.3. Ce qu'un Value Object NE PEUT PAS contenir
-
-| Type interdit | Alternative |
-|---------------|-------------|
-| `Record` | Utiliser un VO ou scalaire |
-| `Data` | Utiliser un VO |
-| `Model` Eloquent | Utiliser un Record |
-| `Carbon` / `DateTime` | `string` ISO 8601 |
-| `Cache`, `DB`, `Http`, `Log` | Injecter des services |
-
----
-
-## 6. Value Objects pour renforcer les types scalaires
-
-### 6.1. Le problème : les types primitifs ne veulent rien dire
-
-```php
-// ❌ Faible typage : n'importe quelle chaîne peut passer
-function register(string $email, string $phone, string $zipCode): void
-{
-    // Rien ne garantit la validité
-}
-```
-
-### 6.2. La solution : chaque concept a son propre type
-
-```php
-// ✅ Typage fort : chaque concept est explicite
-function register(EmailAddress $email, PhoneNumber $phone, ZipCode $zipCode): void
-{
-    // Les objets sont GARANTIS valides à l'instanciation
-    // L'IDE peut autocompléter les méthodes spécifiques
-}
-
-// Exemple complet
-final class EmailAddress extends AbstractValueObject
-{
-    private function __construct(public readonly string $value) {}
-    
-    public static function fromString(string $email): self
-    {
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            throw new InvalidArgumentException("Invalid email: {$email}");
-        }
-        return new self($email);
-    }
-    
-    public function getDomain(): string
-    {
-        return substr(strrchr($this->value, "@"), 1);
-    }
-    
-    public function isGmail(): bool
-    {
-        return $this->getDomain() === 'gmail.com';
-    }
-    
-    public function obfuscate(): string
-    {
-        $parts = explode('@', $this->value);
-        $local = $parts[0];
-        $hidden = substr($local, 0, 2) . str_repeat('*', max(3, strlen($local) - 4)) . substr($local, -2);
-        return $hidden . '@' . $parts[1];
-    }
-}
-```
-
----
-
-## 7. Logique métier dans les Value Objects
-
-### 7.1. Calculs et transformations (stateless)
-
-```php
-final class Money extends AbstractValueObject
-{
-    public function __construct(
-        public readonly float $amount,
-        public readonly Currency $currency,
-    ) {}
-    
-    // ✅ Addition (retourne un nouveau Money)
-    public function add(Money $other): self
-    {
-        if ($this->currency !== $other->currency) {
-            throw new InvalidArgumentException('Cannot add different currencies');
-        }
-        return new Money($this->amount + $other->amount, $this->currency);
-    }
-    
-    // ✅ Multiplication
-    public function multiply(float $factor): self
-    {
-        return new Money($this->amount * $factor, $this->currency);
-    }
-    
-    // ✅ Formatage
-    public function format(): string
-    {
-        return $this->currency->getSymbol() . number_format($this->amount, 2);
-    }
-}
-```
-
-### 7.2. Validation métier
-
-```php
-final class Age extends AbstractValueObject
-{
-    private function __construct(public readonly int $value) {}
-    
-    public static function fromInt(int $age): self
-    {
-        if ($age < 0) {
-            throw new InvalidArgumentException("Age cannot be negative");
-        }
-        if ($age > 150) {
-            throw new InvalidArgumentException("Age cannot exceed 150");
-        }
-        return new self($age);
-    }
-    
-    // ✅ Règles métier
-    public function canVote(): bool
-    {
-        return $this->value >= 18;
-    }
-    
-    public function canDrink(string $country): bool
-    {
-        $drinkingAge = match($country) {
-            'US' => 21,
-            default => 18,
-        };
-        return $this->value >= $drinkingAge;
-    }
-}
-```
-
----
-
-## 8. Value Objects + Records : La combinaison gagnante
-
-```php
-// Value Objects : validation et comportement
-final class EmailAddress extends AbstractValueObject { ... }
-final class Password extends AbstractValueObject { ... }
-
-// Record : transport de données (utilise les VOs)
-final class UserCredentialsRecord extends AbstractRecord
-{
-    public function __construct(
-        public readonly EmailAddress $email,  // ← VO déjà validé
-        public readonly Password $password,   // ← VO déjà validé
-        public readonly UserRole $role = UserRole::USER,
-    ) {}
-}
-
-// Service : plus besoin de valider !
-final class RegisterUserService
-{
-    public function register(UserCredentialsRecord $record): void
-    {
-        // L'email et le password sont DÉJÀ valides
-        // Le Record garantit le typage, les VOs garantissent la validité
-        $this->repository->create($record);
-    }
-}
-```
-
----
-
-## 9. Avantages pour la testabilité
-
-```php
-final class EmailAddressTest extends TestCase
-{
-    public function test_valid_email_creates_value_object(): void
-    {
-        $email = EmailAddress::fromString('john@example.com');
-        
-        $this->assertSame('john@example.com', $email->value);
-        $this->assertSame('example.com', $email->getDomain());
-        $this->assertFalse($email->isGmail());
-    }
-    
-    public function test_invalid_email_throws_exception(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-        EmailAddress::fromString('not-an-email');
-    }
-    
-    public function test_obfuscate_hides_email(): void
-    {
-        $email = EmailAddress::fromString('john.doe@example.com');
-        $this->assertSame('jo*****oe@example.com', $email->obfuscate());
-    }
-}
-```
-
----
-
-## 10. Patterns de création
-
-```php
-// Factory simple
-final class EmailAddress extends AbstractValueObject
-{
-    private function __construct(public readonly string $value) {}
-    
-    public static function fromString(string $email): self
-    {
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            throw new InvalidArgumentException("Invalid email: {$email}");
-        }
-        return new self($email);
-    }
-}
-
-// Factory avec normalisation
-final class PhoneNumber extends AbstractValueObject
-{
-    private function __construct(public readonly string $value) {}
-    
-    public static function fromString(string $phone): self
-    {
-        $cleaned = preg_replace('/[^0-9+]/', '', $phone);
-        if (!preg_match('/^\+?[0-9]{10,15}$/', $cleaned)) {
-            throw new InvalidArgumentException("Invalid phone: {$phone}");
-        }
-        return new self($cleaned);
-    }
-}
-
-// Factory optionnelle (nullable)
-final class Avatar extends AbstractValueObject
-{
-    private function __construct(public readonly string $url) {}
-    
-    public static function fromString(?string $url): ?self
-    {
-        if ($url === null || $url === '') {
-            return null;
-        }
-        if (!filter_var($url, FILTER_VALIDATE_URL)) {
-            throw new InvalidArgumentException("Invalid URL: {$url}");
-        }
-        return new self($url);
-    }
-}
-```
-
----
-
-## 11. Exemples concrets
-
-### 11.1. EmailAddress
-
-```php
-final class EmailAddress extends AbstractValueObject
-{
-    private function __construct(public readonly string $value) {}
-    
-    public static function fromString(string $email): self
-    {
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            throw new InvalidArgumentException("Invalid email: {$email}");
-        }
-        return new self($email);
-    }
-    
-    public function getDomain(): string
-    {
-        return substr(strrchr($this->value, "@"), 1);
-    }
-    
-    public function isGmail(): bool
-    {
-        return $this->getDomain() === 'gmail.com';
-    }
-    
-    public function obfuscate(): string
-    {
-        $parts = explode('@', $this->value);
-        $local = $parts[0];
-        $hidden = substr($local, 0, 2) . str_repeat('*', max(3, strlen($local) - 4)) . substr($local, -2);
-        return $hidden . '@' . $parts[1];
-    }
-}
-```
-
-### 11.2. Money
-
-```php
-final class Money extends AbstractValueObject
-{
-    public function __construct(
-        public readonly float $amount,
-        public readonly Currency $currency,
-    ) {}
-    
-    public function add(Money $other): self
-    {
-        if ($this->currency !== $other->currency) {
-            throw new InvalidArgumentException('Different currencies');
-        }
-        return new Money($this->amount + $other->amount, $this->currency);
-    }
-    
-    public function format(): string
-    {
-        return $this->currency->getSymbol() . number_format($this->amount, 2);
-    }
-}
-```
-
-### 11.3. Age (avec règles métier)
-
-```php
-final class Age extends AbstractValueObject
-{
-    private function __construct(public readonly int $value) {}
-    
-    public static function fromInt(int $age): self
-    {
-        if ($age < 0 || $age > 150) {
-            throw new InvalidArgumentException("Invalid age: {$age}");
-        }
-        return new self($age);
-    }
-    
-    public function canVote(): bool { return $this->value >= 18; }
-    public function canDrive(): bool { return $this->value >= 16; }
-    public function canRetire(): bool { return $this->value >= 62; }
-}
-```
-
----
-
-## 12. Ce qu'un Value Object ne doit PAS faire (RAPPEL)
-
-| Interdit | Alternative |
-|----------|-------------|
-| `Cache::get()`, `Log::info()` | Service avec injection |
-| `Http::get()`, `DB::table()` | Repository |
-| `Mail::send()`, `Queue::push()` | Task dédiée |
-| `User::find(1)` (Model) | Repository |
-| Contenir des `Record` ou `Data` | Utiliser VO ou scalaire |
-| Constructeur public | Constructeur privé |
-| État mutable (`private int $counter`) | `readonly` properties |
-
-```php
-// ❌ MAUVAIS
-final class BadEmail extends AbstractValueObject
-{
-    public function isUnique(): bool
-    {
-        return User::where('email', $this->value)->count() === 0;  // ❌ DB
-    }
-}
-
-// ✅ BON
-final class UserService
-{
-    public function isEmailUnique(EmailAddress $email): bool
-    {
-        return $this->repository->findByEmail($email) === null;
-    }
-}
-```
-
----
-
-## 13. Récapitulatif des contraintes
-
-| Contrainte | Règle |
-|------------|-------|
-| **Héritage** | Étend `AbstractValueObject` |
-| **Constructeur** | ✅ **PRIVÉ** |
-| **Validation** | ✅ **OBLIGATOIRE** dans les factory methods |
-| **Effets de bord** | ❌ **STRICTEMENT INTERDITS** |
-| **État mutable** | ❌ Interdit (`readonly` obligatoire) |
-| **Peut contenir** | VO, scalaires, TypedCollection, Enums |
-| **Peut contenir des Records/Data** | ❌ **INTERDIT** |
-| **Factory methods** | `fromString()`, `fromInt()`, `fromArray()` |
-| **Testabilité** | ✅ Excellente (pas de mocks) |
-
----
-
-## 14. Règle d'or
-
-> **Enum quand les valeurs sont FIXES et CONNUES à l'avance.**
-> **Value Object quand les valeurs sont ILLIMITÉES mais suivent des RÈGLES.**
-
-```php
-// ENUM : valeurs FIXES (3 rôles possibles)
+// ENUM : valeurs FIXES et CONNUES (3 rôles possibles)
 enum UserRole: string
 {
     case ADMIN = 'admin';
@@ -714,38 +118,565 @@ enum UserRole: string
 final class EmailAddress extends AbstractValueObject
 {
     // Des MILLIONS d'emails possibles !
-    public static function fromString(string $email): self
+    public static function from(mixed $source): static
     {
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if (!filter_var($source, FILTER_VALIDATE_EMAIL)) {
             throw new InvalidArgumentException("Invalid email");
         }
-        return new self($email);
+        return new self($source);
     }
     
     public function getDomain(): string { ... }
     public function isGmail(): bool { ... }
 }
+```
 
-// Utilisation
-$email = EmailAddress::fromString('john@gmail.com');
-if ($email->isGmail()) {
-    echo "Gmail user";
-}
+### Quand utiliser Enum vs Value Object ?
 
-$role = UserRole::ADMIN;
-if ($role->isAdmin()) {
-    echo "Administrator";
+| Situation | Solution | Exemple |
+|-----------|----------|---------|
+| **Valeurs FIXES et CONNUES** | **Enum** | `UserRole`, `OrderStatus` |
+| **Valeurs ILLIMITÉES avec validation** | **Value Object** | `EmailAddress`, `PhoneNumber` |
+| **Concept métier avec comportement** | **Value Object** | `Money`, `Age` |
+
+---
+
+## 5. Installation et prérequis
+
+```bash
+composer require andydefer/domain-structures
+```
+
+**Prérequis :**
+- PHP 8.1 ou supérieur
+- Extension JSON activée
+
+---
+
+## 6. Créer son premier Value Object
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\ValueObjects;
+
+use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
+use InvalidArgumentException;
+
+final class EmailAddress extends AbstractValueObject
+{
+    private function __construct(public readonly string $value) {}
+    
+    public static function from(mixed $source): static
+    {
+        if ($source instanceof self) {
+            return $source;
+        }
+        
+        if (!is_string($source)) {
+            throw new InvalidArgumentException('Email must be a string');
+        }
+        
+        if (!filter_var($source, FILTER_VALIDATE_EMAIL)) {
+            throw new InvalidArgumentException("Invalid email: {$source}");
+        }
+        
+        return new self($source);
+    }
+    
+    public function getValue(): string
+    {
+        return $this->value;
+    }
+    
+    public function getDomain(): string
+    {
+        return substr(strrchr($this->value, '@'), 1);
+    }
+    
+    public function isGmail(): bool
+    {
+        return $this->getDomain() === 'gmail.com';
+    }
 }
 ```
 
 ---
 
-## 15. En résumé : Quand utiliser quoi ?
+## 7. Les méthodes fondamentales
+
+Tous les Value Objects héritent de `AbstractValueObject` et bénéficient de ces méthodes :
+
+### 7.1. `getValue(): mixed`
+
+Retourne la valeur brute du Value Object :
+
+```php
+$email = EmailAddress::from('john@example.com');
+$value = $email->getValue(); // 'john@example.com' (string)
+
+$money = Money::from(['amount' => 99.99, 'currency' => 'EUR']);
+$value = $money->getValue(); // MoneyRecord (objet)
+```
+
+### 7.2. `equals(self $other): bool`
+
+Compare deux Value Objects :
+
+```php
+$email1 = EmailAddress::from('john@example.com');
+$email2 = EmailAddress::from('john@example.com');
+
+$email1->equals($email2); // true
+```
+
+### 7.3. `__toString(): string`
+
+Convertit automatiquement en JSON :
+
+```php
+echo $email; // "john@example.com"
+echo $money; // {"amount":99.99,"currency":"EUR"}
+```
+
+---
+
+## 8. Hydratation : le point d'entrée unique `from()`
+
+La méthode `from()` est le **point d'entrée unique** pour créer des Value Objects. Elle accepte de multiples formats :
+
+### Sources supportées
+
+```php
+// 1. Depuis une chaîne simple
+$email = EmailAddress::from('john@example.com');
+
+// 2. Depuis un tableau
+$money = Money::from(['amount' => 99.99, 'currency' => 'EUR']);
+
+// 3. Depuis un objet
+$profile = UserProfile::from($someObject);
+
+// 4. Depuis un autre Value Object (retourne l'original)
+$email2 = EmailAddress::from($email);
+
+// 5. Depuis un DataObject
+$dataObject = DataObject::from(['lat' => 48.8566, 'lng' => 2.3522]);
+$coords = Coordinates::from($dataObject);
+```
+
+### Garanties
+
+1. **Validation** : Le format est vérifié à la construction
+2. **Immutabilité** : L'objet ne pourra jamais être modifié
+3. **Exception** : En cas d'invalidité, une `InvalidArgumentException` est levée
+
+---
+
+## 9. Hydratation JSON : `fromJson()`
+
+La méthode `fromJson()` permet d'hydrater directement depuis une chaîne JSON :
+
+```php
+$json = '"john@example.com"';
+$email = EmailAddress::fromJson($json);
+
+$json = '{"amount": 99.99, "currency": "EUR"}';
+$money = Money::fromJson($json);
+```
+
+**Avantages :**
+- Une seule ligne pour décoder et hydrater
+- Gestion automatique des erreurs JSON
+- Comportement cohérent avec `from()`
+
+---
+
+## 10. Collections de Value Objects : `collect()`
+
+La méthode `collect()` hydrate une collection typée de Value Objects :
+
+```php
+$emails = EmailAddress::collect([
+    'john@example.com',
+    'jane@example.com',
+    'bob@example.com'
+]);
+
+// $emails est un TypedCollection<EmailAddress>
+foreach ($emails as $email) {
+    echo $email->getValue(); // john@example.com, etc.
+}
+```
+
+### Collection personnalisée
+
+```php
+// Créer une collection spécialisée
+final class EmailCollection extends AbstractTypedCollection
+{
+    public function __construct()
+    {
+        parent::__construct(EmailAddress::class);
+    }
+    
+    public function fromDomain(string $domain): self
+    {
+        return $this->filter(fn(EmailAddress $email) => $email->getDomain() === $domain);
+    }
+}
+
+// Utilisation
+$collection = EmailAddress::collect($sources, EmailCollection::class);
+$gmailEmails = $collection->fromDomain('gmail.com');
+```
+
+### Cas d'usage typiques
+
+```php
+// Depuis une API
+$emails = EmailAddress::collect(json_decode($apiResponse, true));
+
+// Depuis une base de données
+$emails = EmailAddress::collect($dbResults);
+
+// Depuis un fichier CSV
+$emails = EmailAddress::collect(array_column($csvData, 'email'));
+```
+
+---
+
+## 11. Normalisation
+
+Les Value Objects se normalisent automatiquement via le `NormalizerChain` :
+
+```php
+$email = EmailAddress::from('john@example.com');
+$normalized = NormalizerChain::get()->normalize($email);
+// 'john@example.com' (string)
+
+$money = Money::from(['amount' => 99.99, 'currency' => 'EUR']);
+$normalized = NormalizerChain::get()->normalize($money);
+// ['amount' => 99.99, 'currency' => 'EUR'] (array)
+```
+
+La méthode `__toString()` utilise cette normalisation :
+
+```php
+echo $email; // "john@example.com"
+echo $money; // {"amount":99.99,"currency":"EUR"}
+```
+
+---
+
+## 12. Égalité : la méthode `equals()`
+
+```php
+public function equals(self $other): bool
+```
+
+**Règles de comparaison :**
+
+1. Les objets doivent être de la même classe
+2. Pour les valeurs scalaires : comparaison stricte (`===`)
+3. Pour les valeurs objets : comparaison par valeur (`==`)
+
+```php
+$email1 = EmailAddress::from('john@example.com');
+$email2 = EmailAddress::from('john@example.com');
+$email3 = EmailAddress::from('jane@example.com');
+
+$email1->equals($email2); // true
+$email1->equals($email3); // false
+$email1->equals(new PostalCode('75001')); // false (type différent)
+```
+
+---
+
+## 13. Immutable par conception
+
+```php
+// ❌ PAS de setters - impossible de modifier
+$email->setValue('new@example.com'); // N'existe pas !
+
+// ✅ Pour "modifier", on crée une nouvelle instance
+$money = Money::from(['amount' => 10.00, 'currency' => 'EUR']);
+$total = $money->add(Money::from(['amount' => 5.00, 'currency' => 'EUR']));
+
+// $money reste inchangé (10.00)
+// $total est une nouvelle instance (15.00)
+```
+
+---
+
+## 14. Ce qu'un Value Object peut contenir
+
+| Type | Exemple | Autorisation |
+|------|---------|--------------|
+| `int`, `string`, `float`, `bool` | `public readonly int $value` | ✅ Oui |
+| `Enum` | `public readonly Currency $currency` | ✅ Oui |
+| `Value Object` | `public readonly EmailAddress $email` | ✅ Oui |
+| `TypedCollection` | `public readonly TypedCollection $tags` | ✅ Oui |
+
+### Ce qu'un Value Object NE PEUT PAS contenir
+
+| Type interdit | Alternative |
+|---------------|-------------|
+| `Record` | Utiliser un VO ou scalaire |
+| `Data` | Utiliser un VO |
+| `Model` Eloquent / Doctrine | Utiliser un Record |
+| `DateTime` / `DateTimeImmutable` | `string` ISO 8601 via `Iso8601DateTime` VO |
+| Services, Cache, DB, HTTP, Logs | Injecter via des services externes |
+
+---
+
+## 15. Règles de validation
+
+Les Value Objects doivent se valider à la construction. Toute valeur invalide doit lever une exception :
+
+```php
+final class Age extends AbstractValueObject
+{
+    private function __construct(public readonly int $value) {}
+    
+    public static function from(mixed $source): static
+    {
+        if (!is_int($source) && !is_numeric($source)) {
+            throw new InvalidArgumentException('Age must be a number');
+        }
+        
+        $age = (int) $source;
+        
+        if ($age < 0) {
+            throw new InvalidArgumentException('Age cannot be negative');
+        }
+        
+        if ($age > 150) {
+            throw new InvalidArgumentException('Age cannot exceed 150');
+        }
+        
+        return new self($age);
+    }
+    
+    public function getValue(): int { return $this->value; }
+    
+    // Règles métier
+    public function canVote(): bool { return $this->value >= 18; }
+    public function canDrive(): bool { return $this->value >= 16; }
+}
+
+// Utilisation
+$age = Age::from(25);
+$age->canVote(); // true
+
+try {
+    $invalidAge = Age::from(-5);
+} catch (InvalidArgumentException $e) {
+    echo $e->getMessage(); // 'Age cannot be negative'
+}
+```
+
+---
+
+## 16. Exemples concrets
+
+### 16.1. EmailAddress
+
+```php
+final class EmailAddress extends AbstractValueObject
+{
+    private function __construct(public readonly string $value) {}
+    
+    public static function from(mixed $source): static
+    {
+        if ($source instanceof self) return $source;
+        if (!is_string($source)) throw new InvalidArgumentException('Email must be a string');
+        if (!filter_var($source, FILTER_VALIDATE_EMAIL)) {
+            throw new InvalidArgumentException("Invalid email: {$source}");
+        }
+        return new self($source);
+    }
+    
+    public function getValue(): string { return $this->value; }
+    public function getDomain(): string { return substr(strrchr($this->value, '@'), 1); }
+    public function isGmail(): bool { return $this->getDomain() === 'gmail.com'; }
+    public function obfuscate(): string { /* ... */ }
+}
+
+// Utilisation
+$email = EmailAddress::from('john@gmail.com');
+echo $email->isGmail();   // true
+echo $email->getDomain(); // 'gmail.com'
+echo $email;              // "john@gmail.com"
+```
+
+### 16.2. Money
+
+```php
+final class Money extends AbstractValueObject
+{
+    private function __construct(public readonly MoneyRecord $value) {}
+    
+    public static function from(mixed $source): static
+    {
+        if ($source instanceof self) return $source;
+        
+        $data = is_array($source) ? $source : json_decode($source, true);
+        $amount = (float) ($data['amount'] ?? 0);
+        $currency = Currency::from($data['currency'] ?? 'EUR');
+        
+        if ($amount < 0) {
+            throw new InvalidArgumentException('Amount must be positive');
+        }
+        
+        return new self(new MoneyRecord($amount, $currency));
+    }
+    
+    public function getValue(): MoneyRecord { return $this->value; }
+    public function add(self $other): self { /* ... */ }
+    public function format(): string { return $this->value->currency->symbol() . number_format($this->value->amount, 2); }
+}
+```
+
+### 16.3. Coordinates
+
+```php
+final class Coordinates extends AbstractValueObject
+{
+    private function __construct(
+        public readonly float $latitude,
+        public readonly float $longitude
+    ) {}
+    
+    public static function from(mixed $source): static
+    {
+        if ($source instanceof self) return $source;
+        
+        if (is_string($source) && str_contains($source, ',')) {
+            [$lat, $lng] = array_map('floatval', explode(',', $source));
+        } elseif (is_array($source)) {
+            $lat = (float) ($source['lat'] ?? $source['latitude'] ?? 0);
+            $lng = (float) ($source['lng'] ?? $source['longitude'] ?? 0);
+        } else {
+            throw new InvalidArgumentException('Invalid coordinates source');
+        }
+        
+        if ($lat < -90 || $lat > 90) {
+            throw new InvalidArgumentException("Latitude {$lat} out of range");
+        }
+        if ($lng < -180 || $lng > 180) {
+            throw new InvalidArgumentException("Longitude {$lng} out of range");
+        }
+        
+        return new self($lat, $lng);
+    }
+    
+    public function getValue(): array { return ['latitude' => $this->latitude, 'longitude' => $this->longitude]; }
+    public function distanceTo(self $other): float { /* Haversine formula */ }
+}
+```
+
+---
+
+## 17. Bonnes pratiques
+
+### 17.1. Toujours utiliser `from()` pour créer des Value Objects
+
+```php
+// ✅ Bon
+$email = EmailAddress::from('john@example.com');
+
+// ❌ Mauvais - le constructeur est privé de toute façon
+$email = new EmailAddress('john@example.com');
+```
+
+### 17.2. Laisser le NormalizerChain gérer la normalisation
+
+```php
+// ✅ Bon
+$normalized = NormalizerChain::get()->normalize($email);
+
+// ❌ Mauvais
+$normalized = $email->getValue(); // Pas toujours le comportement attendu
+```
+
+### 17.3. Utiliser `collect()` pour les lots
+
+```php
+// ✅ Bon - une ligne
+$emails = EmailAddress::collect($apiResponse);
+
+// ❌ Mauvais - boucle manuelle
+$emails = [];
+foreach ($apiResponse as $item) {
+    $emails[] = EmailAddress::from($item);
+}
+```
+
+### 17.4. Profiter de l'immutabilité
+
+```php
+// ✅ Bon
+$newMoney = $money->add($otherMoney);
+
+// ❌ Mauvais - n'existe pas
+$money->addToSelf($otherMoney);
+```
+
+### 17.5. Valider tôt, valider souvent
+
+```php
+// ✅ Bon - validation au point d'entrée
+public function updateUser(EmailAddress $email, Age $age): void
+{
+    // email et age sont DÉJÀ valides
+}
+
+// ❌ Mauvais - validation repoussée
+public function updateUser(string $email, int $age): void
+{
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { ... }
+    if ($age < 0 || $age > 150) { ... }
+}
+```
+
+---
+
+## 18. Récapitulatif des contraintes
+
+| Contrainte | Règle |
+|------------|-------|
+| **Héritage** | Étend `AbstractValueObject` |
+| **Constructeur** | ✅ **PRIVÉ** |
+| **Validation** | ✅ **OBLIGATOIRE** dans `from()` |
+| **Effets de bord** | ❌ **STRICTEMENT INTERDITS** |
+| **État mutable** | ❌ Interdit (`readonly` obligatoire) |
+| **Peut contenir** | VO, scalaires, TypedCollection, Enums |
+| **Peut contenir des Records/Data** | ❌ **INTERDIT** |
+| **Point d'entrée** | `from()` - unique |
+| **JSON** | `fromJson()` |
+| **Collection** | `collect()` |
+| **Testabilité** | ✅ Excellente (pas de mocks) |
+
+---
+
+## En résumé : Quand utiliser quoi ?
 
 | Situation | Solution | Exemple |
 |-----------|----------|---------|
-| **Valeurs FIXES et CONNUES** | **Enum** | `UserRole`, `OrderStatus`, `EuCountry` |
-| **Valeurs ILLIMITÉES avec validation** | **Value Object** | `EmailAddress`, `PhoneNumber`, `Age` |
-| **Concept métier avec comportement** | **Value Object** | `Money`, `Password`, `ZipCode` |
+| **Valeurs FIXES et CONNUES** | **Enum** | `UserRole`, `OrderStatus` |
+| **Valeurs ILLIMITÉES avec validation** | **Value Object** | `EmailAddress`, `PhoneNumber` |
+| **Concept métier avec comportement** | **Value Object** | `Money`, `Age`, `Coordinates` |
 | **Transport de données interne** | **Record** | `UserRecord`, `OrderRecord` |
 | **Réponse API** | **Data** | `UserData`, `OrderData` |
+
+---
+
+## Support
+
+Pour toute question ou suggestion, n'hésitez pas à :
+- Ouvrir une issue sur GitHub
+- Consulter la documentation complète
+- Contacter l'équipe de développement

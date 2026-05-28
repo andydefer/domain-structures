@@ -74,7 +74,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
             return $types;
         } catch (\ArgumentCountError $e) {
             throw new InvalidArgumentException(sprintf(
-                'Cannot determine allowed types for %s. ' .
+                'Cannot determine allowed types for %s. '.
                     'Please create an instance first before calling from(): new %s(...)',
                 $class,
                 $class
@@ -95,7 +95,6 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
             if (PhpType::isValidType($type)) {
                 continue;
             }
-
 
             throw new InvalidArgumentException(sprintf(
                 'Type "%s" is not allowed. Must be %s',
@@ -278,7 +277,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
 
         if (is_string($callback)) {
             $property = $callback;
-            $callback = fn($item) => is_object($item) ? ($item->$property ?? null) : null;
+            $callback = fn ($item) => is_object($item) ? ($item->$property ?? null) : null;
         }
 
         $values = array_map($callback, $items);
@@ -427,7 +426,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
     final public function __clone()
     {
         $this->items = array_map(
-            fn($item) => is_object($item) ? clone $item : $item,
+            fn ($item) => is_object($item) ? clone $item : $item,
             $this->items
         );
     }
@@ -437,7 +436,8 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
     /**
      * Validates that allowed types are not empty.
      *
-     * @param array<string> $allowedTypes
+     * @param  array<string>  $allowedTypes
+     *
      * @throws InvalidArgumentException
      */
     private static function validateAllowedTypes(array $allowedTypes): void
@@ -450,9 +450,9 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
     /**
      * Extracts explicit type from item if present.
      *
-     * @param mixed $item
-     * @param array<string> $allowedTypes
+     * @param  array<string>  $allowedTypes
      * @return string|null The explicit type or null if not found
+     *
      * @throws InvalidArgumentException
      */
     private static function getExplicitType(mixed $item, array $allowedTypes): ?string
@@ -461,13 +461,14 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
 
         if (is_array($itemArray) && isset($itemArray['_type'])) {
             $explicitType = $itemArray['_type'];
-            if (!in_array($explicitType, $allowedTypes, true)) {
+            if (! in_array($explicitType, $allowedTypes, true)) {
                 throw new InvalidArgumentException(sprintf(
                     'Type "%s" specified in "_type" is not allowed. Allowed: %s',
                     $explicitType,
                     implode('|', $allowedTypes)
                 ));
             }
+
             return $explicitType;
         }
 
@@ -477,10 +478,10 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
     /**
      * Detects the appropriate type for an item when multiple types are allowed.
      *
-     * @param mixed $item
-     * @param array<string> $allowedTypes
-     * @param int|null $itemIndex Optional item index for better error messages
+     * @param  array<string>  $allowedTypes
+     * @param  int|null  $itemIndex  Optional item index for better error messages
      * @return string The detected type
+     *
      * @throws InvalidArgumentException
      */
     private static function detectTypeForItem(mixed $item, array $allowedTypes, ?int $itemIndex = null): string
@@ -496,11 +497,11 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
             }
         }
 
-        $prefix = $itemIndex !== null ? "item #{$itemIndex}: " : "";
+        $prefix = $itemIndex !== null ? "item #{$itemIndex}: " : '';
 
         if (count($matchedTypes) > 1) {
             throw new InvalidArgumentException(sprintf(
-                'Ambiguous %sdata can be hydrated by multiple types [%s]. ' .
+                'Ambiguous %sdata can be hydrated by multiple types [%s]. '.
                     'Please specify the type using a "_type" key in the source data.',
                 $prefix,
                 implode('|', $matchedTypes)
@@ -521,10 +522,10 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
     /**
      * Processes a single item for hydration.
      *
-     * @param mixed $item
-     * @param array<string> $allowedTypes
-     * @param int|null $itemIndex Optional item index for better error messages
+     * @param  array<string>  $allowedTypes
+     * @param  int|null  $itemIndex  Optional item index for better error messages
      * @return mixed The converted item
+     *
      * @throws InvalidArgumentException
      */
     private static function processItemForHydration(mixed $item, array $allowedTypes, ?int $itemIndex = null): mixed
@@ -543,6 +544,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
 
         // Multiple types - auto detection
         $detectedType = self::detectTypeForItem($item, $allowedTypes, $itemIndex);
+
         return self::convertItem($item, $detectedType);
     }
 
@@ -574,7 +576,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
         $allowedTypes = static::getStoredAllowedTypes();
         self::validateAllowedTypes($allowedTypes);
 
-        if (!is_iterable($source)) {
+        if (! is_iterable($source)) {
             throw new InvalidArgumentException(sprintf(
                 'Cannot hydrate %s from non-iterable source',
                 static::class
@@ -597,7 +599,6 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
      * Creates a collection instance from a JSON string.
      *
      * @param  string  $json  JSON string representing an array of items
-     * @return static
      *
      * @throws InvalidArgumentException If JSON is invalid or source cannot be hydrated
      */
@@ -613,7 +614,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
         }
 
         // Vérifier que c'est un tableau (pour une collection)
-        if (!is_array($data)) {
+        if (! is_array($data)) {
             throw new InvalidArgumentException(sprintf(
                 'JSON must decode to an array for collection hydration. Got %s.',
                 gettype($data)
@@ -627,16 +628,17 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
      * Hydrates a collection of sources into a typed collection.
      *
      * @template TCollection of AbstractTypedCollection
-     * @param  iterable<mixed>       $sources
+     *
+     * @param  iterable<mixed>  $sources
      * @param  class-string<TCollection>  $collectionClass
      * @return TCollection
      *
-     * @throws \InvalidArgumentException
+     * @throws InvalidArgumentException
      */
     public static function collect(iterable $sources, string $collectionClass = TypedCollection::class): AbstractTypedCollection
     {
-        if (!is_subclass_of($collectionClass, AbstractTypedCollection::class)) {
-            throw new \InvalidArgumentException(sprintf(
+        if (! is_subclass_of($collectionClass, AbstractTypedCollection::class)) {
+            throw new InvalidArgumentException(sprintf(
                 'Collection class "%s" must extend %s',
                 $collectionClass,
                 AbstractTypedCollection::class

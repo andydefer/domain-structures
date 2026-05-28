@@ -484,7 +484,7 @@ final class RecordToDataTransformationTest extends TestCase
         );
 
         /** @var RecordCollection<TestUserRecord> $activeRecords */
-        $activeRecords = $recordCollection->filter(fn(TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
+        $activeRecords = $recordCollection->filter(fn (TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
 
         /** @var DataCollection<TestUserData> $dataCollection */
         $dataCollection = new DataCollection(TestUserData::class);

@@ -166,7 +166,7 @@ class DataObject implements \ArrayAccess, Transformable
                 return new static($value);
             }
 
-            return array_map(fn($item) => $this->convertValue($item), $value);
+            return array_map(fn ($item) => $this->convertValue($item), $value);
         }
 
         return $value;
@@ -271,7 +271,8 @@ class DataObject implements \ArrayAccess, Transformable
      * Hydrates a collection of sources into a typed collection.
      *
      * @template TCollection of \AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection
-     * @param  iterable<mixed>       $sources
+     *
+     * @param  iterable<mixed>  $sources
      * @param  class-string<TCollection>  $collectionClass
      * @return TCollection
      *
@@ -279,7 +280,7 @@ class DataObject implements \ArrayAccess, Transformable
      */
     public static function collect(iterable $sources, string $collectionClass = TypedCollection::class): AbstractTypedCollection
     {
-        if (!is_subclass_of($collectionClass, AbstractTypedCollection::class)) {
+        if (! is_subclass_of($collectionClass, AbstractTypedCollection::class)) {
             throw new \InvalidArgumentException(sprintf(
                 'Collection class "%s" must extend %s',
                 $collectionClass,

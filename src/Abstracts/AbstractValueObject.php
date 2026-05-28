@@ -8,8 +8,8 @@ use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Interfaces\Transformable;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Utils\DataObject;
-use UnitEnum;
 use InvalidArgumentException;
+use UnitEnum;
 
 abstract class AbstractValueObject implements Transformable
 {
@@ -30,7 +30,6 @@ abstract class AbstractValueObject implements Transformable
      * Creates an instance from a JSON string.
      *
      * @param  string  $json  JSON string representation of the value object
-     * @return static
      *
      * @throws InvalidArgumentException If the JSON is invalid
      */
@@ -52,14 +51,15 @@ abstract class AbstractValueObject implements Transformable
      * Hydrates a collection of sources into a typed collection.
      *
      * @template TCollection of AbstractTypedCollection
-     * @param  iterable<mixed>       $sources
+     *
+     * @param  iterable<mixed>  $sources
      * @param  class-string<TCollection>  $collectionClass
      * @return TCollection
      */
     public static function collect(iterable $sources, string $collectionClass = TypedCollection::class): AbstractTypedCollection
     {
-        if (!is_subclass_of($collectionClass, AbstractTypedCollection::class)) {
-            throw new \InvalidArgumentException(sprintf(
+        if (! is_subclass_of($collectionClass, AbstractTypedCollection::class)) {
+            throw new InvalidArgumentException(sprintf(
                 'Collection class "%s" must extend %s',
                 $collectionClass,
                 AbstractTypedCollection::class

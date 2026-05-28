@@ -16,23 +16,22 @@ use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 
 /**
- * Test record for unit tests.
- *
- * PURE RECORD - No logic, just data structure.
- * Used for create/update operations in TestUserRepository.
+ * Test record for unit tests with nullable properties.
+ * All properties are nullable by default for maximum flexibility.
+ * Used for testing partial updates and null handling.
  */
-final class TestUserRecord extends AbstractRecord
+final class TestUserNullableRecord extends AbstractRecord
 {
     public function __construct(
         public readonly ?int $id = null,
         public readonly ?string $name = null,
         public readonly ?TestEmailAddress $email = null,
-        public readonly ?TestUserStatus $status = TestUserStatus::ACTIVE,
-        public readonly ?TestUserRole $role = TestUserRole::USER,
-        public readonly ?TestUserGrade $grade = TestUserGrade::BRONZE,
+        public readonly ?TestUserStatus $status = null,
+        public readonly ?TestUserRole $role = null,
+        public readonly ?TestUserGrade $grade = null,
         public readonly ?TestIso8601DateTime $emailVerifiedAt = null,
         public readonly StringTypedCollection|TypedCollection $tags = new StringTypedCollection,
-        public readonly ?TestProductRecordCollection $products = new TestProductRecordCollection,
+        public readonly ?TestProductRecordCollection $products = null,
         public readonly ?TestUserRoleCollection $roles = null,
         public readonly ?TestProductRecord $featuredProduct = null,
         public readonly ?TestIso8601DateTime $createdAt = null,

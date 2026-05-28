@@ -114,7 +114,8 @@ trait Hydratable
      * Hydrates a collection of sources into a typed collection.
      *
      * @template TCollection of AbstractTypedCollection
-     * @param  iterable<mixed>       $sources
+     *
+     * @param  iterable<mixed>  $sources
      * @param  class-string<TCollection>  $collectionClass
      * @return TCollection
      *
@@ -122,7 +123,7 @@ trait Hydratable
      */
     public static function collect(iterable $sources, string $collectionClass = TypedCollection::class): AbstractTypedCollection
     {
-        if (!is_subclass_of($collectionClass, AbstractTypedCollection::class)) {
+        if (! is_subclass_of($collectionClass, AbstractTypedCollection::class)) {
             throw new \InvalidArgumentException(sprintf(
                 'Collection class "%s" must extend %s',
                 $collectionClass,

@@ -18,8 +18,8 @@ use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\DataObject;
-use RuntimeException;
 use InvalidArgumentException;
+use RuntimeException;
 
 final class HydratableTest extends TestCase
 {
@@ -369,7 +369,7 @@ final class HydratableTest extends TestCase
         $this->assertSame($second->id, $third->id);
     }
 
-    public function test_fromJson_is_idempotent(): void
+    public function test_from_json_is_idempotent(): void
     {
         $json = '{"id": 1, "name": "John Doe", "email": "john@example.com", "status": "active", "role": "user", "grade": 1}';
 
@@ -400,7 +400,7 @@ final class HydratableTest extends TestCase
         $this->assertSame('John Doe', $result->name);
     }
 
-    public function test_fromJson_handles_null_values(): void
+    public function test_from_json_handles_null_values(): void
     {
         $json = '{"id": null, "name": "John Doe", "email": "john@example.com", "status": "active", "role": "user", "grade": 1}';
 
@@ -413,7 +413,7 @@ final class HydratableTest extends TestCase
 
     // ==================== TYPE CONVERSION TESTS ====================
 
-    public function test_fromJson_converts_string_id_to_int(): void
+    public function test_from_json_converts_string_id_to_int(): void
     {
         $json = '{"id": "123", "name": "John Doe", "email": "john@example.com", "status": "active", "role": "user", "grade": 1}';
 
@@ -423,7 +423,7 @@ final class HydratableTest extends TestCase
         $this->assertSame(123, $result->id);
     }
 
-    public function test_fromJson_converts_string_enum_value_to_enum(): void
+    public function test_from_json_converts_string_enum_value_to_enum(): void
     {
         $json = '{"name": "John Doe", "email": "john@example.com", "status": "suspended", "role": "admin", "grade": 4}';
 
@@ -436,7 +436,7 @@ final class HydratableTest extends TestCase
 
     // ==================== CONSISTENCY TESTS ====================
 
-    public function test_from_and_fromJson_produce_same_result(): void
+    public function test_from_and_from_json_produce_same_result(): void
     {
         $array = [
             'id' => 1,
@@ -470,8 +470,8 @@ final class HydratableTest extends TestCase
         ];
 
         $emails = TestUserRecord::collect($sources)
-            ->filter(fn($user) => $user->name === 'Alice')
-            ->map(fn($user) => $user->email->getValue())  // ✅ getValue() retourne la string
+            ->filter(fn ($user) => $user->name === 'Alice')
+            ->map(fn ($user) => $user->email->getValue())  // ✅ getValue() retourne la string
             ->toArray();
 
         $this->assertSame(['alice@example.com', 'alice2@example.com'], $emails);

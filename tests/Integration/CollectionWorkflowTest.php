@@ -161,7 +161,7 @@ final class CollectionWorkflowTest extends TestCase
     {
         $this->intCollection->add(1, 2, 3, 4, 5);
 
-        $doubled = $this->intCollection->map(fn($item) => $item * 2);
+        $doubled = $this->intCollection->map(fn ($item) => $item * 2);
 
         $this->assertNotSame($this->intCollection, $doubled);
         $this->assertInstanceOf(TypedCollection::class, $doubled);
@@ -173,7 +173,7 @@ final class CollectionWorkflowTest extends TestCase
     {
         $this->intCollection->add(1, 2, 3);
 
-        $stringCollection = $this->intCollection->map(fn($item) => "Number: {$item}");
+        $stringCollection = $this->intCollection->map(fn ($item) => "Number: {$item}");
 
         $this->assertInstanceOf(TypedCollection::class, $stringCollection);
         $this->assertSame(['Number: 1', 'Number: 2', 'Number: 3'], $stringCollection->toArray());
@@ -182,7 +182,7 @@ final class CollectionWorkflowTest extends TestCase
     public function test_map_on_empty_collection_returns_empty_collection(): void
     {
         $emptyCollection = new IntTypedCollection;
-        $result = $emptyCollection->map(fn($item) => $item * 2);
+        $result = $emptyCollection->map(fn ($item) => $item * 2);
 
         $this->assertCount(0, $result);
         $this->assertEmpty($result->toArray());
@@ -192,7 +192,7 @@ final class CollectionWorkflowTest extends TestCase
     {
         $this->stringCollection->add('a', 'b', 'c');
 
-        $uppercase = $this->stringCollection->map(fn($item) => strtoupper($item));
+        $uppercase = $this->stringCollection->map(fn ($item) => strtoupper($item));
 
         $this->assertSame(['A', 'B', 'C'], $uppercase->toArray());
     }
@@ -203,7 +203,7 @@ final class CollectionWorkflowTest extends TestCase
     {
         $this->intCollection->add(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
-        $evenNumbers = $this->intCollection->filter(fn($item) => $item % 2 === 0);
+        $evenNumbers = $this->intCollection->filter(fn ($item) => $item % 2 === 0);
 
         $this->assertSame([2, 4, 6, 8, 10], $evenNumbers->toArray());
         $this->assertCount(5, $evenNumbers);
@@ -213,7 +213,7 @@ final class CollectionWorkflowTest extends TestCase
     {
         $this->intCollection->add(1, 3, 5, 7, 9);
 
-        $evenNumbers = $this->intCollection->filter(fn($item) => $item % 2 === 0);
+        $evenNumbers = $this->intCollection->filter(fn ($item) => $item % 2 === 0);
 
         $this->assertCount(0, $evenNumbers);
         $this->assertTrue($evenNumbers->isEmpty());
@@ -223,7 +223,7 @@ final class CollectionWorkflowTest extends TestCase
     {
         $this->intCollection->add(1, 2, 3);
 
-        $filtered = $this->intCollection->filter(fn($item) => $item > 1);
+        $filtered = $this->intCollection->filter(fn ($item) => $item > 1);
 
         $this->assertNotSame($this->intCollection, $filtered);
         $this->assertSame([1, 2, 3], $this->intCollection->toArray());
@@ -234,7 +234,7 @@ final class CollectionWorkflowTest extends TestCase
     {
         $this->stringCollection->add('apple', 'banana', 'cherry', 'date', 'elderberry');
 
-        $longStrings = $this->stringCollection->filter(fn($item) => strlen($item) > 5);
+        $longStrings = $this->stringCollection->filter(fn ($item) => strlen($item) > 5);
 
         $this->assertSame(['banana', 'cherry', 'elderberry'], $longStrings->toArray());
     }
@@ -245,7 +245,7 @@ final class CollectionWorkflowTest extends TestCase
     {
         $this->intCollection->add(1, 2, 3, 4, 5);
 
-        $sum = $this->intCollection->reduce(fn($carry, $item) => $carry + $item, 0);
+        $sum = $this->intCollection->reduce(fn ($carry, $item) => $carry + $item, 0);
 
         $this->assertSame(15, $sum);
     }
@@ -254,7 +254,7 @@ final class CollectionWorkflowTest extends TestCase
     {
         $this->stringCollection->add('Hello', ' ', 'World', '!');
 
-        $result = $this->stringCollection->reduce(fn($carry, $item) => $carry . $item, '');
+        $result = $this->stringCollection->reduce(fn ($carry, $item) => $carry.$item, '');
 
         $this->assertSame('Hello World!', $result);
     }
@@ -263,7 +263,7 @@ final class CollectionWorkflowTest extends TestCase
     {
         $this->intCollection->add(1, 2, 3, 4);
 
-        $product = $this->intCollection->reduce(fn($carry, $item) => $carry * $item, 1);
+        $product = $this->intCollection->reduce(fn ($carry, $item) => $carry * $item, 1);
 
         $this->assertSame(24, $product);
     }
@@ -271,7 +271,7 @@ final class CollectionWorkflowTest extends TestCase
     public function test_reduce_on_empty_collection_returns_initial_value(): void
     {
         $emptyCollection = new IntTypedCollection;
-        $result = $emptyCollection->reduce(fn($carry, $item) => $carry + $item, 100);
+        $result = $emptyCollection->reduce(fn ($carry, $item) => $carry + $item, 100);
 
         $this->assertSame(100, $result);
     }
@@ -282,7 +282,7 @@ final class CollectionWorkflowTest extends TestCase
     {
         $this->intCollection->add(1, 3, 5, 6, 7, 8);
 
-        $firstEven = $this->intCollection->find(fn($item) => $item % 2 === 0);
+        $firstEven = $this->intCollection->find(fn ($item) => $item % 2 === 0);
 
         $this->assertSame(6, $firstEven);
     }
@@ -291,7 +291,7 @@ final class CollectionWorkflowTest extends TestCase
     {
         $this->intCollection->add(1, 3, 5, 7);
 
-        $result = $this->intCollection->find(fn($item) => $item % 2 === 0);
+        $result = $this->intCollection->find(fn ($item) => $item % 2 === 0);
 
         $this->assertNull($result);
     }
@@ -300,7 +300,7 @@ final class CollectionWorkflowTest extends TestCase
     {
         $this->stringCollection->add('apple', 'banana', 'avocado', 'apricot');
 
-        $firstA = $this->stringCollection->find(fn($item) => str_starts_with($item, 'a'));
+        $firstA = $this->stringCollection->find(fn ($item) => str_starts_with($item, 'a'));
 
         $this->assertSame('apple', $firstA);
     }
@@ -308,7 +308,7 @@ final class CollectionWorkflowTest extends TestCase
     public function test_find_on_empty_collection_returns_null(): void
     {
         $emptyCollection = new StringTypedCollection;
-        $result = $emptyCollection->find(fn($item) => true);
+        $result = $emptyCollection->find(fn ($item) => true);
 
         $this->assertNull($result);
     }
@@ -319,7 +319,7 @@ final class CollectionWorkflowTest extends TestCase
     {
         $this->intCollection->add(2, 4, 6, 8, 10);
 
-        $allEven = $this->intCollection->every(fn($item) => $item % 2 === 0);
+        $allEven = $this->intCollection->every(fn ($item) => $item % 2 === 0);
 
         $this->assertTrue($allEven);
     }
@@ -328,7 +328,7 @@ final class CollectionWorkflowTest extends TestCase
     {
         $this->intCollection->add(2, 4, 5, 6, 8);
 
-        $allEven = $this->intCollection->every(fn($item) => $item % 2 === 0);
+        $allEven = $this->intCollection->every(fn ($item) => $item % 2 === 0);
 
         $this->assertFalse($allEven);
     }
@@ -336,7 +336,7 @@ final class CollectionWorkflowTest extends TestCase
     public function test_every_on_empty_collection_returns_true(): void
     {
         $emptyCollection = new IntTypedCollection;
-        $result = $emptyCollection->every(fn($item) => $item > 100);
+        $result = $emptyCollection->every(fn ($item) => $item > 100);
 
         $this->assertTrue($result);
     }
@@ -345,7 +345,7 @@ final class CollectionWorkflowTest extends TestCase
     {
         $this->intCollection->add(1, 3, 5, 6, 7, 9);
 
-        $hasEven = $this->intCollection->some(fn($item) => $item % 2 === 0);
+        $hasEven = $this->intCollection->some(fn ($item) => $item % 2 === 0);
 
         $this->assertTrue($hasEven);
     }
@@ -354,7 +354,7 @@ final class CollectionWorkflowTest extends TestCase
     {
         $this->intCollection->add(1, 3, 5, 7, 9);
 
-        $hasEven = $this->intCollection->some(fn($item) => $item % 2 === 0);
+        $hasEven = $this->intCollection->some(fn ($item) => $item % 2 === 0);
 
         $this->assertFalse($hasEven);
     }
@@ -362,7 +362,7 @@ final class CollectionWorkflowTest extends TestCase
     public function test_some_on_empty_collection_returns_false(): void
     {
         $emptyCollection = new IntTypedCollection;
-        $result = $emptyCollection->some(fn($item) => true);
+        $result = $emptyCollection->some(fn ($item) => true);
 
         $this->assertFalse($result);
     }
@@ -801,8 +801,8 @@ final class CollectionWorkflowTest extends TestCase
         $collection->add(5, 2, 8, 1, 9, 3, 6, 4, 7);
 
         $result = $collection
-            ->filter(fn($n) => $n % 2 === 0)
-            ->map(fn($n) => $n * 10)
+            ->filter(fn ($n) => $n % 2 === 0)
+            ->map(fn ($n) => $n * 10)
             ->sort()
             ->reverse();
 
@@ -822,9 +822,9 @@ final class CollectionWorkflowTest extends TestCase
         );
 
         $featuredProductNames = $products
-            ->filter(fn($product) => $product->isFeatured === true)
-            ->filter(fn($product) => ($product->price ?? 0) > 100)
-            ->map(fn($product) => $product->name)
+            ->filter(fn ($product) => $product->isFeatured === true)
+            ->filter(fn ($product) => ($product->price ?? 0) > 100)
+            ->map(fn ($product) => $product->name)
             ->sort();
 
         $this->assertCount(2, $featuredProductNames);
@@ -840,7 +840,7 @@ final class CollectionWorkflowTest extends TestCase
             TestBackedStringEnum::VALUE_THREE
         );
 
-        $values = $enums->map(fn($enum) => $enum->value)->toArray();
+        $values = $enums->map(fn ($enum) => $enum->value)->toArray();
 
         $this->assertSame(['one', 'two', 'three'], $values);
     }
@@ -863,7 +863,7 @@ final class CollectionWorkflowTest extends TestCase
         $collection = new TypedCollection('int', 'null');
         $collection->add(1, null, 2, null, 3);
 
-        $withoutNulls = $collection->filter(fn($item) => $item !== null);
+        $withoutNulls = $collection->filter(fn ($item) => $item !== null);
 
         $this->assertCount(5, $collection);
         $this->assertCount(3, $withoutNulls);
@@ -876,9 +876,9 @@ final class CollectionWorkflowTest extends TestCase
         $collection->add(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
         $result = $collection
-            ->filter(fn($n) => $n % 2 === 0)
-            ->map(fn($n) => $n * $n)
-            ->reduce(fn($carry, $n) => $carry + $n, 0);
+            ->filter(fn ($n) => $n % 2 === 0)
+            ->map(fn ($n) => $n * $n)
+            ->reduce(fn ($carry, $n) => $carry + $n, 0);
 
         $this->assertSame(220, $result);
     }

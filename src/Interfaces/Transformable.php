@@ -36,7 +36,8 @@ interface Transformable
      * Hydrates a collection of sources into a typed collection.
      *
      * @template TCollection of AbstractTypedCollection
-     * @param  iterable<mixed>       $sources
+     *
+     * @param  iterable<mixed>  $sources
      * @param  class-string<TCollection>  $collectionClass
      * @return TCollection
      *
