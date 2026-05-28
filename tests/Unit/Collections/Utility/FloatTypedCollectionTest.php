@@ -600,14 +600,14 @@ final class FloatTypedCollectionTest extends TestCase
     /**
      * Test that average method works (inherited).
      */
-    public function test_average_method_works(): void
+    public function test_avg_method_works(): void
     {
         // Arrange
         $collection = new FloatTypedCollection;
         $collection->add(10.5, 20.5, 30.5, 40.5, 50.5);
 
         // Act
-        $average = $collection->average();
+        $average = $collection->avg();
 
         // Assert
         $this->assertSame(30.5, $average);
@@ -652,11 +652,11 @@ final class FloatTypedCollectionTest extends TestCase
         $collection = new FloatTypedCollection;
         $collection->add(-2.5, -1.2, 0.0, 1.4, 2.6, 3.8, 4.1, 5.9);
 
-        // Act - Get positive numbers, round them, then average
+        // Act - Get positive numbers, round them, then avg
         $result = $collection
             ->positive()
             ->round()
-            ->average();
+            ->avg();
 
         // Assert: 1.4→1, 2.6→3, 3.8→4, 4.1→4, 5.9→6 => (1+3+4+4+6)/5 = 18/5 = 3.6
         $this->assertSame(3.6, $result);
@@ -707,7 +707,7 @@ final class FloatTypedCollectionTest extends TestCase
 
         // Act
         $sum = $collection->sum();
-        $average = $collection->average();
+        $average = $collection->avg();
 
         // Assert
         $this->assertSame(6.0e15, $sum);
@@ -725,7 +725,7 @@ final class FloatTypedCollectionTest extends TestCase
 
         // Act
         $sum = $collection->sum();
-        $average = $collection->average();
+        $average = $collection->avg();
 
         // Assert
         $this->assertSame(6.0e-10, $sum);

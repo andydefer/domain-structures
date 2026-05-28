@@ -16,8 +16,10 @@
 12. [Normalisation : snake_case pour la base de données](#12-normalisation--snake_case-pour-la-base-de-données)
 13. [Les Value Objects au cœur des Records](#13-les-value-objects-au-cœur-des-records)
 14. [Les collections typées avec des Records](#14-les-collections-typées-avec-des-records)
-15. [Bonnes pratiques](#15-bonnes-pratiques)
-16. [Récapitulatif des contraintes](#16-récapitulatif-des-contraintes)
+15. [Nettoyage des valeurs null : `toArrayWithoutNulls()`](#15-nettoyage-des-valeurs-null--toarraywithoutnulls)
+16. [Bonnes pratiques](#16-bonnes-pratiques)
+17. [Récapitulatif des contraintes](#17-récapitulatif-des-contraintes)
+18. [Exemple complet](#18-exemple-complet)
 
 ---
 
@@ -518,9 +520,207 @@ $recentUsers = $users->createdAfter(Iso8601DateTime::from('2024-01-01T00:00:00+0
 
 ---
 
-## 15. Bonnes pratiques
+## 15. Nettoyage des valeurs null : `toArrayWithoutNulls()`
 
-### 15.1. Toujours utiliser `from()` pour créer des Records
+Lorsque vous insérez ou mettez à jour des données en base de données, vous souhaiterez souvent exclure les champs avec des valeurs `null` pour ne mettre à jour que les champs réellement modifiés.
+
+La méthode `toArrayWithoutNulls()` vous permet d'obtenir une représentation normalisée du Record sans les valeurs `null`.
+
+### 15.1. Utilisation de base
+
+```php
+$record = UserRecord::from([
+    'id' => 1,
+    'name' => 'John Doe',
+    'email' => 'john@example.com',
+    'phone' => null,
+    'address' => null,
+    'status' => 'active'
+]);
+
+$cleaned = $record->toArrayWithoutNulls();
+// Résultat :
+// [
+//     'id' => 1,
+//     'name' => 'John Doe',
+//     'email' => 'john@example.com',
+//     'status' => 'active'
+// ]
+
+// Idéal pour les mises à jour partielles
+$db->update('users', $cleaned, ['id' => 1]);
+```
+
+### 15.2. Mode récursif (par défaut)
+
+Par défaut, la méthode supprime récursivement les valeurs `null` dans les tableaux et collections imbriqués :
+
+```php
+$tags = new TypedCollection('string', 'null');
+$tags->add('premium', null, 'vip', null, 'gold');
+
+$record = UserRecord::from([
+    'name' => 'John Doe',
+    'email' => 'john@example.com',
+    'tags' => $tags,
+    'metadata' => [
+        'key1' => 'value1',
+        'key2' => null,
+        'key3' => [
+            'nested1' => 'deep',
+            'nested2' => null
+        ]
+    ]
+]);
+
+$cleaned = $record->toArrayWithoutNulls();
+// Résultat :
+// [
+//     'name' => 'John Doe',
+//     'email' => 'john@example.com',
+//     'tags' => ['premium', 'vip', 'gold'],
+//     'metadata' => [
+//         'key1' => 'value1',
+//         'key3' => ['nested1' => 'deep']
+//     ]
+// ]
+```
+
+### 15.3. Mode non récursif
+
+Pour supprimer les `null` uniquement au premier niveau (sans toucher aux structures imbriquées) :
+
+```php
+$cleaned = $record->toArrayWithoutNulls(false);
+```
+
+### 15.4. Conservation des tableaux vides
+
+Les collections vides sont conservées car elles représentent des données légitimes (ex: un utilisateur sans tags) :
+
+```php
+$emptyTags = new StringTypedCollection;
+
+$record = UserRecord::from([
+    'name' => 'John Doe',
+    'email' => 'john@example.com',
+    'tags' => $emptyTags
+]);
+
+$cleaned = $record->toArrayWithoutNulls();
+// Résultat : ['name' => 'John Doe', 'email' => 'john@example.com', 'tags' => []]
+```
+
+### 15.5. Cas d'usage : mises à jour partielles
+
+```php
+// Formulaire de mise à jour - seuls certains champs sont modifiés
+$updateData = UserUpdateRecord::from([
+    'name' => 'Jane Doe',
+    'email' => null,     // Non modifié
+    'phone' => null      // Non modifié
+]);
+
+$cleaned = $updateData->toArrayWithoutNulls();
+// Résultat : ['name' => 'Jane Doe']
+
+// Seul le champ 'name' sera mis à jour
+$db->update('users', $cleaned, ['id' => 1]);
+```
+
+### 15.6. Immutabilité garantie
+
+La méthode ne modifie pas l'objet original :
+
+```php
+$original = UserRecord::from([
+    'name' => 'John Doe',
+    'email' => null
+]);
+
+$cleaned = $original->toArrayWithoutNulls();
+
+// L'original reste inchangé
+$originalNormalized = NormalizerChain::get()->normalize($original);
+// Résultat : ['name' => 'John Doe', 'email' => null]
+
+// Le nettoyé n'a pas le champ email
+// Résultat : ['name' => 'John Doe']
+```
+
+### 15.7. Préservation des valeurs "falsy"
+
+Les valeurs suivantes sont conservées (elles ne sont PAS considérées comme `null`) :
+
+```php
+$record = UserRecord::from([
+    'id' => 0,           // Conservé
+    'name' => '',        // Conservé (chaîne vide)
+    'active' => false,   // Conservé
+    'score' => 0.0,      // Conservé
+    'tags' => [],        // Conservé (tableau vide)
+    'status' => null     // Supprimé
+]);
+
+$cleaned = $record->toArrayWithoutNulls();
+// Résultat : ['id' => 0, 'name' => '', 'active' => false, 'score' => 0.0, 'tags' => []]
+```
+
+### 15.8. Tableau récapitulatif
+
+| Valeur | Est supprimée ? | Raison |
+|--------|-----------------|--------|
+| `null` | ✅ Oui | Valeur null explicite |
+| `0` | ❌ Non | Entier zéro est une valeur légitime |
+| `''` | ❌ Non | Chaîne vide est une valeur légitime |
+| `false` | ❌ Non | Booléen faux est une valeur légitime |
+| `[]` | ❌ Non | Tableau vide représente une collection vide |
+| `0.0` | ❌ Non | Float zéro est une valeur légitime |
+
+### 15.9. Exemple complet avec base de données
+
+```php
+// Récupération d'un utilisateur existant
+$existingUser = $repository->find(1);
+
+// Formulaire de mise à jour (seul le nom change)
+$updateData = UserUpdateRecord::from([
+    'name' => 'Jane Smith',
+    'email' => null,
+    'phone' => null
+]);
+
+// Nettoyer les nulls pour la mise à jour
+$cleaned = $updateData->toArrayWithoutNulls();
+
+// Seul le champ 'name' sera mis à jour
+$db->update('users', $cleaned, ['id' => $existingUser->id]);
+
+// Alternative avec fluide API
+$db->update('users', 
+    UserUpdateRecord::from($request->all())->toArrayWithoutNulls(),
+    ['id' => $userId]
+);
+```
+
+### 15.10. Performance
+
+La méthode est optimisée et ne normalise l'objet qu'une seule fois. Elle convient parfaitement pour une utilisation dans des boucles ou des traitements par lots.
+
+```php
+// Traitement par lots efficace
+$updates = [];
+foreach ($records as $record) {
+    $updates[] = $record->toArrayWithoutNulls();
+}
+$db->batchInsert('users', $updates);
+```
+
+---
+
+## 16. Bonnes pratiques
+
+### 16.1. Toujours utiliser `from()` pour créer des Records
 
 ```php
 // ✅ Bon
@@ -530,7 +730,7 @@ $record = UserRecord::from($data);
 $record = new UserRecord(...);
 ```
 
-### 15.2. Combiner Records et Value Objects
+### 16.2. Combiner Records et Value Objects
 
 ```php
 // ✅ Bon - validation déléguée aux VOs
@@ -554,7 +754,7 @@ final class UserRecord extends AbstractRecord
 }
 ```
 
-### 15.3. Utiliser des enums pour les champs à valeurs fixes
+### 16.3. Utiliser des enums pour les champs à valeurs fixes
 
 ```php
 // ✅ Bon - Enum pour valeurs fixes
@@ -573,7 +773,7 @@ final class UserRecord extends AbstractRecord
 }
 ```
 
-### 15.4. Toujours utiliser `Iso8601DateTime` pour les dates
+### 16.4. Toujours utiliser `Iso8601DateTime` pour les dates
 
 ```php
 // ✅ Bon
@@ -595,7 +795,7 @@ final class UserRecord extends AbstractRecord
 }
 ```
 
-### 15.5. Profiter des collections typées
+### 16.5. Profiter des collections typées
 
 ```php
 // ✅ Bon
@@ -613,7 +813,7 @@ foreach ($dbResults as $row) {
 }
 ```
 
-### 15.6. Normaliser pour la base de données
+### 16.6. Normaliser pour la base de données
 
 ```php
 // ✅ Bon
@@ -627,9 +827,20 @@ $db->insert('users', [
 ]);
 ```
 
+### 16.7. Utiliser `toArrayWithoutNulls()` pour les mises à jour
+
+```php
+// ✅ Bon - mise à jour partielle
+$updateData = UserUpdateRecord::from($request->all());
+$db->update('users', $updateData->toArrayWithoutNulls(), ['id' => $userId]);
+
+// ❌ Mauvais - risque d'écraser des champs avec null
+$db->update('users', NormalizerChain::get()->normalize($updateData), ['id' => $userId]);
+```
+
 ---
 
-## 16. Récapitulatif des contraintes
+## 17. Récapitulatif des contraintes
 
 | Contrainte | Règle |
 |------------|-------|
@@ -643,23 +854,11 @@ $db->insert('users', [
 | **Validation** | Délégation aux VOs |
 | **Hydratation** | `from()`, `fromJson()`, `collect()` |
 | **Normalisation** | Automatique (`snake_case`) |
+| **Nettoyage des nulls** | `toArrayWithoutNulls()` |
 
 ---
 
-## En résumé : Quand utiliser quoi ?
-
-| Situation | Solution | Exemple |
-|-----------|----------|---------|
-| **Communication interne** | **Record** | `UserRecord`, `OrderRecord` |
-| **Concept métier avec comportement** | **Value Object** | `EmailAddress`, `Money`, `Iso8601DateTime` |
-| **Valeurs FIXES** | **Enum** | `UserRole`, `OrderStatus` |
-| **Réponse API** | **Data** | `UserData`, `OrderData` |
-| **Transport de données flexible** | **DataObject** | Configuration, paramètres |
-| **Dates et heures** | **Iso8601DateTime (VO)** | `createdAt`, `updatedAt` |
-
----
-
-## 17. Exemple complet
+## 18. Exemple complet
 
 ```php
 // 1. Définir les Value Objects
@@ -684,23 +883,36 @@ final class UserRecord extends AbstractRecord
     ) {}
 }
 
-// 4. Utilisation
-$record = UserRecord::from([
-    'name' => 'John Doe',
-    'email' => 'john@example.com',
-    'role' => 'admin',
-    'status' => 'active',
-    'created_at' => '2024-01-01T12:00:00+00:00'
+// 4. Définir un Record de mise à jour (toutes propriétés nullables)
+final class UserUpdateRecord extends AbstractRecord
+{
+    public function __construct(
+        public readonly ?string $name = null,
+        public readonly ?EmailAddress $email = null,
+        public readonly ?UserRole $role = null,
+        public readonly ?UserStatus $status = null,
+    ) {}
+}
+
+// 5. Utilisation complète
+$updateData = UserUpdateRecord::from([
+    'name' => 'Jane Smith',
+    'role' => 'admin'
 ]);
 
-// 5. Collection
+$cleaned = $updateData->toArrayWithoutNulls();
+// Résultat : ['name' => 'Jane Smith', 'role' => 'admin']
+
+$db->update('users', $cleaned, ['id' => 1]);
+
+// 6. Collection
 $users = UserRecord::collect($dbResults);
 $activeAdmins = $users
     ->filter(fn($u) => $u->status === UserStatus::ACTIVE)
     ->filter(fn($u) => $u->role === UserRole::ADMIN)
     ->filter(fn($u) => $u->createdAt->isAfter(Iso8601DateTime::from('2024-01-01T00:00:00+00:00')));
 
-// 6. Normalisation pour la base de données
+// 7. Normalisation pour la base de données
 $db->insert('users', NormalizerChain::get()->normalize($record));
 ```
 

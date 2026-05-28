@@ -412,12 +412,12 @@ final class IntTypedCollectionTest extends TestCase
         $this->assertSame([5, 10, 15, 20, 25], $between->toArray());
     }
 
-    public function test_average_method_works(): void
+    public function test_avg_method_works(): void
     {
         $collection = new IntTypedCollection;
         $collection->add(10, 20, 30, 40, 50);
 
-        $average = $collection->average();
+        $average = $collection->avg();
 
         $this->assertSame(30.0, $average);
     }
@@ -553,7 +553,7 @@ final class IntTypedCollectionTest extends TestCase
         $this->assertSame([5], $collection->odd()->toArray());
         $this->assertSame(5.0, $collection->median());
         $this->assertSame(5, $collection->sum());
-        $this->assertSame(5.0, $collection->average());
+        $this->assertSame(5.0, $collection->avg());
     }
 
     public function test_collection_preserves_order_after_filtering(): void

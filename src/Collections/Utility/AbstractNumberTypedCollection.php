@@ -27,7 +27,7 @@ abstract class AbstractNumberTypedCollection extends AbstractTypedCollection
      */
     public function positive(): static
     {
-        return $this->filter(fn ($item): bool => $item > 0);
+        return $this->filter(fn($item): bool => $item > 0);
     }
 
     /**
@@ -37,7 +37,7 @@ abstract class AbstractNumberTypedCollection extends AbstractTypedCollection
      */
     public function negative(): static
     {
-        return $this->filter(fn ($item): bool => $item < 0);
+        return $this->filter(fn($item): bool => $item < 0);
     }
 
     /**
@@ -57,7 +57,7 @@ abstract class AbstractNumberTypedCollection extends AbstractTypedCollection
             );
         }
 
-        return $this->filter(fn ($item): bool => $item >= $min && $item <= $max);
+        return $this->filter(fn($item): bool => $item >= $min && $item <= $max);
     }
 
     /**
@@ -67,7 +67,7 @@ abstract class AbstractNumberTypedCollection extends AbstractTypedCollection
      *
      * @return float The average value, or 0.0 if the collection is empty
      */
-    public function average(): float
+    public function avg(): float
     {
         $count = $this->count();
 
@@ -93,6 +93,54 @@ abstract class AbstractNumberTypedCollection extends AbstractTypedCollection
         }
 
         return $sum;
+    }
+
+    /**
+     * Find the maximum value in the collection.
+     *
+     * Returns the largest numeric value from the collection. For empty collections,
+     * returns null as there is no valid maximum value.
+     *
+     * @return TValue|null The maximum value, or null if the collection is empty
+     */
+    public function max(): int|float|null
+    {
+        if ($this->isEmpty()) {
+            return null;
+        }
+
+        $max = $this->items[0];
+        foreach ($this->items as $item) {
+            if ($item > $max) {
+                $max = $item;
+            }
+        }
+
+        return $max;
+    }
+
+    /**
+     * Find the minimum value in the collection.
+     *
+     * Returns the smallest numeric value from the collection. For empty collections,
+     * returns null as there is no valid minimum value.
+     *
+     * @return TValue|null The minimum value, or null if the collection is empty
+     */
+    public function min(): int|float|null
+    {
+        if ($this->isEmpty()) {
+            return null;
+        }
+
+        $min = $this->items[0];
+        foreach ($this->items as $item) {
+            if ($item < $min) {
+                $min = $item;
+            }
+        }
+
+        return $min;
     }
 
     /**

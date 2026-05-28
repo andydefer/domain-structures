@@ -7,6 +7,7 @@ namespace AndyDefer\DomainStructures\Tests\Unit\Abstracts;
 use AndyDefer\DomainStructures\Collections\Core\RecordCollection;
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\DomainStructures\Enums\NormalizeMode;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestProductData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
@@ -257,6 +258,8 @@ final class AbstractDataTest extends TestCase
 
     public function test_collect_on_empty_collection_returns_empty_collection(): void
     {
+        $collection = new TypedCollection(NormalizeMode::class);
+
         $emptyCollection = new RecordCollection(TestUserRecord::class);
         $result = TestUserData::collect($emptyCollection);
 

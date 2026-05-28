@@ -430,12 +430,12 @@ final class NumberTypedCollectionTest extends TestCase
 
     // ==================== AVERAGE METHOD TESTS (héritée mais testée ici) ====================
 
-    public function test_average_method_works(): void
+    public function test_avg_method_works(): void
     {
         $collection = new NumberTypedCollection;
         $collection->add(10, 20.5, 30, 40.5, 50);
 
-        $average = $collection->average();
+        $average = $collection->avg();
 
         $this->assertSame(30.2, $average);
     }
@@ -586,5 +586,287 @@ final class NumberTypedCollectionTest extends TestCase
         $this->assertCount(3, $integers);
         $this->assertSame(['float'], $floats->getAllowedTypes());
         $this->assertSame(['int'], $integers->getAllowedTypes());
+    }
+
+    // ==================== MAX METHOD TESTS ====================
+
+    public function test_max_returns_highest_integer_value(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(1, 5, 3, 9, 2, 7);
+
+        $max = $collection->max();
+
+        $this->assertSame(9, $max);
+    }
+
+    public function test_max_returns_highest_float_value(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(1.5, 5.7, 3.2, 9.9, 2.1, 7.8);
+
+        $max = $collection->max();
+
+        $this->assertSame(9.9, $max);
+    }
+
+    public function test_max_returns_highest_value_mixed_types(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(1, 5.7, 3, 9.2, 2, 7.5);
+
+        $max = $collection->max();
+
+        $this->assertSame(9.2, $max);
+    }
+
+    public function test_max_returns_float_when_highest_is_float(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(1, 2, 3, 4, 5.5);
+
+        $max = $collection->max();
+
+        $this->assertSame(5.5, $max);
+        $this->assertIsFloat($max);
+    }
+
+    public function test_max_returns_int_when_highest_is_int(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(1.5, 2.7, 3.2, 8, 4.9);
+
+        $max = $collection->max();
+
+        $this->assertSame(8, $max);
+        $this->assertIsInt($max);
+    }
+
+    public function test_max_returns_negative_value_when_all_are_negative(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(-5, -3.5, -8, -2.1, -7);
+
+        $max = $collection->max();
+
+        $this->assertSame(-2.1, $max);
+    }
+
+    public function test_max_returns_zero_when_highest_is_zero(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(-5, -3, -1, 0, -2);
+
+        $max = $collection->max();
+
+        $this->assertSame(0, $max);
+    }
+
+    public function test_max_returns_zero_point_zero_when_highest_is_zero_point_zero(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(-5.5, -3.2, -1.1, 0.0, -2.8);
+
+        $max = $collection->max();
+
+        $this->assertSame(0.0, $max);
+        $this->assertIsFloat($max);
+    }
+
+    public function test_max_returns_null_for_empty_collection(): void
+    {
+        $emptyCollection = new NumberTypedCollection;
+
+        $max = $emptyCollection->max();
+
+        $this->assertNull($max);
+    }
+
+    public function test_max_returns_single_value_when_collection_has_one_item(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(42);
+
+        $max = $collection->max();
+
+        $this->assertSame(42, $max);
+    }
+
+    public function test_max_returns_single_float_when_collection_has_one_float(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(42.5);
+
+        $max = $collection->max();
+
+        $this->assertSame(42.5, $max);
+    }
+
+    // ==================== MIN METHOD TESTS ====================
+
+    public function test_min_returns_lowest_integer_value(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(1, 5, 3, 9, 2, 7);
+
+        $min = $collection->min();
+
+        $this->assertSame(1, $min);
+    }
+
+    public function test_min_returns_lowest_float_value(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(1.5, 5.7, 3.2, 9.9, 2.1, 7.8);
+
+        $min = $collection->min();
+
+        $this->assertSame(1.5, $min);
+    }
+
+    public function test_min_returns_lowest_value_mixed_types(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(1.5, 5, 3.2, 9, 2.1, 7.8);
+
+        $min = $collection->min();
+
+        $this->assertSame(1.5, $min);
+    }
+
+    public function test_min_returns_float_when_lowest_is_float(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(1.5, 2, 3, 4, 5);
+
+        $min = $collection->min();
+
+        $this->assertSame(1.5, $min);
+        $this->assertIsFloat($min);
+    }
+
+    public function test_min_returns_int_when_lowest_is_int(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(1, 2.5, 3.7, 4.2, 5.9);
+
+        $min = $collection->min();
+
+        $this->assertSame(1, $min);
+        $this->assertIsInt($min);
+    }
+
+    public function test_min_returns_negative_value_when_all_are_negative(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(-5, -3.5, -8, -2.1, -7);
+
+        $min = $collection->min();
+
+        $this->assertSame(-8, $min);
+    }
+
+    public function test_min_returns_zero_when_lowest_is_zero(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(5, 3, 1, 0, 2);
+
+        $min = $collection->min();
+
+        $this->assertSame(0, $min);
+    }
+
+    public function test_min_returns_null_for_empty_collection(): void
+    {
+        $emptyCollection = new NumberTypedCollection;
+
+        $min = $emptyCollection->min();
+
+        $this->assertNull($min);
+    }
+
+    public function test_min_returns_single_value_when_collection_has_one_item(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(42);
+
+        $min = $collection->min();
+
+        $this->assertSame(42, $min);
+    }
+
+    // ==================== MAX & MIN COMBINED TESTS ====================
+
+    public function test_max_and_min_work_together_correctly(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(10, 20.5, 30, 40.5, 50, 5.5, 15);
+
+        $max = $collection->max();
+        $min = $collection->min();
+
+        $this->assertSame(50, $max);
+        $this->assertSame(5.5, $min);
+        $this->assertGreaterThan($min, $max);
+    }
+
+    public function test_max_and_min_are_consistent_with_positive_filter(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(-10, -5.5, 0, 5, 10.5, 15, 20);
+
+        $positive = $collection->positive();
+
+        $this->assertSame(20, $positive->max());
+        $this->assertSame(5, $positive->min());
+    }
+
+    public function test_max_and_min_are_consistent_with_negative_filter(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(-20, -15.5, -10, -5.5, 0, 5, 10);
+
+        $negative = $collection->negative();
+
+        $this->assertSame(-5.5, $negative->max());
+        $this->assertSame(-20, $negative->min());
+    }
+
+    public function test_max_and_min_preserve_type_precision(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(1.23456789, 9.87654321, 5.55555555);
+
+        $max = $collection->max();
+        $min = $collection->min();
+
+        $this->assertSame(9.87654321, $max);
+        $this->assertSame(1.23456789, $min);
+    }
+
+    public function test_max_after_chaining_operations(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(-10, -5, 0, 5, 10, 15, 20, 25);
+
+        $result = $collection
+            ->positive()
+            ->between(10, 30)
+            ->max();
+
+        $this->assertSame(25, $result);
+    }
+
+    public function test_min_after_chaining_operations(): void
+    {
+        $collection = new NumberTypedCollection;
+        $collection->add(-25, -20, -15, -10, -5, 0, 5, 10);
+
+        $result = $collection
+            ->negative()
+            ->between(-20, -5)
+            ->min();
+
+        $this->assertSame(-20, $result);
     }
 }

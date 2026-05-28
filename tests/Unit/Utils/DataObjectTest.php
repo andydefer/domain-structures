@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Tests\Unit\Utils;
 
+use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserNullableRecord;
+use AndyDefer\DomainStructures\Tests\Fixtures\UserRecord;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\DataObject;
 use InvalidArgumentException;
@@ -599,6 +601,13 @@ final class DataObjectTest extends TestCase
 
     public function test_convert_value_handles_data_object_preservation(): void
     {
+
+        $user = new DataObject(['name' => 'John', 'age' => 30]);
+
+        // Crée une nouvelle instance
+        $updated = $user->with('age', 31);
+        $withEmail = $user->with('email', 'john@example.com');
+
         $inner = new DataObject(['nested' => 'value']);
         $data = ['inner' => $inner];
         $dataObject = new DataObject($data);
