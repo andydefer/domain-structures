@@ -14,13 +14,19 @@ final class RootNormalizer implements NormalizerInterface
 
     private ?NormalizerInterface $next = null;
 
+    private bool $initialized = false;
+
     public function __construct()
     {
-        $this->initializeNormalizers();
+        // Ne rien faire dans le constructeur pour éviter les cycles
     }
 
-    private function initializeNormalizers(): void
+    private function initialize(): void
     {
+        if ($this->initialized) {
+            return;
+        }
+
         // Créer tous les normaliseurs
         $null = new NullNormalizer;
         $scalar = new ScalarNormalizer;
@@ -32,9 +38,9 @@ final class RootNormalizer implements NormalizerInterface
         $dataObject = new DataObjectNormalizer;
         $array = new ArrayNormalizer;
 
-        // Configurer le normaliseur récursif pour chacun
         $normalizers = [$null, $scalar, $enum, $record, $vo, $data, $collection, $dataObject, $array];
 
+        // Configurer le normaliseur récursif pour chacun
         foreach ($normalizers as $normalizer) {
             if (method_exists($normalizer, 'setRecursiveNormalizer')) {
                 $normalizer->setRecursiveNormalizer($this);
@@ -42,6 +48,7 @@ final class RootNormalizer implements NormalizerInterface
         }
 
         $this->normalizers = $normalizers;
+        $this->initialized = true;
     }
 
     public function supports(mixed $value): bool
@@ -51,6 +58,8 @@ final class RootNormalizer implements NormalizerInterface
 
     public function normalize(mixed $value): mixed
     {
+        $this->initialize();
+
         foreach ($this->normalizers as $normalizer) {
             if ($normalizer->supports($value)) {
                 return $normalizer->normalize($value);

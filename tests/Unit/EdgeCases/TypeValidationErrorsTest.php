@@ -6,8 +6,6 @@ namespace AndyDefer\DomainStructures\Tests\Unit\EdgeCases;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
-use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
-use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 use AndyDefer\DomainStructures\Collections\Core\DataCollection;
 use AndyDefer\DomainStructures\Collections\Core\RecordCollection;
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
@@ -15,6 +13,7 @@ use AndyDefer\DomainStructures\Collections\Utility\BoolTypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\FloatTypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\IntTypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserRole;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestRequiredUserRecord;
@@ -60,7 +59,7 @@ final class TypeValidationErrorsTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('At least one allowed type must be provided');
 
-        new TypedCollection();
+        new TypedCollection;
     }
 
     /**
@@ -169,7 +168,7 @@ final class TypeValidationErrorsTest extends TestCase
         $collection = new TypedCollection(TestUserRecord::class);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Expected type(s) ' . TestUserRecord::class);
+        $this->expectExceptionMessage('Expected type(s) '.TestUserRecord::class);
 
         $collection->add('not a record');
     }
@@ -183,7 +182,7 @@ final class TypeValidationErrorsTest extends TestCase
         $collection = new TypedCollection(TestEmailAddress::class);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Expected type(s) ' . TestEmailAddress::class);
+        $this->expectExceptionMessage('Expected type(s) '.TestEmailAddress::class);
 
         $collection->add('not a value object');
     }
@@ -214,7 +213,7 @@ final class TypeValidationErrorsTest extends TestCase
         $collection = new TypedCollection(IntTypedCollection::class);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Expected type(s) ' . IntTypedCollection::class);
+        $this->expectExceptionMessage('Expected type(s) '.IntTypedCollection::class);
 
         $collection->add('not a collection');
     }
@@ -362,7 +361,7 @@ final class TypeValidationErrorsTest extends TestCase
         $collection = new RecordCollection(TestUserRecord::class);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Expected type(s) ' . TestUserRecord::class);
+        $this->expectExceptionMessage('Expected type(s) '.TestUserRecord::class);
 
         $collection->add('not a record');
     }
@@ -373,7 +372,7 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_data_collection_rejects_non_data(): void
     {
-        $collection = new DataCollection(\AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData::class);
+        $collection = new DataCollection(TestUserData::class);
 
         $this->expectException(InvalidArgumentException::class);
         $collection->add('not a data object');
@@ -422,8 +421,7 @@ final class TypeValidationErrorsTest extends TestCase
         $this->assertCount(1, $collection);
     }
 
-
-// ==================== HYDRATION TYPE ERROR TESTS ====================
+    // ==================== HYDRATION TYPE ERROR TESTS ====================
 
     /**
      * Test that hydration throws exception for missing required property.
@@ -561,7 +559,7 @@ final class TypeValidationErrorsTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3);
 
-        $result = $collection->map(fn($item) => $item * 2);
+        $result = $collection->map(fn ($item) => $item * 2);
 
         $this->assertCount(3, $result);
     }
@@ -574,7 +572,7 @@ final class TypeValidationErrorsTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3);
 
-        $result = $collection->map(fn($item) => (string) $item);
+        $result = $collection->map(fn ($item) => (string) $item);
 
         $this->expectException(InvalidArgumentException::class);
 

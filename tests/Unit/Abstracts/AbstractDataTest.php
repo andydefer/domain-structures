@@ -6,6 +6,7 @@ namespace AndyDefer\DomainStructures\Tests\Unit\Abstracts;
 
 use AndyDefer\DomainStructures\Collections\Core\RecordCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestProductData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
@@ -48,7 +49,7 @@ final class AbstractDataTest extends TestCase
             createdAt: $this->now
         );
 
-        $normalized = $data->normalize();
+        $normalized = NormalizerChain::get()->normalize($data);
 
         $this->assertIsArray($normalized);
         $this->assertArrayHasKey('id', $normalized);
@@ -83,7 +84,7 @@ final class AbstractDataTest extends TestCase
             createdAt: $this->now
         );
 
-        $normalized = $data->normalize();
+        $normalized = NormalizerChain::get()->normalize($data);
 
         $this->assertIsString($normalized['email']);
         $this->assertIsString($normalized['status']);
@@ -107,7 +108,7 @@ final class AbstractDataTest extends TestCase
             createdAt: $this->now
         );
 
-        $normalized = $data->normalize();
+        $normalized = NormalizerChain::get()->normalize($data);
 
         $this->assertArrayHasKey('emailVerifiedAt', $normalized);
         $this->assertNull($normalized['emailVerifiedAt']);
@@ -234,7 +235,6 @@ final class AbstractDataTest extends TestCase
 
     public function test_collect_creates_array_of_data_dtos_from_collection(): void
     {
-        // ✅ CORRECTION: RecordCollection a besoin du type concret
         $recordCollection = new RecordCollection(TestUserRecord::class);
         $recordCollection->add(
             new TestUserRecord(id: 1, name: 'User 1', email: TestEmailAddress::from('user1@example.com')),
@@ -255,7 +255,6 @@ final class AbstractDataTest extends TestCase
 
     public function test_collect_on_empty_collection_returns_empty_array(): void
     {
-        // ✅ CORRECTION: RecordCollection a besoin du type concret même vide
         $emptyCollection = new RecordCollection(TestUserRecord::class);
         $result = TestUserData::collect($emptyCollection);
 
@@ -274,7 +273,7 @@ final class AbstractDataTest extends TestCase
             isFeatured: true
         );
 
-        $normalizedProduct = $productData->normalize();
+        $normalizedProduct = NormalizerChain::get()->normalize($productData);
 
         $this->assertIsArray($normalizedProduct);
         $this->assertSame(1, $normalizedProduct['id']);
@@ -300,7 +299,7 @@ final class AbstractDataTest extends TestCase
             createdAt: $this->now
         );
 
-        $normalized = $data->normalize();
+        $normalized = NormalizerChain::get()->normalize($data);
 
         $this->assertIsArray($normalized['tags']);
         $this->assertCount(3, $normalized['tags']);
@@ -354,7 +353,7 @@ final class AbstractDataTest extends TestCase
             createdAt: $this->now
         );
 
-        $normalized = $data->normalize();
+        $normalized = NormalizerChain::get()->normalize($data);
 
         $this->assertIsArray($normalized);
         $this->assertNull($normalized['id']);
@@ -375,8 +374,8 @@ final class AbstractDataTest extends TestCase
             createdAt: $this->now
         );
 
-        $first = $data->normalize();
-        $second = $data->normalize();
+        $first = NormalizerChain::get()->normalize($data);
+        $second = NormalizerChain::get()->normalize($data);
 
         $this->assertSame($first, $second);
     }

@@ -13,6 +13,7 @@ use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestProductRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\TestCase;
+use RuntimeException;
 
 final class NormalizerChainTest extends TestCase
 {
@@ -185,7 +186,8 @@ final class NormalizerChainTest extends TestCase
     {
         $resource = fopen('php://memory', 'r');
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('No normalizer found for type resource');
         $this->chain->normalize($resource);
 
         fclose($resource);

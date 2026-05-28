@@ -25,16 +25,6 @@ abstract class AbstractValueObject implements Transformable
     abstract public static function from(mixed $source): static;
 
     /**
-     * Normalize to value (always returns the raw value, not an array).
-     */
-    public function normalize(): mixed
-    {
-        $value = $this->getValue();
-
-        return NormalizerChain::get()->normalize($value);
-    }
-
-    /**
      * Checks if this value object is equal to another.
      *
      * @param  self  $other  The other value object to compare
@@ -49,20 +39,19 @@ abstract class AbstractValueObject implements Transformable
         $thisValue = $this->getValue();
         $otherValue = $other->getValue();
 
-        // Si les deux sont des objets, comparer leurs propriétés
         if (is_object($thisValue) && is_object($otherValue)) {
             if ($thisValue instanceof $otherValue) {
                 return $thisValue == $otherValue;
             }
+
             return false;
         }
 
-        // Sinon, comparaison stricte
         return $thisValue === $otherValue;
     }
 
     public function __toString(): string
     {
-        return json_encode($this->normalize(), JSON_THROW_ON_ERROR);
+        return json_encode(NormalizerChain::get()->normalize($this), JSON_THROW_ON_ERROR);
     }
 }

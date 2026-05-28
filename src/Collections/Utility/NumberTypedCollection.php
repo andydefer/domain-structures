@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Collections\Utility;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
-use InvalidArgumentException;
 
 /**
  * Base class for type-safe collections of numeric values (int|float).
@@ -41,7 +40,7 @@ class NumberTypedCollection extends AbstractNumberTypedCollection
      */
     public function zero(): static
     {
-        return $this->filter(fn($item): bool => $item === 0 || $item === 0.0);
+        return $this->filter(fn ($item): bool => $item === 0 || $item === 0.0);
     }
 
     /**
@@ -54,7 +53,7 @@ class NumberTypedCollection extends AbstractNumberTypedCollection
      */
     public function nonNegative(): static
     {
-        return $this->filter(fn($item): bool => $item >= 0);
+        return $this->filter(fn ($item): bool => $item >= 0);
     }
 
     /**
@@ -64,7 +63,7 @@ class NumberTypedCollection extends AbstractNumberTypedCollection
      */
     public function areAllIntegers(): bool
     {
-        return $this->every(fn($item): bool => is_int($item));
+        return $this->every(fn ($item): bool => is_int($item));
     }
 
     /**
@@ -74,7 +73,7 @@ class NumberTypedCollection extends AbstractNumberTypedCollection
      */
     public function hasAnyFloat(): bool
     {
-        return $this->some(fn($item): bool => is_float($item));
+        return $this->some(fn ($item): bool => is_float($item));
     }
 
     /**

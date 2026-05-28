@@ -11,6 +11,7 @@ use InvalidArgumentException;
  * Container for storing other collections.
  *
  * @template TCollection of AbstractTypedCollection
+ *
  * @extends AbstractTypedCollection<TCollection>
  */
 final class CollectionContainer extends AbstractTypedCollection
@@ -22,7 +23,7 @@ final class CollectionContainer extends AbstractTypedCollection
         }
 
         foreach ($allowedCollectionTypes as $type) {
-            if (!is_subclass_of($type, AbstractTypedCollection::class)) {
+            if (! is_subclass_of($type, AbstractTypedCollection::class)) {
                 throw new InvalidArgumentException(sprintf(
                     'Type "%s" must be a subclass of %s',
                     $type,
@@ -42,6 +43,7 @@ final class CollectionContainer extends AbstractTypedCollection
                 $result = array_merge($result, $collection->toArray());
             }
         }
+
         return $result;
     }
 
@@ -57,6 +59,7 @@ final class CollectionContainer extends AbstractTypedCollection
                 $result[] = $collection;
             }
         }
+
         return $result;
     }
 }

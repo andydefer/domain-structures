@@ -7,6 +7,7 @@ namespace AndyDefer\DomainStructures\Tests\Unit\Collections\Core;
 use AndyDefer\DomainStructures\Collections\Core\DataCollection;
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestProductData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
@@ -21,6 +22,7 @@ use InvalidArgumentException;
 final class DataCollectionTest extends TestCase
 {
     private TestIso8601DateTime $now;
+
     private TestEmailAddress $testEmail;
 
     protected function setUp(): void
@@ -67,6 +69,7 @@ final class DataCollectionTest extends TestCase
 
     public function test_collection_only_accepts_abstract_data_type(): void
     {
+        /** @var DataCollection<TestUserData> $collection */
         $collection = new DataCollection(TestUserData::class);
         $userData = $this->createTestUserData(1, 'John Doe');
 
@@ -78,17 +81,19 @@ final class DataCollectionTest extends TestCase
 
     public function test_collection_rejects_non_abstract_data_objects(): void
     {
+        /** @var DataCollection<TestUserData> $collection */
         $collection = new DataCollection(TestUserData::class);
         $record = new TestUserRecord(name: 'John', email: $this->testEmail);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Expected type(s) ' . TestUserData::class);
+        $this->expectExceptionMessage('Expected type(s) '.TestUserData::class);
 
         $collection->add($record);
     }
 
     public function test_collection_rejects_scalar_values(): void
     {
+        /** @var DataCollection<TestUserData> $collection */
         $collection = new DataCollection(TestUserData::class);
 
         $this->expectException(InvalidArgumentException::class);
@@ -100,6 +105,7 @@ final class DataCollectionTest extends TestCase
 
     public function test_add_accepts_multiple_data_objects(): void
     {
+        /** @var DataCollection<TestUserData> $collection */
         $collection = new DataCollection(TestUserData::class);
         $data1 = $this->createTestUserData(1, 'User 1');
         $data2 = $this->createTestUserData(2, 'User 2');
@@ -115,6 +121,7 @@ final class DataCollectionTest extends TestCase
 
     public function test_add_returns_self_for_chaining(): void
     {
+        /** @var DataCollection<TestUserData> $collection */
         $collection = new DataCollection(TestUserData::class);
         $data = $this->createTestUserData(1, 'User 1');
 
@@ -127,6 +134,7 @@ final class DataCollectionTest extends TestCase
 
     public function test_all_returns_new_collection_with_same_items(): void
     {
+        /** @var DataCollection<TestUserData> $original */
         $original = new DataCollection(TestUserData::class);
         $original->add(
             $this->createTestUserData(1, 'User 1'),
@@ -154,8 +162,8 @@ final class DataCollectionTest extends TestCase
             $this->createTestUserData(3, 'Alice')
         );
 
-
-        $filtered = $collection->filter(fn(TestUserData $item) => $item->name === 'Alice');
+        /** @var DataCollection<TestUserData> $filtered */
+        $filtered = $collection->filter(fn (TestUserData $item) => $item->name === 'Alice');
 
         $this->assertInstanceOf(DataCollection::class, $filtered);
         $this->assertCount(2, $filtered);
@@ -167,13 +175,15 @@ final class DataCollectionTest extends TestCase
 
     public function test_map_can_transform_data_objects(): void
     {
+        /** @var DataCollection<TestUserData> $collection */
         $collection = new DataCollection(TestUserData::class);
         $collection->add(
             $this->createTestUserData(1, 'John'),
             $this->createTestUserData(2, 'Jane')
         );
 
-        $names = $collection->map(fn($item) => $item->name);
+        /** @var TypedCollection<string> $names */
+        $names = $collection->map(fn (TestUserData $item) => $item->name);
 
         $this->assertInstanceOf(TypedCollection::class, $names);
         $this->assertNotInstanceOf(DataCollection::class, $names);
@@ -182,13 +192,15 @@ final class DataCollectionTest extends TestCase
 
     public function test_map_can_produce_new_data_collection(): void
     {
+        /** @var DataCollection<TestProductData> $collection */
         $collection = new DataCollection(TestProductData::class);
         $collection->add(
             $this->createTestProductData(1, 'Product A', 100),
             $this->createTestProductData(2, 'Product B', 200)
         );
 
-        $prices = $collection->map(fn($item) => $item->price * 1.2);
+        /** @var TypedCollection<float> $prices */
+        $prices = $collection->map(fn (TestProductData $item) => $item->price * 1.2);
 
         $this->assertInstanceOf(TypedCollection::class, $prices);
         $this->assertNotInstanceOf(DataCollection::class, $prices);
@@ -199,13 +211,14 @@ final class DataCollectionTest extends TestCase
 
     public function test_collection_normalizes_to_array(): void
     {
+        /** @var DataCollection<TestUserData> $collection */
         $collection = new DataCollection(TestUserData::class);
         $collection->add(
             $this->createTestUserData(1, 'John'),
             $this->createTestUserData(2, 'Jane')
         );
 
-        $normalized = $collection->normalize();
+        $normalized = NormalizerChain::get()->normalize($collection);
 
         $this->assertIsArray($normalized);
         $this->assertCount(2, $normalized);
@@ -217,10 +230,11 @@ final class DataCollectionTest extends TestCase
 
     public function test_collection_normalizes_to_json(): void
     {
+        /** @var DataCollection<TestUserData> $collection */
         $collection = new DataCollection(TestUserData::class);
         $collection->add($this->createTestUserData(1, 'John'));
 
-        $normalized = $collection->normalize();
+        $normalized = NormalizerChain::get()->normalize($collection);
         $json = json_encode($normalized);
 
         $this->assertIsString($json);
@@ -236,6 +250,7 @@ final class DataCollectionTest extends TestCase
 
     public function test_collection_supports_count(): void
     {
+        /** @var DataCollection<TestUserData> $collection */
         $collection = new DataCollection(TestUserData::class);
         $collection->add(
             $this->createTestUserData(1, 'User 1'),
@@ -248,7 +263,9 @@ final class DataCollectionTest extends TestCase
 
     public function test_collection_supports_is_empty(): void
     {
+        /** @var DataCollection<TestUserData> $emptyCollection */
         $emptyCollection = new DataCollection(TestUserData::class);
+        /** @var DataCollection<TestUserData> $nonEmptyCollection */
         $nonEmptyCollection = new DataCollection(TestUserData::class);
         $nonEmptyCollection->add($this->createTestUserData(1, 'User'));
 
@@ -260,6 +277,7 @@ final class DataCollectionTest extends TestCase
 
     public function test_collection_supports_contains(): void
     {
+        /** @var DataCollection<TestUserData> $collection */
         $collection = new DataCollection(TestUserData::class);
         $user1 = $this->createTestUserData(1, 'User 1');
         $user2 = $this->createTestUserData(2, 'User 2');
@@ -274,6 +292,7 @@ final class DataCollectionTest extends TestCase
 
     public function test_collection_supports_each(): void
     {
+        /** @var DataCollection<TestUserData> $collection */
         $collection = new DataCollection(TestUserData::class);
         $collection->add(
             $this->createTestUserData(1, 'User 1'),
@@ -281,7 +300,7 @@ final class DataCollectionTest extends TestCase
         );
         $names = [];
 
-        $collection->each(function ($item) use (&$names) {
+        $collection->each(function (TestUserData $item) use (&$names) {
             $names[] = $item->name;
         });
 
@@ -290,6 +309,7 @@ final class DataCollectionTest extends TestCase
 
     public function test_collection_supports_reduce(): void
     {
+        /** @var DataCollection<TestProductData> $collection */
         $collection = new DataCollection(TestProductData::class);
         $collection->add(
             $this->createTestProductData(1, 'Product A', 100),
@@ -297,13 +317,14 @@ final class DataCollectionTest extends TestCase
             $this->createTestProductData(3, 'Product C', 300)
         );
 
-        $total = $collection->reduce(fn($carry, $item) => $carry + $item->price, 0);
+        $total = $collection->reduce(fn ($carry, TestProductData $item) => $carry + $item->price, 0);
 
         $this->assertSame(600.0, $total);
     }
 
     public function test_collection_supports_find(): void
     {
+        /** @var DataCollection<TestUserData> $collection */
         $collection = new DataCollection(TestUserData::class);
         $collection->add(
             $this->createTestUserData(1, 'Alice'),
@@ -311,7 +332,8 @@ final class DataCollectionTest extends TestCase
             $this->createTestUserData(3, 'Charlie')
         );
 
-        $found = $collection->find(fn($item) => $item->name === 'Bob');
+        /** @var TestUserData $found */
+        $found = $collection->find(fn (TestUserData $item) => $item->name === 'Bob');
 
         $this->assertNotNull($found);
         $this->assertEquals(2, $found->id);
@@ -320,18 +342,20 @@ final class DataCollectionTest extends TestCase
 
     public function test_collection_supports_every(): void
     {
+        /** @var DataCollection<TestUserData> $collection */
         $collection = new DataCollection(TestUserData::class);
         $collection->add(
             $this->createTestUserData(1, 'User 1'),
             $this->createTestUserData(2, 'User 2')
         );
 
-        $this->assertTrue($collection->every(fn($item) => strlen($item->name) > 0));
-        $this->assertFalse($collection->every(fn($item) => $item->name === 'User 1'));
+        $this->assertTrue($collection->every(fn (TestUserData $item) => strlen($item->name) > 0));
+        $this->assertFalse($collection->every(fn (TestUserData $item) => $item->name === 'User 1'));
     }
 
     public function test_collection_supports_some(): void
     {
+        /** @var DataCollection<TestUserData> $collection */
         $collection = new DataCollection(TestUserData::class);
         $collection->add(
             $this->createTestUserData(1, 'Alice'),
@@ -339,12 +363,13 @@ final class DataCollectionTest extends TestCase
             $this->createTestUserData(3, 'Charlie')
         );
 
-        $this->assertTrue($collection->some(fn($item) => $item->name === 'Bob'));
-        $this->assertFalse($collection->some(fn($item) => $item->name === 'David'));
+        $this->assertTrue($collection->some(fn (TestUserData $item) => $item->name === 'Bob'));
+        $this->assertFalse($collection->some(fn (TestUserData $item) => $item->name === 'David'));
     }
 
     public function test_collection_supports_reverse(): void
     {
+        /** @var DataCollection<TestUserData> $collection */
         $collection = new DataCollection(TestUserData::class);
         $collection->add(
             $this->createTestUserData(1, 'First'),
@@ -352,6 +377,7 @@ final class DataCollectionTest extends TestCase
             $this->createTestUserData(3, 'Third')
         );
 
+        /** @var DataCollection<TestUserData> $reversed */
         $reversed = $collection->reverse();
 
         $this->assertInstanceOf(DataCollection::class, $reversed);
@@ -362,11 +388,14 @@ final class DataCollectionTest extends TestCase
 
     public function test_collection_supports_merge(): void
     {
+        /** @var DataCollection<TestUserData> $collection1 */
         $collection1 = new DataCollection(TestUserData::class);
+        /** @var DataCollection<TestUserData> $collection2 */
         $collection2 = new DataCollection(TestUserData::class);
         $collection1->add($this->createTestUserData(1, 'User 1'));
         $collection2->add($this->createTestUserData(2, 'User 2'));
 
+        /** @var DataCollection<TestUserData> $merged */
         $merged = $collection1->merge($collection2);
 
         $this->assertInstanceOf(DataCollection::class, $merged);
@@ -379,6 +408,7 @@ final class DataCollectionTest extends TestCase
 
     public function test_collection_supports_array_access(): void
     {
+        /** @var DataCollection<TestUserData> $collection */
         $collection = new DataCollection(TestUserData::class);
         $collection->add($this->createTestUserData(1, 'User 1'));
 
@@ -391,6 +421,7 @@ final class DataCollectionTest extends TestCase
 
     public function test_collection_can_be_json_serialized(): void
     {
+        /** @var DataCollection<TestUserData> $collection */
         $collection = new DataCollection(TestUserData::class);
         $collection->add($this->createTestUserData(1, 'User 1'));
 
@@ -408,9 +439,10 @@ final class DataCollectionTest extends TestCase
 
     public function test_empty_collection_normalizes_to_empty_array(): void
     {
+        /** @var DataCollection<TestUserData> $emptyCollection */
         $emptyCollection = new DataCollection(TestUserData::class);
 
-        $normalized = $emptyCollection->normalize();
+        $normalized = NormalizerChain::get()->normalize($emptyCollection);
 
         $this->assertIsArray($normalized);
         $this->assertEmpty($normalized);
@@ -418,6 +450,7 @@ final class DataCollectionTest extends TestCase
 
     public function test_collection_can_handle_many_items(): void
     {
+        /** @var DataCollection<TestUserData> $collection */
         $collection = new DataCollection(TestUserData::class);
 
         for ($i = 1; $i <= 100; $i++) {
@@ -430,6 +463,7 @@ final class DataCollectionTest extends TestCase
 
     public function test_collection_preserves_item_order(): void
     {
+        /** @var DataCollection<TestUserData> $collection */
         $collection = new DataCollection(TestUserData::class);
 
         $collection->add(

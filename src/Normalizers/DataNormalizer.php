@@ -20,6 +20,16 @@ final class DataNormalizer extends AbstractNormalizer
             return $this->next($value);
         }
 
-        return $value->normalize();
+        $reflection = new \ReflectionClass($value);
+        $properties = $reflection->getProperties(\ReflectionProperty::IS_PUBLIC);
+        $result = [];
+
+        foreach ($properties as $property) {
+            $propValue = $property->getValue($value);
+            $key = $property->getName();
+            $result[$key] = $this->next($propValue);
+        }
+
+        return $result;
     }
 }

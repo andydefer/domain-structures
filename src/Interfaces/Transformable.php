@@ -7,7 +7,7 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Interfaces;
 
 /**
- * Interface for objects that can be hydrated from a source.
+ * Interface for objects that can be hydrated from a source and normalized.
  */
 interface Transformable
 {
@@ -19,4 +19,10 @@ interface Transformable
      * @throws \InvalidArgumentException If the source cannot be converted
      */
     public static function from(mixed $source): static;
+
+    /**
+     * Normalize the object to a primitive type (array, string, int, float, bool, null).
+     *
+     * @return mixed The normalized representation of the object
+     */
 }

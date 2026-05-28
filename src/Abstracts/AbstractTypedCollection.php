@@ -65,19 +65,16 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
             return self::$cachedAllowedTypes[$class];
         }
 
-        // Pour les collections à types fixes (comme IntTypedCollection, StringTypedCollection)
-        // on peut créer une instance temporaire qui remplira le cache
         try {
             $reflection = new \ReflectionClass($class);
             $tempInstance = $reflection->newInstance();
             $types = $tempInstance->getAllowedTypes();
             self::$cachedAllowedTypes[$class] = $types;
+
             return $types;
         } catch (\ArgumentCountError $e) {
-            // Pour les collections dynamiques (comme TypedCollection, DataCollection)
-            // qui ont des paramètres obligatoires au constructeur
             throw new InvalidArgumentException(sprintf(
-                'Cannot determine allowed types for %s. ' .
+                'Cannot determine allowed types for %s. '.
                     'Please create an instance first before calling from(): new %s(...)',
                 $class,
                 $class
@@ -211,30 +208,14 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
     }
 
     // ==================== NORMALIZATION ====================
-
-    public function normalize(bool $includeNulls = true): array
-    {
-        $normalizer = NormalizerChain::get();
-        $result = [];
-
-        foreach ($this->items as $item) {
-            $normalized = $normalizer->normalize($item);
-
-            if (! $includeNulls && $normalized === null) {
-                continue;
-            }
-
-            $result[] = $normalized;
-        }
-
-        return $result;
-    }
+    // ❌ SUPPRIMÉE - La logique est maintenant dans TypedCollectionNormalizer
 
     // ==================== TRANSFORMATION METHODS ====================
 
     /**
      * @template TReturn
-     * @param Closure(TValue): TReturn $callback
+     *
+     * @param  Closure(TValue): TReturn  $callback
      * @return TypedCollection<TReturn>
      */
     final public function map(Closure $callback): TypedCollection
@@ -299,7 +280,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
 
         if (is_string($callback)) {
             $property = $callback;
-            $callback = fn($item) => is_object($item) ? ($item->$property ?? null) : null;
+            $callback = fn ($item) => is_object($item) ? ($item->$property ?? null) : null;
         }
 
         $values = array_map($callback, $items);
@@ -442,13 +423,13 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
 
     public function __toString(): string
     {
-        return json_encode($this->normalize(false), JSON_THROW_ON_ERROR);
+        return json_encode(NormalizerChain::get()->normalize($this), JSON_THROW_ON_ERROR);
     }
 
     final public function __clone()
     {
         $this->items = array_map(
-            fn($item) => is_object($item) ? clone $item : $item,
+            fn ($item) => is_object($item) ? clone $item : $item,
             $this->items
         );
     }
@@ -502,7 +483,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
 
             if (is_array($itemArray) && isset($itemArray['_type'])) {
                 $explicitType = $itemArray['_type'];
-                if (!in_array($explicitType, $allowedTypes, true)) {
+                if (! in_array($explicitType, $allowedTypes, true)) {
                     throw new InvalidArgumentException(sprintf(
                         'Type "%s" specified in "_type" is not allowed. Allowed: %s',
                         $explicitType,
@@ -510,12 +491,14 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
                     ));
                 }
                 $collection->add(self::convertItem($item, $explicitType));
+
                 continue;
             }
 
-            if (!$hasMultipleTypes) {
+            if (! $hasMultipleTypes) {
                 $allowedType = $allowedTypes[0];
                 $collection->add(self::convertItem($item, $allowedType));
+
                 continue;
             }
 
@@ -528,13 +511,14 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
                     $matchedTypes[] = $allowedType;
                 } catch (\Exception $e) {
                     $lastException = $e;
+
                     continue;
                 }
             }
 
             if (count($matchedTypes) > 1) {
                 throw new InvalidArgumentException(sprintf(
-                    'Ambiguous item #%d: data can be hydrated by multiple types [%s]. ' .
+                    'Ambiguous item #%d: data can be hydrated by multiple types [%s]. '.
                         'Please specify the type using a "_type" key in the source data.',
                     $itemIndex,
                     implode('|', $matchedTypes)

@@ -33,6 +33,7 @@ final class StringTypedCollection extends AbstractTypedCollection
         foreach ($this->items as $item) {
             $result->add(mb_strtolower($item));
         }
+
         return $result;
     }
 
@@ -47,6 +48,7 @@ final class StringTypedCollection extends AbstractTypedCollection
         foreach ($this->items as $item) {
             $result->add(mb_strtoupper($item));
         }
+
         return $result;
     }
 
@@ -64,6 +66,7 @@ final class StringTypedCollection extends AbstractTypedCollection
                 $result->add($item);
             }
         }
+
         return $result;
     }
 
@@ -81,6 +84,7 @@ final class StringTypedCollection extends AbstractTypedCollection
                 $result->add($item);
             }
         }
+
         return $result;
     }
 
@@ -98,6 +102,7 @@ final class StringTypedCollection extends AbstractTypedCollection
                 $result->add($item);
             }
         }
+
         return $result;
     }
 
@@ -117,6 +122,7 @@ final class StringTypedCollection extends AbstractTypedCollection
                 $result->add($item);
             }
         }
+
         return $result;
     }
 
@@ -132,6 +138,7 @@ final class StringTypedCollection extends AbstractTypedCollection
         foreach ($this->items as $item) {
             $result->add(trim($item, $characters));
         }
+
         return $result;
     }
 
@@ -159,6 +166,7 @@ final class StringTypedCollection extends AbstractTypedCollection
                 $result->add($truncated);
             }
         }
+
         return $result;
     }
 
@@ -182,6 +190,7 @@ final class StringTypedCollection extends AbstractTypedCollection
                 $result->add($item);
             }
         }
+
         return $result;
     }
 
@@ -207,6 +216,7 @@ final class StringTypedCollection extends AbstractTypedCollection
         foreach ($this->items as $item) {
             $result->add(mb_strlen($item));
         }
+
         return $result;
     }
 
@@ -224,6 +234,7 @@ final class StringTypedCollection extends AbstractTypedCollection
         foreach ($this->items as $item) {
             $result->add(str_pad($item, $length, $padString, $padType));
         }
+
         return $result;
     }
 
@@ -240,6 +251,7 @@ final class StringTypedCollection extends AbstractTypedCollection
         foreach ($this->items as $item) {
             $result->add(str_replace($search, $replace, $item));
         }
+
         return $result;
     }
 
@@ -254,6 +266,7 @@ final class StringTypedCollection extends AbstractTypedCollection
         foreach ($this->items as $item) {
             $result->add(mb_substr($item, 0, 1));
         }
+
         return $result;
     }
 
@@ -268,6 +281,7 @@ final class StringTypedCollection extends AbstractTypedCollection
         foreach ($this->items as $item) {
             $result->add(mb_substr($item, -1, 1));
         }
+
         return $result;
     }
 
@@ -288,6 +302,7 @@ final class StringTypedCollection extends AbstractTypedCollection
                 $result->add(mb_substr($item, $offset, $length));
             }
         }
+
         return $result;
     }
 
@@ -325,7 +340,7 @@ final class StringTypedCollection extends AbstractTypedCollection
 
         foreach ($this->items as $item) {
             $lowercase = mb_strtolower($item);
-            if (!in_array($lowercase, $seen, true)) {
+            if (! in_array($lowercase, $seen, true)) {
                 $seen[] = $lowercase;
                 $result->add($item);
             }
@@ -382,6 +397,7 @@ final class StringTypedCollection extends AbstractTypedCollection
             $cleaned = preg_replace('/\s+/', '', $item);
             $result->add($cleaned);
         }
+
         return $result;
     }
 
@@ -401,6 +417,7 @@ final class StringTypedCollection extends AbstractTypedCollection
             $slug = preg_replace('/[^a-z0-9]+/u', '-', $slug);
             $result->add(trim($slug, '-'));
         }
+
         return $result;
     }
 
@@ -416,8 +433,9 @@ final class StringTypedCollection extends AbstractTypedCollection
         $suffix = $suffix ?? $prefix;
         $result = new self;
         foreach ($this->items as $item) {
-            $result->add($prefix . $item . $suffix);
+            $result->add($prefix.$item.$suffix);
         }
+
         return $result;
     }
 
@@ -437,6 +455,7 @@ final class StringTypedCollection extends AbstractTypedCollection
                 $result->add($item);
             }
         }
+
         return $result;
     }
 
@@ -456,6 +475,7 @@ final class StringTypedCollection extends AbstractTypedCollection
                 $result->add($item);
             }
         }
+
         return $result;
     }
 }

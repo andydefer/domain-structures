@@ -9,7 +9,6 @@ use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\IntTypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Normalizers\RootNormalizer;
-use AndyDefer\DomainStructures\Tests\Fixtures\Collections\NestedCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ProductRecordCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestUserRoleCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
@@ -69,7 +68,7 @@ final class NormalizationIntegrationTest extends TestCase
         $this->assertEquals(1, $normalized['grade']);
     }
 
-    public function test_record_excludes_null_values_when_include_nulls_false(): void
+    public function test_record_includes_all_null_values(): void
     {
         $record = new TestUserRecord(
             name: 'John Doe',
@@ -81,28 +80,15 @@ final class NormalizationIntegrationTest extends TestCase
 
         $normalized = $this->rootNormalizer->normalize($record);
 
-        $this->assertArrayNotHasKey('id', $normalized);
-        $this->assertArrayNotHasKey('email_verified_at', $normalized);
-        $this->assertArrayNotHasKey('featured_product', $normalized);
-        $this->assertArrayHasKey('name', $normalized);
-        $this->assertArrayHasKey('email', $normalized);
-    }
-
-    public function test_record_includes_null_values_when_include_nulls_true(): void
-    {
-        $record = new TestUserRecord(
-            name: 'John Doe',
-            email: $this->testEmail,
-            id: null,
-            emailVerifiedAt: null
-        );
-
-        $normalized = $this->rootNormalizer->normalize($record);
-
+        // Les null sont TOUJOURS inclus
         $this->assertArrayHasKey('id', $normalized);
         $this->assertArrayHasKey('email_verified_at', $normalized);
+        $this->assertArrayHasKey('featured_product', $normalized);
+        $this->assertArrayHasKey('name', $normalized);
+        $this->assertArrayHasKey('email', $normalized);
         $this->assertNull($normalized['id']);
         $this->assertNull($normalized['email_verified_at']);
+        $this->assertNull($normalized['featured_product']);
     }
 
     // ==================== DATA DTO NORMALIZATION TESTS ====================
@@ -128,7 +114,8 @@ final class NormalizationIntegrationTest extends TestCase
         $this->assertSame('john@example.com', $normalized['email']);
         $this->assertSame('active', $normalized['status']);
         $this->assertSame('admin', $normalized['role']);
-        $this->assertSame('gold', $normalized['grade']);
+        // TestUserGrade::GOLD a la valeur 3 (int)
+        $this->assertEquals(3, $normalized['grade']);
     }
 
     // ==================== ENUM NORMALIZATION TESTS ====================
@@ -240,7 +227,7 @@ final class NormalizationIntegrationTest extends TestCase
 
     public function test_record_collection_normalizes_to_array_of_arrays(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $collection->add(
             new TestUserRecord(id: 1, name: 'User1', email: TestEmailAddress::from('user1@example.com')),
             new TestUserRecord(id: 2, name: 'User2', email: TestEmailAddress::from('user2@example.com'))
@@ -255,14 +242,15 @@ final class NormalizationIntegrationTest extends TestCase
         $this->assertSame('User2', $normalized[1]['name']);
     }
 
-    public function test_collection_normalizes_with_null_handling(): void
+    public function test_collection_always_includes_nulls(): void
     {
         $collection = new TypedCollection('int', 'null');
         $collection->add(1, null, 2, null, 3);
 
-        $withoutNulls = $this->rootNormalizer->normalize($collection);
+        $normalized = $this->rootNormalizer->normalize($collection);
 
-        $this->assertSame([1, 2, 3], $withoutNulls);
+        // Les null sont TOUJOURS inclus
+        $this->assertSame([1, null, 2, null, 3], $normalized);
     }
 
     // ==================== NESTED NORMALIZATION TESTS ====================
@@ -307,7 +295,7 @@ final class NormalizationIntegrationTest extends TestCase
             products: $innerProducts
         );
 
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $collection->add($userRecord);
 
         $normalized = $this->rootNormalizer->normalize($collection);
@@ -318,9 +306,12 @@ final class NormalizationIntegrationTest extends TestCase
         $this->assertSame('Product B', $normalized[0]['products'][1]['name']);
     }
 
+    /**
+     * ✅ CORRECTION: Utiliser TypedCollection<StringTypedCollection> au lieu de NestedCollection
+     */
     public function test_nested_collections_within_collections_normalize_correctly(): void
     {
-        $nestedCollection = new NestedCollection;
+        $container = new TypedCollection(StringTypedCollection::class);
 
         $inner1 = new StringTypedCollection;
         $inner1->add('a', 'b', 'c');
@@ -328,9 +319,9 @@ final class NormalizationIntegrationTest extends TestCase
         $inner2 = new StringTypedCollection;
         $inner2->add('d', 'e', 'f');
 
-        $nestedCollection->add($inner1, $inner2);
+        $container->add($inner1, $inner2);
 
-        $normalized = $this->rootNormalizer->normalize($nestedCollection);
+        $normalized = $this->rootNormalizer->normalize($container);
 
         $this->assertCount(2, $normalized);
         $this->assertSame(['a', 'b', 'c'], $normalized[0]);
@@ -383,7 +374,7 @@ final class NormalizationIntegrationTest extends TestCase
         $this->assertEmpty($normalized);
     }
 
-    public function test_record_with_all_nulls_normalizes_correctly(): void
+    public function test_record_with_all_nulls_normalizes_including_nulls(): void
     {
         $record = new TestUserRecord(
             id: null,
@@ -397,15 +388,17 @@ final class NormalizationIntegrationTest extends TestCase
             createdAt: null
         );
 
-        $withNulls = $this->rootNormalizer->normalize($record);
-        $withoutNulls = $this->rootNormalizer->normalize($record);
+        $normalized = $this->rootNormalizer->normalize($record);
 
-        $this->assertArrayHasKey('id', $withNulls);
-        $this->assertNull($withNulls['id']);
-        $this->assertArrayNotHasKey('id', $withoutNulls);
-        $this->assertArrayNotHasKey('email_verified_at', $withoutNulls);
-        $this->assertArrayNotHasKey('featured_product', $withoutNulls);
-        $this->assertArrayNotHasKey('created_at', $withoutNulls);
+        // Les null sont TOUJOURS inclus
+        $this->assertArrayHasKey('id', $normalized);
+        $this->assertArrayHasKey('email_verified_at', $normalized);
+        $this->assertArrayHasKey('featured_product', $normalized);
+        $this->assertArrayHasKey('created_at', $normalized);
+        $this->assertNull($normalized['id']);
+        $this->assertNull($normalized['email_verified_at']);
+        $this->assertNull($normalized['featured_product']);
+        $this->assertNull($normalized['created_at']);
     }
 
     public function test_normalization_preserves_data_integrity(): void
@@ -444,7 +437,7 @@ final class NormalizationIntegrationTest extends TestCase
 
     public function test_collection_with_mixed_types_normalizes_correctly(): void
     {
-        $mixedCollection = new TypedCollection;
+        $mixedCollection = new TypedCollection('int', 'float', 'string', 'bool', 'null', TestUserStatus::class, TestUserRecord::class);
         $mixedCollection->add(
             42,
             3.14,

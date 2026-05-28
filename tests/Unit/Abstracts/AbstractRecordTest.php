@@ -6,6 +6,7 @@ namespace AndyDefer\DomainStructures\Tests\Unit\Abstracts;
 
 use AndyDefer\DomainStructures\Collections\Core\RecordCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ProductRecordCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserRole;
@@ -54,7 +55,7 @@ final class AbstractRecordTest extends TestCase
             createdAt: $this->now
         );
 
-        $normalized = $record->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($record);
 
         $this->assertIsArray($normalized);
         $this->assertArrayHasKey('id', $normalized);
@@ -91,7 +92,7 @@ final class AbstractRecordTest extends TestCase
             createdAt: $this->now
         );
 
-        $normalized = $record->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($record);
 
         $this->assertIsString($normalized['email']);
         $this->assertIsString($normalized['status']);
@@ -102,7 +103,7 @@ final class AbstractRecordTest extends TestCase
         $this->assertIsString($normalized['created_at']);
     }
 
-    public function test_record_normalizes_with_null_values_excluded_when_include_nulls_false(): void
+    public function test_record_normalizes_with_null_values_included(): void
     {
         $record = new TestUserRecord(
             name: 'John Doe',
@@ -113,21 +114,27 @@ final class AbstractRecordTest extends TestCase
             grade: null
         );
 
-        $normalized = $record->normalize(false);
+        $normalized = NormalizerChain::get()->normalize($record);
 
-        $this->assertArrayNotHasKey('id', $normalized);
-        $this->assertArrayNotHasKey('email_verified_at', $normalized);
-        $this->assertArrayNotHasKey('featured_product', $normalized);
-        $this->assertArrayNotHasKey('grade', $normalized);
+        // Tous les champs sont inclus, même les null
+        $this->assertArrayHasKey('id', $normalized);
+        $this->assertArrayHasKey('email_verified_at', $normalized);
+        $this->assertArrayHasKey('featured_product', $normalized);
+        $this->assertArrayHasKey('grade', $normalized);
         $this->assertArrayHasKey('name', $normalized);
         $this->assertArrayHasKey('email', $normalized);
         $this->assertArrayHasKey('status', $normalized);
         $this->assertArrayHasKey('role', $normalized);
         $this->assertArrayHasKey('tags', $normalized);
         $this->assertArrayHasKey('products', $normalized);
+
+        $this->assertNull($normalized['id']);
+        $this->assertNull($normalized['email_verified_at']);
+        $this->assertNull($normalized['featured_product']);
+        $this->assertNull($normalized['grade']);
     }
 
-    public function test_record_includes_null_values_when_include_nulls_true(): void
+    public function test_record_includes_null_values_by_default(): void
     {
         $record = new TestUserRecord(
             name: 'John Doe',
@@ -136,7 +143,7 @@ final class AbstractRecordTest extends TestCase
             emailVerifiedAt: null
         );
 
-        $normalized = $record->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($record);
 
         $this->assertArrayHasKey('id', $normalized);
         $this->assertArrayHasKey('email_verified_at', $normalized);
@@ -151,7 +158,7 @@ final class AbstractRecordTest extends TestCase
             createdAt: $this->now
         );
 
-        $normalized = $record->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($record);
 
         $this->assertArrayHasKey('email_verified_at', $normalized);
         $this->assertArrayNotHasKey('emailVerifiedAt', $normalized);
@@ -277,7 +284,6 @@ final class AbstractRecordTest extends TestCase
 
     public function test_collect_creates_array_of_records_from_collection(): void
     {
-        // ✅ CORRECTION: RecordCollection a besoin du type concret
         $recordCollection = new RecordCollection(TestUserRecord::class);
         $recordCollection->add(
             new TestUserRecord(id: 1, name: 'User 1', email: TestEmailAddress::from('user1@example.com')),
@@ -294,7 +300,6 @@ final class AbstractRecordTest extends TestCase
 
     public function test_collect_on_empty_collection_returns_empty_array(): void
     {
-        // ✅ CORRECTION: RecordCollection a besoin du type concret même vide
         $emptyCollection = new RecordCollection(TestUserRecord::class);
         $result = TestUserRecord::collect($emptyCollection);
 
@@ -319,7 +324,7 @@ final class AbstractRecordTest extends TestCase
             products: $products
         );
 
-        $normalized = $record->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($record);
 
         $this->assertIsArray($normalized['products']);
         $this->assertCount(2, $normalized['products']);
@@ -343,7 +348,7 @@ final class AbstractRecordTest extends TestCase
             tags: $tags
         );
 
-        $normalized = $record->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($record);
 
         $this->assertIsArray($normalized['tags']);
         $this->assertCount(3, $normalized['tags']);
@@ -402,15 +407,12 @@ final class AbstractRecordTest extends TestCase
             createdAt: null
         );
 
-        $withNulls = $record->normalize(true);
-        $withoutNulls = $record->normalize(false);
+        $normalized = NormalizerChain::get()->normalize($record);
 
-        $this->assertArrayHasKey('tags', $withNulls);
-        $this->assertArrayHasKey('products', $withNulls);
-        $this->assertNull($withNulls['id']);
-        $this->assertNull($withNulls['email_verified_at']);
-        $this->assertArrayNotHasKey('id', $withoutNulls);
-        $this->assertArrayNotHasKey('email_verified_at', $withoutNulls);
+        $this->assertArrayHasKey('tags', $normalized);
+        $this->assertArrayHasKey('products', $normalized);
+        $this->assertNull($normalized['id']);
+        $this->assertNull($normalized['email_verified_at']);
     }
 
     public function test_multiple_normalization_calls_produce_same_result(): void
@@ -421,8 +423,8 @@ final class AbstractRecordTest extends TestCase
             email: $this->testEmail
         );
 
-        $first = $record->normalize(true);
-        $second = $record->normalize(true);
+        $first = NormalizerChain::get()->normalize($record);
+        $second = NormalizerChain::get()->normalize($record);
 
         $this->assertSame($first, $second);
     }
@@ -476,7 +478,7 @@ final class AbstractRecordTest extends TestCase
             createdAt: $this->now
         );
 
-        $normalized = $record->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($record);
 
         $this->assertArrayHasKey('email_verified_at', $normalized);
         $this->assertArrayHasKey('created_at', $normalized);
@@ -490,7 +492,7 @@ final class AbstractRecordTest extends TestCase
             emailVerifiedAt: $this->now
         );
 
-        $normalized = $record->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($record);
 
         $this->assertArrayHasKey('email_verified_at', $normalized);
     }

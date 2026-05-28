@@ -4,17 +4,14 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Tests\Unit\Collections\Core;
 
-use AndyDefer\DomainStructures\Abstracts\AbstractData;
-use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
-use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\DataObject;
-use UnitEnum;
 
 /**
  * Unit tests for TypedCollection class.
@@ -94,7 +91,7 @@ final class TypedCollectionTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('At least one allowed type must be provided');
 
-        new TypedCollection();
+        new TypedCollection;
     }
 
     // ==================== INHERITED FUNCTIONALITY TESTS ====================
@@ -107,11 +104,13 @@ final class TypedCollectionTest extends TestCase
     public function test_map_works_with_typed_collection(): void
     {
         // Arrange
+        /** @var TypedCollection<int> $collection */
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3);
 
         // Act
-        $doubled = $collection->map(fn($item) => $item * 2);
+        /** @var TypedCollection<int> $doubled */
+        $doubled = $collection->map(fn (int $item) => $item * 2);
 
         // Assert
         $this->assertInstanceOf(TypedCollection::class, $doubled);
@@ -124,11 +123,13 @@ final class TypedCollectionTest extends TestCase
     public function test_filter_works_with_typed_collection(): void
     {
         // Arrange
+        /** @var TypedCollection<int> $collection */
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3, 4, 5);
 
         // Act
-        $evens = $collection->filter(fn($item) => $item % 2 === 0);
+        /** @var TypedCollection<int> $evens */
+        $evens = $collection->filter(fn (int $item) => $item % 2 === 0);
 
         // Assert
         $this->assertInstanceOf(TypedCollection::class, $evens);
@@ -141,10 +142,12 @@ final class TypedCollectionTest extends TestCase
     public function test_sort_works_with_typed_collection(): void
     {
         // Arrange
+        /** @var TypedCollection<int> $collection */
         $collection = new TypedCollection('int');
         $collection->add(5, 2, 8, 1, 9);
 
         // Act
+        /** @var TypedCollection<int> $sorted */
         $sorted = $collection->sort();
 
         // Assert
@@ -158,10 +161,12 @@ final class TypedCollectionTest extends TestCase
     public function test_reverse_works_with_typed_collection(): void
     {
         // Arrange
+        /** @var TypedCollection<int> $collection */
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3);
 
         // Act
+        /** @var TypedCollection<int> $reversed */
         $reversed = $collection->reverse();
 
         // Assert
@@ -175,12 +180,15 @@ final class TypedCollectionTest extends TestCase
     public function test_merge_works_with_typed_collection(): void
     {
         // Arrange
+        /** @var TypedCollection<int> $collection1 */
         $collection1 = new TypedCollection('int');
+        /** @var TypedCollection<int> $collection2 */
         $collection2 = new TypedCollection('int');
         $collection1->add(1, 2);
         $collection2->add(3, 4);
 
         // Act
+        /** @var TypedCollection<int> $merged */
         $merged = $collection1->merge($collection2);
 
         // Assert
@@ -194,11 +202,12 @@ final class TypedCollectionTest extends TestCase
     public function test_normalize_works_with_typed_collection(): void
     {
         // Arrange
+        /** @var TypedCollection<int> $collection */
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3);
 
         // Act
-        $normalized = $collection->normalize();
+        $normalized = NormalizerChain::get()->normalize($collection);
 
         // Assert
         $this->assertSame([1, 2, 3], $normalized);
@@ -210,6 +219,7 @@ final class TypedCollectionTest extends TestCase
     public function test_array_access_works_with_typed_collection(): void
     {
         // Arrange
+        /** @var TypedCollection<string> $collection */
         $collection = new TypedCollection('string');
         $collection->add('a', 'b', 'c');
 
@@ -228,6 +238,7 @@ final class TypedCollectionTest extends TestCase
     public function test_foreach_works_with_typed_collection(): void
     {
         // Arrange
+        /** @var TypedCollection<int> $collection */
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3);
         $items = [];
@@ -247,6 +258,7 @@ final class TypedCollectionTest extends TestCase
     public function test_count_works_with_typed_collection(): void
     {
         // Arrange
+        /** @var TypedCollection<int> $collection */
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3);
 
@@ -261,6 +273,7 @@ final class TypedCollectionTest extends TestCase
     public function test_typed_collection_can_store_data_objects(): void
     {
         // Arrange
+        /** @var TypedCollection<DataObject> $collection */
         $collection = new TypedCollection(DataObject::class);
 
         $data1 = new DataObject(['id' => 1, 'name' => 'John']);
@@ -283,6 +296,7 @@ final class TypedCollectionTest extends TestCase
     public function test_typed_collection_with_data_object_type_rejects_other_types(): void
     {
         // Arrange
+        /** @var TypedCollection<DataObject> $collection */
         $collection = new TypedCollection(DataObject::class);
 
         // Expect
@@ -298,6 +312,7 @@ final class TypedCollectionTest extends TestCase
     public function test_typed_collection_can_store_multiple_types(): void
     {
         // Arrange
+        /** @var TypedCollection<int|string|bool> $collection */
         $collection = new TypedCollection('int', 'string', 'bool');
 
         // Act
@@ -316,6 +331,7 @@ final class TypedCollectionTest extends TestCase
     public function test_typed_collection_can_store_enums(): void
     {
         // Arrange
+        /** @var TypedCollection<TestUserStatus> $collection */
         $collection = new TypedCollection(TestUserStatus::class);
 
         // Act
@@ -333,6 +349,7 @@ final class TypedCollectionTest extends TestCase
     public function test_typed_collection_can_store_records(): void
     {
         // Arrange
+        /** @var TypedCollection<TestUserRecord> $collection */
         $collection = new TypedCollection(TestUserRecord::class);
         $record = new TestUserRecord(name: 'John', email: TestEmailAddress::from('john@example.com'));
 

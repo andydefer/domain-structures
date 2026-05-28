@@ -13,7 +13,6 @@ use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserRole;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Traits\Enumable;
-use InvalidArgumentException;
 
 /**
  * Unit tests for Enumable trait.

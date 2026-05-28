@@ -9,6 +9,7 @@ use AndyDefer\DomainStructures\Collections\Core\DataCollection;
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\IntTypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ProductRecordCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestProductData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
@@ -56,7 +57,7 @@ final class RecursiveNormalizationTest extends TestCase
             featuredProduct: $featuredProduct
         );
 
-        $normalized = $userRecord->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($userRecord);
 
         $this->assertIsArray($normalized);
         $this->assertArrayHasKey('featured_product', $normalized);
@@ -85,7 +86,7 @@ final class RecursiveNormalizationTest extends TestCase
             products: (new ProductRecordCollection)->add($product)
         );
 
-        $normalized = $userRecord->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($userRecord);
 
         $this->assertIsArray($normalized);
         $this->assertIsArray($normalized['products']);
@@ -104,7 +105,7 @@ final class RecursiveNormalizationTest extends TestCase
         $outerCollection = new TypedCollection(StringTypedCollection::class);
         $outerCollection->add($innerCollection);
 
-        $normalized = $outerCollection->normalize();
+        $normalized = NormalizerChain::get()->normalize($outerCollection);
 
         $this->assertIsArray($normalized);
         $this->assertCount(1, $normalized);
@@ -123,7 +124,7 @@ final class RecursiveNormalizationTest extends TestCase
         $level1 = new TypedCollection(TypedCollection::class);
         $level1->add($level2);
 
-        $normalized = $level1->normalize();
+        $normalized = NormalizerChain::get()->normalize($level1);
 
         $this->assertIsArray($normalized);
         $this->assertCount(1, $normalized);
@@ -148,7 +149,7 @@ final class RecursiveNormalizationTest extends TestCase
 
         $container->add($inner1, $inner2);
 
-        $normalized = $container->normalize();
+        $normalized = NormalizerChain::get()->normalize($container);
 
         $this->assertIsArray($normalized);
         $this->assertCount(2, $normalized);
@@ -174,7 +175,7 @@ final class RecursiveNormalizationTest extends TestCase
             tags: $this->tags
         );
 
-        $normalized = $userRecord->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($userRecord);
 
         $this->assertIsArray($normalized);
         $this->assertIsArray($normalized['products']);
@@ -200,7 +201,7 @@ final class RecursiveNormalizationTest extends TestCase
             products: $products
         );
 
-        $normalized = $userRecord->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($userRecord);
 
         $this->assertIsArray($normalized);
         $this->assertIsArray($normalized['products']);
@@ -228,7 +229,7 @@ final class RecursiveNormalizationTest extends TestCase
         $dataCollection = new DataCollection(TestProductData::class);
         $dataCollection->add($productData);
 
-        $normalized = $dataCollection->normalize();
+        $normalized = NormalizerChain::get()->normalize($dataCollection);
 
         $this->assertIsArray($normalized);
         $this->assertCount(1, $normalized);
@@ -255,7 +256,7 @@ final class RecursiveNormalizationTest extends TestCase
         );
 
         $userData = TestUserData::from($userRecord);
-        $normalizedData = $userData->normalize();
+        $normalizedData = NormalizerChain::get()->normalize($userData);
 
         $this->assertIsArray($normalizedData);
         $this->assertArrayHasKey('tags', $normalizedData);
@@ -268,7 +269,7 @@ final class RecursiveNormalizationTest extends TestCase
     public function test_value_object_containing_record_normalizes_correctly(): void
     {
         $money = TestMoney::from(['amount' => 99.99, 'currency' => 'EUR']);
-        $normalized = $money->normalize();
+        $normalized = NormalizerChain::get()->normalize($money);
 
         $this->assertIsArray($normalized);
         $this->assertArrayHasKey('amount', $normalized);
@@ -280,7 +281,7 @@ final class RecursiveNormalizationTest extends TestCase
     public function test_value_object_containing_value_object_normalizes_recursively(): void
     {
         $innerVO = TestEmailAddress::from('inner@example.com');
-        $normalizedInner = $innerVO->normalize();
+        $normalizedInner = NormalizerChain::get()->normalize($innerVO);
 
         $this->assertSame('inner@example.com', $normalizedInner);
     }
@@ -295,7 +296,7 @@ final class RecursiveNormalizationTest extends TestCase
         $collection = new TypedCollection(DataObject::class);
         $collection->add($outer);
 
-        $normalized = $collection->normalize();
+        $normalized = NormalizerChain::get()->normalize($collection);
 
         $this->assertIsArray($normalized);
         $this->assertIsArray($normalized[0]['inner']);
@@ -320,7 +321,7 @@ final class RecursiveNormalizationTest extends TestCase
         $collection = new TypedCollection(DataObject::class);
         $collection->add($dataObject);
 
-        $normalized = $collection->normalize();
+        $normalized = NormalizerChain::get()->normalize($collection);
 
         $this->assertIsArray($normalized);
         $this->assertIsArray($normalized[0]['user']);
@@ -346,7 +347,7 @@ final class RecursiveNormalizationTest extends TestCase
             tags: $this->tags
         );
 
-        $normalized = $userRecord->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($userRecord);
 
         $this->assertIsArray($normalized);
         $this->assertIsArray($normalized['products']);
@@ -370,7 +371,7 @@ final class RecursiveNormalizationTest extends TestCase
             products: $productCollection
         );
 
-        $normalized = $userRecord->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($userRecord);
 
         $this->assertIsArray($normalized);
         $this->assertIsArray($normalized['products']);
@@ -393,7 +394,7 @@ final class RecursiveNormalizationTest extends TestCase
             products: $productCollection
         );
 
-        $normalized = $userRecord->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($userRecord);
 
         $this->assertIsArray($normalized);
         $this->assertSame('deep@example.com', $normalized['email']);
@@ -414,7 +415,7 @@ final class RecursiveNormalizationTest extends TestCase
         $collectionOfCollections = new TypedCollection(StringTypedCollection::class);
         $collectionOfCollections->add($stringCollection1, $stringCollection2);
 
-        $normalized = $collectionOfCollections->normalize();
+        $normalized = NormalizerChain::get()->normalize($collectionOfCollections);
 
         $this->assertIsArray($normalized);
         $this->assertCount(2, $normalized);
@@ -432,7 +433,7 @@ final class RecursiveNormalizationTest extends TestCase
         $outerCollection = new TypedCollection(ProductRecordCollection::class);
         $outerCollection->add($innerProducts);
 
-        $normalized = $outerCollection->normalize();
+        $normalized = NormalizerChain::get()->normalize($outerCollection);
 
         $this->assertIsArray($normalized);
         $this->assertCount(1, $normalized);
@@ -456,7 +457,7 @@ final class RecursiveNormalizationTest extends TestCase
             $current = $wrapper;
         }
 
-        $normalized = $current->normalize();
+        $normalized = NormalizerChain::get()->normalize($current);
         $this->assertIsArray($normalized);
     }
 
@@ -471,9 +472,9 @@ final class RecursiveNormalizationTest extends TestCase
             products: $products
         );
 
-        $first = $userRecord->normalize(true);
-        $second = $userRecord->normalize(true);
-        $third = $userRecord->normalize(true);
+        $first = NormalizerChain::get()->normalize($userRecord);
+        $second = NormalizerChain::get()->normalize($userRecord);
+        $third = NormalizerChain::get()->normalize($userRecord);
 
         $this->assertSame($first, $second);
         $this->assertSame($second, $third);
@@ -493,7 +494,7 @@ final class RecursiveNormalizationTest extends TestCase
 
         $container->add($strings, $ints);
 
-        $normalized = $container->normalize();
+        $normalized = NormalizerChain::get()->normalize($container);
 
         $this->assertCount(2, $normalized);
         $this->assertSame(['hello', 'world'], $normalized[0]);

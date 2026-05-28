@@ -12,6 +12,9 @@ use AndyDefer\DomainStructures\Collections\Utility\FloatTypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\IntTypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\NumberTypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
+use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
+use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\TestCase;
 
@@ -48,8 +51,8 @@ final class EmptyCollectionsTest extends TestCase
         $stringCollection = new StringTypedCollection;
         $boolCollection = new BoolTypedCollection;
         $numberCollection = new NumberTypedCollection;
-        $recordCollection = new RecordCollection;
-        $dataCollection = new DataCollection;
+        $recordCollection = new RecordCollection(TestUserRecord::class);
+        $dataCollection = new DataCollection(TestUserData::class);
 
         $this->assertTrue($typedCollection->isEmpty());
         $this->assertTrue($intCollection->isEmpty());
@@ -88,8 +91,8 @@ final class EmptyCollectionsTest extends TestCase
             new StringTypedCollection,
             new BoolTypedCollection,
             new NumberTypedCollection,
-            new RecordCollection,
-            new DataCollection,
+            new RecordCollection(TestUserRecord::class),
+            new DataCollection(TestUserData::class),
         ];
 
         foreach ($collections as $collection) {
@@ -120,7 +123,7 @@ final class EmptyCollectionsTest extends TestCase
     {
         $emptyCollection = new IntTypedCollection;
 
-        $result = $emptyCollection->map(fn($item) => $item * 2);
+        $result = $emptyCollection->map(fn ($item) => $item * 2);
 
         $this->assertCount(0, $result);
         $this->assertTrue($result->isEmpty());
@@ -128,10 +131,9 @@ final class EmptyCollectionsTest extends TestCase
 
     public function test_map_on_empty_collection_preserves_allowed_types(): void
     {
-        // Spécifier explicitement les types autorisés
         $emptyCollection = new TypedCollection('int', 'string', 'float');
 
-        $result = $emptyCollection->map(fn($item) => $item);
+        $result = $emptyCollection->map(fn ($item) => $item);
 
         $this->assertSame(['int', 'string', 'float'], $result->getAllowedTypes());
     }
@@ -142,7 +144,7 @@ final class EmptyCollectionsTest extends TestCase
     {
         $emptyCollection = new IntTypedCollection;
 
-        $result = $emptyCollection->filter(fn($item) => $item > 0);
+        $result = $emptyCollection->filter(fn ($item) => $item > 0);
 
         $this->assertCount(0, $result);
         $this->assertTrue($result->isEmpty());
@@ -152,7 +154,7 @@ final class EmptyCollectionsTest extends TestCase
     {
         $emptyCollection = new IntTypedCollection;
 
-        $result = $emptyCollection->filter(fn($item) => $item > 0);
+        $result = $emptyCollection->filter(fn ($item) => $item > 0);
 
         $this->assertNotSame($emptyCollection, $result);
     }
@@ -163,7 +165,7 @@ final class EmptyCollectionsTest extends TestCase
     {
         $emptyCollection = new IntTypedCollection;
 
-        $result = $emptyCollection->reduce(fn($carry, $item) => $carry + $item, 100);
+        $result = $emptyCollection->reduce(fn ($carry, $item) => $carry + $item, 100);
 
         $this->assertSame(100, $result);
     }
@@ -172,7 +174,7 @@ final class EmptyCollectionsTest extends TestCase
     {
         $emptyCollection = new IntTypedCollection;
 
-        $result = $emptyCollection->reduce(fn($carry, $item) => $carry + $item, null);
+        $result = $emptyCollection->reduce(fn ($carry, $item) => $carry + $item, null);
 
         $this->assertNull($result);
     }
@@ -183,7 +185,7 @@ final class EmptyCollectionsTest extends TestCase
     {
         $emptyCollection = new IntTypedCollection;
 
-        $result = $emptyCollection->find(fn($item) => true);
+        $result = $emptyCollection->find(fn ($item) => true);
 
         $this->assertNull($result);
     }
@@ -194,7 +196,7 @@ final class EmptyCollectionsTest extends TestCase
     {
         $emptyCollection = new IntTypedCollection;
 
-        $result = $emptyCollection->every(fn($item) => $item > 100);
+        $result = $emptyCollection->every(fn ($item) => $item > 100);
 
         $this->assertTrue($result);
     }
@@ -205,7 +207,7 @@ final class EmptyCollectionsTest extends TestCase
     {
         $emptyCollection = new IntTypedCollection;
 
-        $result = $emptyCollection->some(fn($item) => true);
+        $result = $emptyCollection->some(fn ($item) => true);
 
         $this->assertFalse($result);
     }
@@ -303,7 +305,7 @@ final class EmptyCollectionsTest extends TestCase
     {
         $emptyCollection = new IntTypedCollection;
 
-        $result = $emptyCollection->normalize();
+        $result = NormalizerChain::get()->normalize($emptyCollection);
 
         $this->assertIsArray($result);
         $this->assertEmpty($result);
@@ -463,15 +465,13 @@ final class EmptyCollectionsTest extends TestCase
     {
         $emptyCollection = new IntTypedCollection;
 
-        // On utilise des méthodes qui existent sur TypedCollection
-        // car map() retourne TypedCollection
         $result = $emptyCollection
-            ->filter(fn($n) => $n > 0)
-            ->map(fn($n) => $n * 2)
+            ->filter(fn ($n) => $n > 0)
+            ->map(fn ($n) => $n * 2)
             ->sort()
             ->reverse()
-            ->filter(fn($n) => $n > 0)   // équivalent à positive() mais sur TypedCollection
-            ->filter(fn($n) => $n % 2 === 0); // équivalent à even()
+            ->filter(fn ($n) => $n > 0)
+            ->filter(fn ($n) => $n % 2 === 0);
 
         $this->assertCount(0, $result);
         $this->assertTrue($result->isEmpty());
@@ -481,9 +481,8 @@ final class EmptyCollectionsTest extends TestCase
     {
         $emptyCollection = new IntTypedCollection;
 
-        // Les méthodes qui restent dans IntTypedCollection (filter, positive, even)
         $result = $emptyCollection
-            ->filter(fn($n) => $n > 0)
+            ->filter(fn ($n) => $n > 0)
             ->positive()
             ->even();
 
@@ -494,9 +493,8 @@ final class EmptyCollectionsTest extends TestCase
 
     public function test_empty_collection_supports_fluent_interface(): void
     {
-        // On utilise filter avant map pour rester dans IntTypedCollection
         $result = (new IntTypedCollection)
-            ->filter(fn($n) => $n > 0)
+            ->filter(fn ($n) => $n > 0)
             ->add(1, 2, 3)
             ->positive();
 

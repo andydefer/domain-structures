@@ -20,8 +20,21 @@ final class RecordNormalizer extends AbstractNormalizer
             return $this->next($value);
         }
 
-        // AbstractRecord::normalize() retourne TOUJOURS un tableau
-        // Le paramètre includeNulls est géré par le Record lui-même
-        return $value->normalize(true);
+        $reflection = new \ReflectionClass($value);
+        $properties = $reflection->getProperties(\ReflectionProperty::IS_PUBLIC);
+        $result = [];
+
+        foreach ($properties as $property) {
+            $propValue = $property->getValue($value);
+            $key = $this->convertCamelToSnake($property->getName());
+            $result[$key] = $this->next($propValue);
+        }
+
+        return $result;
+    }
+
+    private function convertCamelToSnake(string $input): string
+    {
+        return strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $input));
     }
 }

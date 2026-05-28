@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Tests\Unit\Collections\Utility;
 
 use AndyDefer\DomainStructures\Collections\Utility\BoolTypedCollection;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Tests\TestCase;
 
 /**
@@ -668,11 +669,13 @@ final class BoolTypedCollectionTest extends TestCase
     public function test_filter_works_with_bool_collection(): void
     {
         // Arrange
+        /** @var BoolTypedCollection $collection */
         $collection = new BoolTypedCollection;
         $collection->add(true, false, true, false, true);
 
         // Act
-        $filtered = $collection->filter(fn ($item) => $item === true);
+        /** @var BoolTypedCollection $filtered */
+        $filtered = $collection->filter(fn (bool $item) => $item === true);
 
         // Assert
         $this->assertSame([true, true, true], $filtered->toArray());
@@ -685,11 +688,12 @@ final class BoolTypedCollectionTest extends TestCase
     public function test_map_works_with_bool_collection(): void
     {
         // Arrange
+        /** @var BoolTypedCollection $collection */
         $collection = new BoolTypedCollection;
         $collection->add(true, false, true);
 
         // Act
-        $mapped = $collection->map(fn ($item) => ! $item);
+        $mapped = $collection->map(fn (bool $item) => ! $item);
 
         // Assert
         $this->assertSame([false, true, false], $mapped->toArray());
@@ -800,11 +804,12 @@ final class BoolTypedCollectionTest extends TestCase
     public function test_normalize_works_with_bool_collection(): void
     {
         // Arrange
+        /** @var BoolTypedCollection $collection */
         $collection = new BoolTypedCollection;
         $collection->add(true, false, true);
 
         // Act
-        $normalized = $collection->normalize();
+        $normalized = NormalizerChain::get()->normalize($collection);
 
         // Assert
         $this->assertSame([true, false, true], $normalized);

@@ -261,7 +261,7 @@ final class DataNormalizerTest extends TestCase
         $product1 = new TestProductData(id: 1, name: 'Product 1', price: 100);
         $product2 = new TestProductData(id: 2, name: 'Product 2', price: 200);
 
-        $collection = new DataCollection;
+        $collection = new DataCollection(TestProductData::class);
         $collection->add($product1, $product2);
 
         $normalized = $this->normalizer->normalize($collection);
@@ -287,7 +287,7 @@ final class DataNormalizerTest extends TestCase
     public function test_normalize_handles_data_with_deep_nested_structures(): void
     {
         $innerData = new TestProductData(id: 1, name: 'Inner', price: 50);
-        $collection = new DataCollection;
+        $collection = new DataCollection(TestProductData::class);
         $collection->add($innerData);
 
         $outerData = new TestUserData(

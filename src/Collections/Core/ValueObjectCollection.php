@@ -15,7 +15,7 @@ use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 final class ValueObjectCollection extends AbstractTypedCollection
 {
     /**
-     * @param class-string<AbstractValueObject> ...$allowedConcreteTypes
+     * @param  class-string<AbstractValueObject>  ...$allowedConcreteTypes
      */
     public function __construct(string ...$allowedConcreteTypes)
     {
@@ -25,7 +25,7 @@ final class ValueObjectCollection extends AbstractTypedCollection
 
         // Vérifier que tous les types sont bien des sous-classes de AbstractValueObject
         foreach ($allowedConcreteTypes as $type) {
-            if (!is_subclass_of($type, AbstractValueObject::class)) {
+            if (! is_subclass_of($type, AbstractValueObject::class)) {
                 throw new \InvalidArgumentException(sprintf(
                     'Type "%s" must be a subclass of %s',
                     $type,

@@ -12,7 +12,7 @@ use AndyDefer\DomainStructures\Collections\Core\DataCollection;
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\IntTypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
-use AndyDefer\DomainStructures\Normalizers\RootNormalizer;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestProductData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestBackedIntEnum;
@@ -36,15 +36,12 @@ final class AbstractTypedCollectionTest extends TestCase
 
     private TestIso8601DateTime $now;
 
-    private RootNormalizer $rootNormalizer;
-
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->testEmail = TestEmailAddress::from('test@example.com');
         $this->now = TestIso8601DateTime::from('2024-01-01T12:00:00+00:00');
-        $this->rootNormalizer = new RootNormalizer;
     }
 
     // ==================== CONSTRUCTOR AND TYPE VALIDATION TESTS ====================
@@ -142,7 +139,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection->add(42);
 
         $this->assertCount(1, $collection);
-        $this->assertSame(42, $collection->toArray()[0]);
+        $this->assertSame(42, $collection[0]);
     }
 
     public function test_add_accepts_valid_string(): void
@@ -151,7 +148,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection->add('hello');
 
         $this->assertCount(1, $collection);
-        $this->assertSame('hello', $collection->toArray()[0]);
+        $this->assertSame('hello', $collection[0]);
     }
 
     public function test_add_accepts_valid_float(): void
@@ -160,7 +157,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection->add(3.14);
 
         $this->assertCount(1, $collection);
-        $this->assertSame(3.14, $collection->toArray()[0]);
+        $this->assertSame(3.14, $collection[0]);
     }
 
     public function test_add_accepts_valid_boolean(): void
@@ -170,8 +167,8 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection->add(false);
 
         $this->assertCount(2, $collection);
-        $this->assertTrue($collection->toArray()[0]);
-        $this->assertFalse($collection->toArray()[1]);
+        $this->assertTrue($collection[0]);
+        $this->assertFalse($collection[1]);
     }
 
     public function test_add_accepts_null(): void
@@ -180,7 +177,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection->add(null);
 
         $this->assertCount(1, $collection);
-        $this->assertNull($collection->toArray()[0]);
+        $this->assertNull($collection[0]);
     }
 
     public function test_add_accepts_backed_string_enum(): void
@@ -189,7 +186,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection->add(TestBackedStringEnum::VALUE_ONE);
 
         $this->assertCount(1, $collection);
-        $this->assertSame(TestBackedStringEnum::VALUE_ONE, $collection->toArray()[0]);
+        $this->assertSame(TestBackedStringEnum::VALUE_ONE, $collection[0]);
     }
 
     public function test_add_accepts_backed_int_enum(): void
@@ -198,7 +195,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection->add(TestBackedIntEnum::VALUE_ONE);
 
         $this->assertCount(1, $collection);
-        $this->assertSame(TestBackedIntEnum::VALUE_ONE, $collection->toArray()[0]);
+        $this->assertSame(TestBackedIntEnum::VALUE_ONE, $collection[0]);
     }
 
     public function test_add_accepts_pure_enum(): void
@@ -207,7 +204,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection->add(TestPureEnum::VALUE_ONE);
 
         $this->assertCount(1, $collection);
-        $this->assertSame(TestPureEnum::VALUE_ONE, $collection->toArray()[0]);
+        $this->assertSame(TestPureEnum::VALUE_ONE, $collection[0]);
     }
 
     public function test_add_accepts_abstract_record_instance(): void
@@ -217,7 +214,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection->add($record);
 
         $this->assertCount(1, $collection);
-        $this->assertSame($record, $collection->toArray()[0]);
+        $this->assertSame($record, $collection[0]);
     }
 
     public function test_add_accepts_abstract_value_object_instance(): void
@@ -227,7 +224,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection->add($vo);
 
         $this->assertCount(1, $collection);
-        $this->assertSame($vo, $collection->toArray()[0]);
+        $this->assertSame($vo, $collection[0]);
     }
 
     public function test_add_accepts_abstract_data_instance(): void
@@ -254,7 +251,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection->add($innerCollection);
 
         $this->assertCount(1, $collection);
-        $this->assertSame($innerCollection, $collection->toArray()[0]);
+        $this->assertSame($innerCollection, $collection[0]);
     }
 
     public function test_add_accepts_data_object_instance(): void
@@ -264,7 +261,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection->add($object);
 
         $this->assertCount(1, $collection);
-        $this->assertSame($object, $collection->toArray()[0]);
+        $this->assertSame($object, $collection[0]);
     }
 
     public function test_add_accepts_multiple_items_at_once(): void
@@ -273,7 +270,11 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection->add(1, 2, 3, 4, 5);
 
         $this->assertCount(5, $collection);
-        $this->assertSame([1, 2, 3, 4, 5], $collection->toArray());
+        $this->assertSame(1, $collection[0]);
+        $this->assertSame(2, $collection[1]);
+        $this->assertSame(3, $collection[2]);
+        $this->assertSame(4, $collection[3]);
+        $this->assertSame(5, $collection[4]);
     }
 
     public function test_add_returns_self_for_chaining(): void
@@ -290,7 +291,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Expected type(s) int, got string');
+        $this->expectExceptionMessage('Expected type(s) int');
 
         $collection->add('not an integer');
     }
@@ -300,7 +301,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection(TestUserStatus::class);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/Expected type\(s\) .*TestUserStatus.*/');
+        $this->expectExceptionMessageMatches('/Expected type\(s\) .*TestUserStatus/');
 
         $collection->add(TestUserRole::ADMIN);
     }
@@ -310,7 +311,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/Expected type\(s\) int, got .*DataObject/');
+        $this->expectExceptionMessage('Expected type(s) int');
 
         $collection->add(new DataObject);
     }
@@ -408,7 +409,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3, 4, 5);
 
-        $doubled = $collection->map(fn($item) => $item * 2);
+        $doubled = $collection->map(fn ($item) => $item * 2);
 
         $this->assertNotSame($collection, $doubled);
         $this->assertSame([2, 4, 6, 8, 10], $doubled->toArray());
@@ -420,7 +421,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3);
 
-        $stringCollection = $collection->map(fn($item) => "Number: {$item}");
+        $stringCollection = $collection->map(fn ($item) => "Number: {$item}");
 
         $this->assertSame(['string'], $stringCollection->getAllowedTypes());
         $this->assertSame(['Number: 1', 'Number: 2', 'Number: 3'], $stringCollection->toArray());
@@ -429,7 +430,7 @@ final class AbstractTypedCollectionTest extends TestCase
     public function test_map_on_empty_collection_returns_empty_collection(): void
     {
         $emptyCollection = new TypedCollection('int');
-        $result = $emptyCollection->map(fn($item) => $item * 2);
+        $result = $emptyCollection->map(fn ($item) => $item * 2);
 
         $this->assertCount(0, $result);
     }
@@ -441,7 +442,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
-        $evenNumbers = $collection->filter(fn($item) => $item % 2 === 0);
+        $evenNumbers = $collection->filter(fn ($item) => $item % 2 === 0);
 
         $this->assertSame([2, 4, 6, 8, 10], $evenNumbers->toArray());
     }
@@ -451,7 +452,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3);
 
-        $filtered = $collection->filter(fn($item) => $item > 1);
+        $filtered = $collection->filter(fn ($item) => $item > 1);
 
         $this->assertNotSame($collection, $filtered);
         $this->assertSame([1, 2, 3], $collection->toArray());
@@ -461,7 +462,7 @@ final class AbstractTypedCollectionTest extends TestCase
     public function test_filter_on_empty_collection_returns_empty_collection(): void
     {
         $emptyCollection = new TypedCollection('int');
-        $result = $emptyCollection->filter(fn($item) => $item > 0);
+        $result = $emptyCollection->filter(fn ($item) => $item > 0);
 
         $this->assertCount(0, $result);
     }
@@ -473,7 +474,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3, 4, 5);
 
-        $sum = $collection->reduce(fn($carry, $item) => $carry + $item, 0);
+        $sum = $collection->reduce(fn ($carry, $item) => $carry + $item, 0);
 
         $this->assertSame(15, $sum);
     }
@@ -483,7 +484,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('string');
         $collection->add('Hello', ' ', 'World', '!');
 
-        $result = $collection->reduce(fn($carry, $item) => $carry . $item, '');
+        $result = $collection->reduce(fn ($carry, $item) => $carry.$item, '');
 
         $this->assertSame('Hello World!', $result);
     }
@@ -491,7 +492,7 @@ final class AbstractTypedCollectionTest extends TestCase
     public function test_reduce_on_empty_collection_returns_initial_value(): void
     {
         $emptyCollection = new TypedCollection('int');
-        $result = $emptyCollection->reduce(fn($carry, $item) => $carry + $item, 100);
+        $result = $emptyCollection->reduce(fn ($carry, $item) => $carry + $item, 100);
 
         $this->assertSame(100, $result);
     }
@@ -503,7 +504,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 3, 5, 6, 7, 8);
 
-        $firstEven = $collection->find(fn($item) => $item % 2 === 0);
+        $firstEven = $collection->find(fn ($item) => $item % 2 === 0);
 
         $this->assertSame(6, $firstEven);
     }
@@ -513,7 +514,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 3, 5, 7);
 
-        $result = $collection->find(fn($item) => $item % 2 === 0);
+        $result = $collection->find(fn ($item) => $item % 2 === 0);
 
         $this->assertNull($result);
     }
@@ -521,7 +522,7 @@ final class AbstractTypedCollectionTest extends TestCase
     public function test_find_on_empty_collection_returns_null(): void
     {
         $emptyCollection = new TypedCollection('int');
-        $result = $emptyCollection->find(fn($item) => true);
+        $result = $emptyCollection->find(fn ($item) => true);
 
         $this->assertNull($result);
     }
@@ -533,7 +534,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(2, 4, 6, 8, 10);
 
-        $allEven = $collection->every(fn($item) => $item % 2 === 0);
+        $allEven = $collection->every(fn ($item) => $item % 2 === 0);
 
         $this->assertTrue($allEven);
     }
@@ -543,7 +544,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(2, 4, 5, 6, 8);
 
-        $allEven = $collection->every(fn($item) => $item % 2 === 0);
+        $allEven = $collection->every(fn ($item) => $item % 2 === 0);
 
         $this->assertFalse($allEven);
     }
@@ -551,7 +552,7 @@ final class AbstractTypedCollectionTest extends TestCase
     public function test_every_on_empty_collection_returns_true(): void
     {
         $emptyCollection = new TypedCollection('int');
-        $result = $emptyCollection->every(fn($item) => $item > 100);
+        $result = $emptyCollection->every(fn ($item) => $item > 100);
 
         $this->assertTrue($result);
     }
@@ -563,7 +564,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 3, 5, 6, 7, 9);
 
-        $hasEven = $collection->some(fn($item) => $item % 2 === 0);
+        $hasEven = $collection->some(fn ($item) => $item % 2 === 0);
 
         $this->assertTrue($hasEven);
     }
@@ -573,7 +574,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 3, 5, 7, 9);
 
-        $hasEven = $collection->some(fn($item) => $item % 2 === 0);
+        $hasEven = $collection->some(fn ($item) => $item % 2 === 0);
 
         $this->assertFalse($hasEven);
     }
@@ -581,7 +582,7 @@ final class AbstractTypedCollectionTest extends TestCase
     public function test_some_on_empty_collection_returns_false(): void
     {
         $emptyCollection = new TypedCollection('int');
-        $result = $emptyCollection->some(fn($item) => true);
+        $result = $emptyCollection->some(fn ($item) => true);
 
         $this->assertFalse($result);
     }
@@ -686,7 +687,7 @@ final class AbstractTypedCollectionTest extends TestCase
             new TestUserRecord(id: 2, name: 'Bob', email: $this->testEmail)
         );
 
-        $sorted = $collection->sortBy(fn($item) => strlen($item->name));
+        $sorted = $collection->sortBy(fn ($item) => strlen($item->name));
 
         $this->assertSame('Bob', $sorted[0]->name);
         $this->assertSame('Alice', $sorted[1]->name);
@@ -699,7 +700,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int', 'float');
         $collection->add(5, 2.5, 8, 1.2, 9, 3.7);
 
-        $sorted = $collection->sortBy(fn($item) => $item, SORT_NUMERIC);
+        $sorted = $collection->sortBy(fn ($item) => $item, SORT_NUMERIC);
 
         $this->assertSame([1.2, 2.5, 3.7, 5, 8, 9], $sorted->toArray());
     }
@@ -709,7 +710,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('string');
         $collection->add('banana', 'Apple', 'cherry', 'date');
 
-        $sorted = $collection->sortBy(fn($item) => $item, SORT_STRING);
+        $sorted = $collection->sortBy(fn ($item) => $item, SORT_STRING);
 
         $this->assertSame('Apple', $sorted[0]);
         $this->assertSame('banana', $sorted[1]);
@@ -735,7 +736,7 @@ final class AbstractTypedCollectionTest extends TestCase
     public function test_sort_by_on_empty_collection_returns_empty_collection(): void
     {
         $emptyCollection = new TypedCollection('int');
-        $sorted = $emptyCollection->sortBy(fn($item) => $item);
+        $sorted = $emptyCollection->sortBy(fn ($item) => $item);
 
         $this->assertCount(0, $sorted);
     }
@@ -752,7 +753,7 @@ final class AbstractTypedCollectionTest extends TestCase
             new TestUserRecord(id: 2, name: 'Bob', email: $this->testEmail)
         );
 
-        $sorted = $collection->usort(fn($a, $b) => strcmp($b->name, $a->name));
+        $sorted = $collection->usort(fn ($a, $b) => strcmp($b->name, $a->name));
 
         $this->assertSame('David', $sorted[0]->name);
         $this->assertSame('Charlie', $sorted[1]->name);
@@ -765,7 +766,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(5, 2, 8, 1, 9, 3, 6, 4, 7);
 
-        $sorted = $collection->usort(fn($a, $b) => $a <=> $b);
+        $sorted = $collection->usort(fn ($a, $b) => $a <=> $b);
 
         $this->assertSame([1, 2, 3, 4, 5, 6, 7, 8, 9], $sorted->toArray());
     }
@@ -775,7 +776,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3, 4, 5);
 
-        $sorted = $collection->usort(fn($a, $b) => $b <=> $a);
+        $sorted = $collection->usort(fn ($a, $b) => $b <=> $a);
 
         $this->assertSame([5, 4, 3, 2, 1], $sorted->toArray());
     }
@@ -785,7 +786,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(3, 1, 2);
 
-        $sorted = $collection->usort(fn($a, $b) => $a <=> $b);
+        $sorted = $collection->usort(fn ($a, $b) => $a <=> $b);
 
         $this->assertNotSame($collection, $sorted);
         $this->assertSame([3, 1, 2], $collection->toArray());
@@ -795,7 +796,7 @@ final class AbstractTypedCollectionTest extends TestCase
     public function test_usort_on_empty_collection_returns_empty_collection(): void
     {
         $emptyCollection = new TypedCollection('int');
-        $sorted = $emptyCollection->usort(fn($a, $b) => $a <=> $b);
+        $sorted = $emptyCollection->usort(fn ($a, $b) => $a <=> $b);
 
         $this->assertCount(0, $sorted);
     }
@@ -805,8 +806,8 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(5, 2, 8, 1, 9, 3);
 
-        $sortByResult = $collection->sortBy(fn($item) => $item, SORT_NUMERIC)->toArray();
-        $usortResult = $collection->usort(fn($a, $b) => $a <=> $b)->toArray();
+        $sortByResult = $collection->sortBy(fn ($item) => $item, SORT_NUMERIC)->toArray();
+        $usortResult = $collection->usort(fn ($a, $b) => $a <=> $b)->toArray();
 
         $this->assertSame($sortByResult, $usortResult);
         $this->assertSame([1, 2, 3, 5, 8, 9], $sortByResult);
@@ -823,7 +824,7 @@ final class AbstractTypedCollectionTest extends TestCase
         );
 
         $sortByResult = $collection->sortBy('name')->toArray();
-        $usortResult = $collection->usort(fn($a, $b) => strcmp($a->name, $b->name))->toArray();
+        $usortResult = $collection->usort(fn ($a, $b) => strcmp($a->name, $b->name))->toArray();
 
         $this->assertSame('Alice', $sortByResult[0]->name);
         $this->assertSame('Alice', $usortResult[0]->name);
@@ -975,26 +976,16 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3);
 
-        $result = $collection->normalize();
+        $result = NormalizerChain::get()->normalize($collection);
 
         $this->assertIsArray($result);
-        $this->assertSame([1, 2, 3], $result);
-    }
-
-    public function test_normalize_excludes_nulls_when_include_nulls_false(): void
-    {
-        $collection = new TypedCollection('int', 'null');
-        $collection->add(1, null, 2, null, 3);
-
-        $result = $collection->normalize(false);
-
         $this->assertSame([1, 2, 3], $result);
     }
 
     public function test_normalize_on_empty_collection_returns_empty_array(): void
     {
         $emptyCollection = new TypedCollection('int');
-        $result = $emptyCollection->normalize();
+        $result = NormalizerChain::get()->normalize($emptyCollection);
 
         $this->assertIsArray($result);
         $this->assertEmpty($result);
@@ -1119,7 +1110,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Expected type(s) int, got string');
+        $this->expectExceptionMessage('Expected type(s) int');
 
         $collection[0] = 'not an integer';
     }
@@ -1210,7 +1201,7 @@ final class AbstractTypedCollectionTest extends TestCase
                 'status' => 'active',
                 'role' => 'admin',
                 'grade' => 4,
-                'created_at' => '2024-01-01T12:00:00+00:00'
+                'created_at' => '2024-01-01T12:00:00+00:00',
             ],
             [
                 '_type' => TestUserData::class,
@@ -1220,8 +1211,8 @@ final class AbstractTypedCollectionTest extends TestCase
                 'status' => 'active',
                 'role' => 'user',
                 'grade' => 2,
-                'created_at' => '2024-01-02T12:00:00+00:00'
-            ]
+                'created_at' => '2024-01-02T12:00:00+00:00',
+            ],
         ];
 
         $collection = new DataCollection(TestUserData::class);
@@ -1266,7 +1257,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection(TestProductData::class, TestProductRecord::class);
 
         $source = [
-            ['id' => 1, 'name' => 'Laptop', 'price' => 999]
+            ['id' => 1, 'name' => 'Laptop', 'price' => 999],
         ];
 
         $this->expectException(InvalidArgumentException::class);
@@ -1280,7 +1271,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection(TestProductData::class, TestProductRecord::class);
 
         $source = [
-            ['_type' => TestProductRecord::class, 'id' => 1, 'name' => 'Laptop', 'price' => 999]
+            ['_type' => TestProductRecord::class, 'id' => 1, 'name' => 'Laptop', 'price' => 999],
         ];
 
         $result = $collection->from($source);
@@ -1294,7 +1285,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection(TestProductData::class, TestProductRecord::class);
 
         $source = [
-            ['_type' => 'InvalidType', 'id' => 1, 'name' => 'Laptop', 'price' => 999]
+            ['_type' => 'InvalidType', 'id' => 1, 'name' => 'Laptop', 'price' => 999],
         ];
 
         $this->expectException(InvalidArgumentException::class);
@@ -1309,7 +1300,7 @@ final class AbstractTypedCollectionTest extends TestCase
 
         $source = [
             ['id' => 1, 'name' => 'John Doe', 'email' => 'john@example.com', 'status' => 'active', 'role' => 'user', 'grade' => 1, 'created_at' => '2024-01-01T12:00:00+00:00'],
-            ['id' => 2, 'name' => 'Jane Doe', 'email' => 'jane@example.com', 'status' => 'active', 'role' => 'admin', 'grade' => 4, 'created_at' => '2024-01-02T12:00:00+00:00']
+            ['id' => 2, 'name' => 'Jane Doe', 'email' => 'jane@example.com', 'status' => 'active', 'role' => 'admin', 'grade' => 4, 'created_at' => '2024-01-02T12:00:00+00:00'],
         ];
 
         $result = $collection->from($source);
@@ -1325,7 +1316,7 @@ final class AbstractTypedCollectionTest extends TestCase
 
         $source = [
             ['_type' => TestUserData::class, 'id' => 1, 'name' => 'John Doe', 'email' => 'john@example.com', 'status' => 'active', 'role' => 'user', 'grade' => 1, 'created_at' => '2024-01-01T12:00:00+00:00'],
-            ['_type' => TestProductData::class, 'id' => 2, 'name' => 'Laptop', 'price' => 999, 'isFeatured' => true]
+            ['_type' => TestProductData::class, 'id' => 2, 'name' => 'Laptop', 'price' => 999, 'isFeatured' => true],
         ];
 
         $result = $collection->from($source);

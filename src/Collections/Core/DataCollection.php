@@ -16,7 +16,7 @@ final class DataCollection extends AbstractTypedCollection
 {
     /**
      * Constructeur public avec validation
-     * 
+     *
      * @param  class-string<AbstractData>  ...$allowedConcreteTypes
      */
     public function __construct(string ...$allowedConcreteTypes)
@@ -26,7 +26,7 @@ final class DataCollection extends AbstractTypedCollection
         }
 
         foreach ($allowedConcreteTypes as $type) {
-            if (!is_subclass_of($type, AbstractData::class)) {
+            if (! is_subclass_of($type, AbstractData::class)) {
                 throw new \InvalidArgumentException(sprintf(
                     'Type "%s" must be a subclass of %s',
                     $type,

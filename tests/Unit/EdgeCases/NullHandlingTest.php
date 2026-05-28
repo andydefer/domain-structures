@@ -7,6 +7,7 @@ namespace AndyDefer\DomainStructures\Tests\Unit\EdgeCases;
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\IntTypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
@@ -150,30 +151,16 @@ final class NullHandlingTest extends TestCase
     // ==================== NORMALIZATION WITH NULL TESTS ====================
 
     /**
-     * Test that normalize includes nulls when includeNulls is true.
+     * Test that normalize includes nulls (always includes nulls now).
      */
-    public function test_normalize_includes_nulls_when_include_nulls_true(): void
+    public function test_normalize_includes_nulls(): void
     {
         $collection = new TypedCollection('int', 'null');
         $collection->add(1, null, 2, null, 3);
 
-        $normalized = $collection->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($collection);
 
         $this->assertSame([1, null, 2, null, 3], $normalized);
-    }
-
-    /**
-     * Test that normalize excludes nulls when includeNulls is false.
-     */
-    public function test_normalize_excludes_nulls_when_include_nulls_false(): void
-    {
-        $collection = new TypedCollection('int', 'null');
-        $collection->add(1, null, 2, null, 3);
-
-        $normalized = $collection->normalize(false);
-
-        $this->assertSame([1, 2, 3], $normalized);
-        $this->assertNotContains(null, $normalized);
     }
 
     /**
@@ -211,9 +198,9 @@ final class NullHandlingTest extends TestCase
     }
 
     /**
-     * Test that Record normalization excludes nulls when requested.
+     * Test that Record normalization includes nulls (always includes nulls now).
      */
-    public function test_record_normalization_excludes_nulls_when_requested(): void
+    public function test_record_normalization_includes_nulls(): void
     {
         $record = new TestUserRecord(
             id: null,
@@ -222,29 +209,14 @@ final class NullHandlingTest extends TestCase
             emailVerifiedAt: null
         );
 
-        $normalized = $record->normalize(false);
-
-        $this->assertArrayNotHasKey('id', $normalized);
-        $this->assertArrayNotHasKey('email_verified_at', $normalized);
-        $this->assertArrayHasKey('name', $normalized);
-        $this->assertArrayHasKey('email', $normalized);
-    }
-
-    /**
-     * Test that Record normalization includes nulls when requested.
-     */
-    public function test_record_normalization_includes_nulls_when_requested(): void
-    {
-        $record = new TestUserRecord(
-            id: null,
-            name: 'John Doe',
-            email: $this->testEmail
-        );
-
-        $normalized = $record->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($record);
 
         $this->assertArrayHasKey('id', $normalized);
         $this->assertNull($normalized['id']);
+        $this->assertArrayHasKey('email_verified_at', $normalized);
+        $this->assertNull($normalized['email_verified_at']);
+        $this->assertArrayHasKey('name', $normalized);
+        $this->assertArrayHasKey('email', $normalized);
     }
 
     // ==================== HYDRATION WITH NULL VALUES TESTS ====================

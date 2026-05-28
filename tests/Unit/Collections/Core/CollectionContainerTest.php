@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Tests\Unit\Collections\Core;
 
 use AndyDefer\DomainStructures\Collections\Core\CollectionContainer;
-use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\IntTypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use InvalidArgumentException;
 
@@ -20,7 +20,7 @@ final class CollectionContainerTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('At least one concrete Collection class must be provided');
 
-        new CollectionContainer();
+        new CollectionContainer;
     }
 
     public function test_constructor_accepts_valid_collection_types(): void
@@ -33,7 +33,7 @@ final class CollectionContainerTest extends TestCase
     public function test_constructor_rejects_non_collection_type(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('must be a subclass of AbstractTypedCollection');
+        $this->expectExceptionMessage('Type "stdClass" must be a subclass of AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection');
 
         new CollectionContainer(\stdClass::class);
     }
@@ -41,7 +41,7 @@ final class CollectionContainerTest extends TestCase
     public function test_constructor_rejects_scalar_type(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('must be a subclass of AbstractTypedCollection');
+        $this->expectExceptionMessage('Type "string" must be a subclass of AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection');
 
         new CollectionContainer('string');
     }
@@ -81,7 +81,7 @@ final class CollectionContainerTest extends TestCase
         $intCollection = new IntTypedCollection;
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Expected type(s) ' . StringTypedCollection::class);
+        $this->expectExceptionMessage('Expected type(s) '.StringTypedCollection::class);
 
         $container->add($intCollection);
     }
@@ -201,7 +201,7 @@ final class CollectionContainerTest extends TestCase
 
         $container->add($collection1, $collection2);
 
-        $normalized = $container->normalize();
+        $normalized = NormalizerChain::get()->normalize($container);
 
         $this->assertIsArray($normalized);
         $this->assertCount(2, $normalized);

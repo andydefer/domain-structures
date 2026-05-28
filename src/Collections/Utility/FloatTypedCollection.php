@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Collections\Utility;
 
-use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
-
 /**
  * Type-safe collection for floating-point numbers.
  *

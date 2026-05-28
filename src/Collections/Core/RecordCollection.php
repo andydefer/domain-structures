@@ -15,7 +15,7 @@ use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 final class RecordCollection extends AbstractTypedCollection
 {
     /**
-     * @param class-string<AbstractRecord> ...$allowedConcreteTypes
+     * @param  class-string<AbstractRecord>  ...$allowedConcreteTypes
      */
     public function __construct(string ...$allowedConcreteTypes)
     {
@@ -25,7 +25,7 @@ final class RecordCollection extends AbstractTypedCollection
 
         // Vérifier que tous les types sont bien des sous-classes de AbstractRecord
         foreach ($allowedConcreteTypes as $type) {
-            if (!is_subclass_of($type, AbstractRecord::class)) {
+            if (! is_subclass_of($type, AbstractRecord::class)) {
                 throw new \InvalidArgumentException(sprintf(
                     'Type "%s" must be a subclass of %s',
                     $type,

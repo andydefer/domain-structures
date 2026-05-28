@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Tests\Unit\Abstracts;
 
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestCurrency;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestMoneyRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserProfileRecord;
@@ -221,7 +222,7 @@ final class AbstractValueObjectTest extends TestCase
     public function test_value_object_normalizes_to_scalar_value(): void
     {
         $email = TestEmailAddress::from('test@example.com');
-        $normalized = $email->normalize();
+        $normalized = NormalizerChain::get()->normalize($email);
 
         $this->assertSame('test@example.com', $normalized);
     }
@@ -229,7 +230,7 @@ final class AbstractValueObjectTest extends TestCase
     public function test_value_object_normalizes_to_json_string(): void
     {
         $email = TestEmailAddress::from('test@example.com');
-        $json = json_encode($email->normalize());
+        $json = json_encode(NormalizerChain::get()->normalize($email));
 
         $this->assertIsString($json);
         $this->assertJson($json);
@@ -239,7 +240,7 @@ final class AbstractValueObjectTest extends TestCase
     public function test_money_value_object_normalizes_to_record(): void
     {
         $money = TestMoney::from(['amount' => 99.99, 'currency' => 'EUR']);
-        $normalized = $money->normalize();
+        $normalized = NormalizerChain::get()->normalize($money);
 
         $this->assertIsArray($normalized);
         $this->assertArrayHasKey('amount', $normalized);
@@ -410,7 +411,7 @@ final class AbstractValueObjectTest extends TestCase
             createdAt: $this->now
         );
 
-        $normalized = $record->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($record);
 
         $this->assertSame('john@example.com', $normalized['email']);
         $this->assertIsString($normalized['created_at']);
@@ -428,9 +429,9 @@ final class AbstractValueObjectTest extends TestCase
         );
 
         $this->assertCount(3, $collection);
-        $this->assertSame('user1@example.com', $collection->toArray()[0]->getValue());
-        $this->assertSame('user2@example.com', $collection->toArray()[1]->getValue());
-        $this->assertSame('user3@example.com', $collection->toArray()[2]->getValue());
+        $this->assertSame('user1@example.com', $collection[0]->getValue());
+        $this->assertSame('user2@example.com', $collection[1]->getValue());
+        $this->assertSame('user3@example.com', $collection[2]->getValue());
     }
 
     public function test_contains_works_with_value_objects(): void
@@ -489,7 +490,7 @@ final class AbstractValueObjectTest extends TestCase
     {
         $collection = new TypedCollection(TestEmailAddress::class);
         $collection->add(TestEmailAddress::from('test@example.com'));
-        $item = $collection->toArray()[0];
+        $item = $collection[0];
 
         $this->assertInstanceOf(TestEmailAddress::class, $item);
         $this->assertNotInstanceOf(TestPostalCode::class, $item);

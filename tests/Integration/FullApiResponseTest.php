@@ -7,6 +7,7 @@ namespace AndyDefer\DomainStructures\Tests\Integration;
 use AndyDefer\DomainStructures\Collections\Core\DataCollection;
 use AndyDefer\DomainStructures\Collections\Core\RecordCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ProductDataCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ProductRecordCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestUserRoleCollection;
@@ -57,7 +58,7 @@ final class FullApiResponseTest extends TestCase
             createdAt: $this->now
         );
 
-        $normalized = $userRecord->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($userRecord);
 
         $this->assertIsArray($normalized);
         $this->assertArrayHasKey('id', $normalized);
@@ -96,7 +97,7 @@ final class FullApiResponseTest extends TestCase
         );
 
         $userData = TestUserData::from($userRecord);
-        $apiResponse = $userData->normalize();
+        $apiResponse = NormalizerChain::get()->normalize($userData);
 
         $this->assertInstanceOf(TestUserData::class, $userData);
         $this->assertIsArray($apiResponse);
@@ -126,33 +127,35 @@ final class FullApiResponseTest extends TestCase
             lifeStage: null
         );
 
-        $normalized = $updateData->normalize(false);
+        $normalized = NormalizerChain::get()->normalize($updateData);
 
         $this->assertIsArray($normalized);
         $this->assertArrayHasKey('name', $normalized);
-        $this->assertArrayNotHasKey('email', $normalized);
-        $this->assertArrayNotHasKey('life_stage', $normalized);
+        $this->assertArrayHasKey('email', $normalized);
+        $this->assertArrayHasKey('life_stage', $normalized);
         $this->assertSame('Jane Doe', $normalized['name']);
-        $this->assertCount(1, $normalized);
+        $this->assertNull($normalized['email']);
+        $this->assertNull($normalized['life_stage']);
+        $this->assertCount(3, $normalized);
     }
 
     // ==================== COLLECTION API RESPONSE TESTS ====================
 
     public function test_record_collection_transforms_to_data_collection_for_api(): void
     {
-        $recordCollection = new RecordCollection;
+        $recordCollection = new RecordCollection(TestUserRecord::class);
         $recordCollection->add(
             new TestUserRecord(id: 1, name: 'John Doe', email: TestEmailAddress::from('john@example.com')),
             new TestUserRecord(id: 2, name: 'Jane Doe', email: TestEmailAddress::from('jane@example.com')),
             new TestUserRecord(id: 3, name: 'Bob Smith', email: TestEmailAddress::from('bob@example.com'))
         );
 
-        $dataCollection = new DataCollection;
+        $dataCollection = new DataCollection(TestUserData::class);
         foreach ($recordCollection->all() as $record) {
             $dataCollection->add(TestUserData::from($record));
         }
 
-        $apiResponse = $dataCollection->normalize();
+        $apiResponse = NormalizerChain::get()->normalize($dataCollection);
 
         $this->assertCount(3, $apiResponse);
         $this->assertEquals(1, $apiResponse[0]['id']);
@@ -180,7 +183,7 @@ final class FullApiResponseTest extends TestCase
             products: $productCollection
         );
 
-        $normalized = $userRecord->normalize(false);
+        $normalized = NormalizerChain::get()->normalize($userRecord);
 
         $this->assertIsArray($normalized);
         $this->assertArrayHasKey('products', $normalized);
@@ -209,7 +212,7 @@ final class FullApiResponseTest extends TestCase
             createdAt: $this->now
         );
 
-        $apiResponse = $userData->normalize();
+        $apiResponse = NormalizerChain::get()->normalize($userData);
 
         $this->assertIsArray($apiResponse);
         $this->assertArrayHasKey('roles', $apiResponse);
@@ -233,7 +236,7 @@ final class FullApiResponseTest extends TestCase
             products: $innerProducts
         );
 
-        $normalized = $userRecord->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($userRecord);
 
         $this->assertIsArray($normalized);
         $this->assertArrayHasKey('products', $normalized);
@@ -252,7 +255,7 @@ final class FullApiResponseTest extends TestCase
             role: TestUserRole::ADMIN
         );
 
-        $normalized = $userRecord->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($userRecord);
 
         $this->assertSame('admin', $normalized['role']);
     }
@@ -265,7 +268,7 @@ final class FullApiResponseTest extends TestCase
             grade: TestUserGrade::GOLD
         );
 
-        $normalized = $userRecord->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($userRecord);
 
         $this->assertEquals(3, $normalized['grade']);
     }
@@ -287,7 +290,7 @@ final class FullApiResponseTest extends TestCase
             createdAt: $this->now
         );
 
-        $apiResponse = $userData->normalize();
+        $apiResponse = NormalizerChain::get()->normalize($userData);
 
         $this->assertSame('active', $apiResponse['status']);
         $this->assertSame(['admin', 'user'], $apiResponse['roles']);
@@ -302,7 +305,7 @@ final class FullApiResponseTest extends TestCase
             email: $this->testEmail
         );
 
-        $normalized = $userRecord->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($userRecord);
 
         $this->assertSame('john.doe@example.com', $normalized['email']);
         $this->assertIsString($normalized['email']);
@@ -316,7 +319,7 @@ final class FullApiResponseTest extends TestCase
             createdAt: $this->now
         );
 
-        $normalized = $userRecord->normalize(true);
+        $normalized = NormalizerChain::get()->normalize($userRecord);
 
         $this->assertIsString($normalized['created_at']);
         $this->assertMatchesRegularExpression('/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}/', $normalized['created_at']);
@@ -326,7 +329,7 @@ final class FullApiResponseTest extends TestCase
 
     public function test_api_response_can_be_paginated_using_collection_methods(): void
     {
-        $allUsers = new RecordCollection;
+        $allUsers = new RecordCollection(TestUserRecord::class);
         for ($i = 1; $i <= 50; $i++) {
             $allUsers->add(
                 new TestUserRecord(
@@ -346,12 +349,12 @@ final class FullApiResponseTest extends TestCase
             ->toArray();
         $paginated = array_slice($paginated, $offset, $perPage);
 
-        $userDataCollection = new DataCollection;
+        $userDataCollection = new DataCollection(TestUserData::class);
         foreach ($paginated as $userRecord) {
             $userDataCollection->add(TestUserData::from($userRecord));
         }
 
-        $apiResponse = $userDataCollection->normalize();
+        $apiResponse = NormalizerChain::get()->normalize($userDataCollection);
 
         $this->assertCount(10, $apiResponse);
         $this->assertEquals(11, $apiResponse[0]['id']);
@@ -371,14 +374,14 @@ final class FullApiResponseTest extends TestCase
             new TestProductRecord(id: 5, name: 'Desk', price: 499, isFeatured: true)
         );
 
-        $featuredProducts = $allProducts->filter(fn($product) => $product->isFeatured === true);
+        $featuredProducts = $allProducts->filter(fn ($product) => $product->isFeatured === true);
 
         $productDataCollection = new ProductDataCollection;
         foreach ($featuredProducts->all() as $product) {
             $productDataCollection->add(TestProductData::from($product));
         }
 
-        $apiResponse = $productDataCollection->normalize();
+        $apiResponse = NormalizerChain::get()->normalize($productDataCollection);
 
         $this->assertCount(3, $apiResponse);
         $this->assertSame('Laptop', $apiResponse[0]['name']);
@@ -416,7 +419,7 @@ final class FullApiResponseTest extends TestCase
         // Ou avec usort
         $sortedByPrice = $allProducts
             ->all()
-            ->usort(fn($a, $b) => $a->price <=> $b->price)
+            ->usort(fn ($a, $b) => $a->price <=> $b->price)
             ->toArray();
 
         $this->assertSame('Mouse', $sortedByPrice[0]->name);
@@ -427,21 +430,21 @@ final class FullApiResponseTest extends TestCase
 
     public function test_complete_api_workflow_from_database_to_json_response(): void
     {
-        $dbRecords = new RecordCollection;
+        $dbRecords = new RecordCollection(TestUserRecord::class);
         $dbRecords->add(
             new TestUserRecord(id: 1, name: 'Alice', email: TestEmailAddress::from('alice@example.com'), status: TestUserStatus::ACTIVE),
             new TestUserRecord(id: 2, name: 'Bob', email: TestEmailAddress::from('bob@example.com'), status: TestUserStatus::ACTIVE),
             new TestUserRecord(id: 3, name: 'Charlie', email: TestEmailAddress::from('charlie@example.com'), status: TestUserStatus::INACTIVE)
         );
 
-        $activeUsers = $dbRecords->filter(fn(TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
+        $activeUsers = $dbRecords->filter(fn (TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
 
-        $apiData = new DataCollection;
+        $apiData = new DataCollection(TestUserData::class);
         foreach ($activeUsers->all() as $record) {
             $apiData->add(TestUserData::from($record));
         }
 
-        $jsonResponse = json_encode($apiData->normalize());
+        $jsonResponse = json_encode(NormalizerChain::get()->normalize($apiData));
 
         $this->assertIsString($jsonResponse);
         $this->assertJson($jsonResponse);
@@ -469,18 +472,18 @@ final class FullApiResponseTest extends TestCase
             new TestProductRecord(id: 3, name: 'Keyboard', price: 89)
         );
 
-        $userRecords = new RecordCollection;
+        $userRecords = new RecordCollection(TestUserRecord::class);
         $userRecords->add(
             new TestUserRecord(id: 1, name: 'Alice', email: TestEmailAddress::from('alice@example.com'), products: $aliceProducts),
             new TestUserRecord(id: 2, name: 'Bob', email: TestEmailAddress::from('bob@example.com'), products: $bobProducts)
         );
 
-        $fullUserData = new DataCollection;
+        $fullUserData = new DataCollection(TestFullUserData::class);
         foreach ($userRecords->all() as $record) {
             $fullUserData->add(TestFullUserData::from($record));
         }
 
-        $apiResponse = $fullUserData->normalize();
+        $apiResponse = NormalizerChain::get()->normalize($fullUserData);
 
         $this->assertCount(2, $apiResponse);
         $this->assertCount(2, $apiResponse[0]['products']);
@@ -492,12 +495,12 @@ final class FullApiResponseTest extends TestCase
 
     public function test_error_response_handling_with_empty_data(): void
     {
-        $emptyResult = new RecordCollection;
+        $emptyResult = new RecordCollection(TestUserRecord::class);
 
         $apiResponse = [
             'success' => false,
             'message' => 'No records found',
-            'data' => $emptyResult->normalize(),
+            'data' => NormalizerChain::get()->normalize($emptyResult),
             'count' => $emptyResult->count(),
         ];
 
@@ -519,7 +522,7 @@ final class FullApiResponseTest extends TestCase
         $userData = TestUserData::from($userRecord);
         $apiResponse = [
             'success' => true,
-            'data' => $userData->normalize(),
+            'data' => NormalizerChain::get()->normalize($userData),
         ];
 
         $this->assertTrue($apiResponse['success']);
@@ -542,7 +545,7 @@ final class FullApiResponseTest extends TestCase
         $apiResponse = [
             'success' => true,
             'message' => 'Resource created successfully',
-            'data' => $createdData->normalize(),
+            'data' => NormalizerChain::get()->normalize($createdData),
         ];
 
         $this->assertTrue($apiResponse['success']);
@@ -564,7 +567,7 @@ final class FullApiResponseTest extends TestCase
         $apiResponse = [
             'success' => true,
             'message' => 'Resource updated successfully',
-            'data' => $updatedData->normalize(),
+            'data' => NormalizerChain::get()->normalize($updatedData),
         ];
 
         $this->assertTrue($apiResponse['success']);
@@ -628,7 +631,7 @@ final class FullApiResponseTest extends TestCase
         $userData = TestUserData::from($userRecord);
         $response = [
             'success' => true,
-            'data' => $userData->normalize(),
+            'data' => NormalizerChain::get()->normalize($userData),
         ];
         $jsonResponse = json_encode($response, JSON_THROW_ON_ERROR);
 
@@ -643,7 +646,7 @@ final class FullApiResponseTest extends TestCase
 
     public function test_collection_api_response_can_be_returned_as_json_string(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $collection->add(
             new TestUserRecord(id: 1, name: 'User 1', email: TestEmailAddress::from('user1@example.com')),
             new TestUserRecord(id: 2, name: 'User 2', email: TestEmailAddress::from('user2@example.com'))
@@ -651,7 +654,7 @@ final class FullApiResponseTest extends TestCase
 
         $response = [
             'success' => true,
-            'data' => $collection->normalize(),
+            'data' => NormalizerChain::get()->normalize($collection),
             'total' => $collection->count(),
         ];
         $jsonResponse = json_encode($response, JSON_THROW_ON_ERROR);
@@ -679,7 +682,7 @@ final class FullApiResponseTest extends TestCase
         );
 
         $userData = TestUserData::from($userRecord);
-        $apiResponse = $userData->normalize();
+        $apiResponse = NormalizerChain::get()->normalize($userData);
 
         $this->assertIsInt($apiResponse['id']);
         $this->assertIsString($apiResponse['name']);

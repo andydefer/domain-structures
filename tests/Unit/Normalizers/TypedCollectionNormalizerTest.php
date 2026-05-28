@@ -12,6 +12,7 @@ use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Normalizers\RootNormalizer;
 use AndyDefer\DomainStructures\Normalizers\TypedCollectionNormalizer;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestUserRoleCollection;
+use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserRole;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
@@ -74,7 +75,7 @@ final class TypedCollectionNormalizerTest extends TestCase
 
     public function test_supports_returns_true_for_record_collection_instance(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $result = $this->normalizer->supports($collection);
 
         $this->assertTrue($result);
@@ -82,7 +83,7 @@ final class TypedCollectionNormalizerTest extends TestCase
 
     public function test_supports_returns_true_for_data_collection_instance(): void
     {
-        $collection = new DataCollection;
+        $collection = new DataCollection(TestUserData::class);
         $result = $this->normalizer->supports($collection);
 
         $this->assertTrue($result);
@@ -132,7 +133,7 @@ final class TypedCollectionNormalizerTest extends TestCase
 
     public function test_normalize_handles_collection_of_records(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $collection->add(
             $this->createTestUserRecord(1, 'User1'),
             $this->createTestUserRecord(2, 'User2')
