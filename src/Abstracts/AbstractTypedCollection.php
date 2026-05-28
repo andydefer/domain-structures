@@ -35,10 +35,9 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
     private static ?array $allowedTypesList = null;
 
     // ==================== CONSTRUCTOR & VALIDATION ====================
-
     final protected static function getAllowedTypesList(): array
     {
-        return self::$allowedTypesList ??= PhpType::getAllowedTypesList();
+        return static::$allowedTypesList ??= PhpType::getAllowedTypesList();
     }
 
     protected function __construct(string ...$types)
@@ -457,11 +456,17 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
             return $source;
         }
 
-        $allowedType = static::getAllowedTypesList()[0] ?? null;
+        // CRITICAL: Ne pas utiliser getAllowedTypesList() qui retourne la liste globale
+        // Il faut créer une instance pour connaître ses types autorisés
+        $tempCollection = new static;
+        $allowedTypes = $tempCollection->getAllowedTypes();
 
-        if ($allowedType === null) {
+        if (empty($allowedTypes)) {
             throw new InvalidArgumentException('Cannot determine type to hydrate');
         }
+
+        // Prendre le premier type autorisé
+        $allowedType = $allowedTypes[0];
 
         if (! is_iterable($source)) {
             throw new InvalidArgumentException(sprintf(
@@ -475,19 +480,16 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
         foreach ($source as $item) {
             if ($item instanceof $allowedType) {
                 $collection->add($item);
-
                 continue;
             }
 
             if (in_array($allowedType, PhpType::getScalarTypeNames(), true)) {
                 $collection->add($item);
-
                 continue;
             }
 
             if (is_subclass_of($allowedType, Transformable::class)) {
                 $collection->add($allowedType::from($item));
-
                 continue;
             }
 

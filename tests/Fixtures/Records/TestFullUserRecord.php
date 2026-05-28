@@ -19,8 +19,8 @@ use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 final class TestFullUserRecord extends AbstractRecord
 {
     public function __construct(
-        public readonly string $name,
         public readonly int $id,
+        public readonly string $name,
         public readonly TestEmailAddress $email,
         public readonly TestUserStatus $status,
         public readonly TestUserRole $role,

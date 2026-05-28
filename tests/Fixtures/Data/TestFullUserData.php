@@ -32,6 +32,6 @@ final class TestFullUserData extends AbstractData
         public readonly StringTypedCollection $tags,
         public readonly ProductDataCollection $products,
         public readonly ?TestProductData $featuredProduct,
-        public readonly string $createdAt,
+        public readonly ?string $createdAt,
     ) {}
 }
