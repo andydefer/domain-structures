@@ -12,19 +12,21 @@ use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestPureEnum;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserRole;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
 use AndyDefer\DomainStructures\Tests\TestCase;
+use AndyDefer\DomainStructures\Utils\DataObject;
 
 final class EnumNormalizerTest extends TestCase
 {
     private EnumNormalizer $normalizer;
+
     private RootNormalizer $rootNormalizer;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->rootNormalizer = new RootNormalizer();
+        $this->rootNormalizer = new RootNormalizer;
 
-        $this->normalizer = new EnumNormalizer();
+        $this->normalizer = new EnumNormalizer;
         $this->normalizer->setRecursiveNormalizer($this->rootNormalizer);
     }
 
@@ -75,13 +77,13 @@ final class EnumNormalizerTest extends TestCase
             3.14,
             true,
             null,
-            new \stdClass,
+            new DataObject([]),
             [],
         ];
 
         foreach ($values as $value) {
             $result = $this->normalizer->supports($value);
-            $this->assertFalse($result, 'Failed for value type: ' . gettype($value));
+            $this->assertFalse($result, 'Failed for value type: '.gettype($value));
         }
     }
 
@@ -106,7 +108,7 @@ final class EnumNormalizerTest extends TestCase
         $expected = ['one', 'two', 'three'];
 
         $result = array_map(
-            fn($enum) => $this->normalizer->normalize($enum),
+            fn ($enum) => $this->normalizer->normalize($enum),
             $enums
         );
 
@@ -134,7 +136,7 @@ final class EnumNormalizerTest extends TestCase
         $expected = [1, 2, 3];
 
         $result = array_map(
-            fn($enum) => $this->normalizer->normalize($enum),
+            fn ($enum) => $this->normalizer->normalize($enum),
             $enums
         );
 
@@ -162,7 +164,7 @@ final class EnumNormalizerTest extends TestCase
         $expected = ['VALUE_ONE', 'VALUE_TWO', 'VALUE_THREE'];
 
         $result = array_map(
-            fn($enum) => $this->normalizer->normalize($enum),
+            fn ($enum) => $this->normalizer->normalize($enum),
             $enums
         );
 

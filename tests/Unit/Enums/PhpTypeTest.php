@@ -8,18 +8,21 @@ use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
+use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Enums\PhpType;
-use AndyDefer\DomainStructures\Utils\DataObject;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestBackedIntEnum;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestBackedStringEnum;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestPureEnum;
+use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserRole;
+use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 use AndyDefer\DomainStructures\Tests\TestCase;
-use stdClass;
+use AndyDefer\DomainStructures\Utils\DataObject;
+use DateTime;
 use UnitEnum;
 
 /**
@@ -232,12 +235,12 @@ final class PhpTypeTest extends TestCase
             id: 1,
             name: 'Test',
             email: $email,
-            status: \AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus::ACTIVE,
+            status: TestUserStatus::ACTIVE,
             role: TestUserRole::USER,
-            grade: \AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade::BRONZE,
+            grade: TestUserGrade::BRONZE,
             emailVerifiedAt: null,
-            tags: new \AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection,
-            createdAt: TestIso8601DateTime::now()
+            tags: new StringTypedCollection,
+            createdAt: TestIso8601DateTime::from(new DateTime)
         );
         $type = PhpType::fromValue($value);
 
@@ -291,7 +294,7 @@ final class PhpTypeTest extends TestCase
 
     public function test_get_normalized_type_name_returns_class_name_for_data_object(): void
     {
-        $value = new DataObject();
+        $value = new DataObject;
         $typeName = PhpType::getNormalizedTypeName($value);
 
         $this->assertSame(DataObject::class, $typeName);
@@ -744,12 +747,12 @@ final class PhpTypeTest extends TestCase
             id: 1,
             name: 'Test',
             email: $email,
-            status: \AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus::ACTIVE,
+            status: TestUserStatus::ACTIVE,
             role: TestUserRole::USER,
-            grade: \AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade::BRONZE,
+            grade: TestUserGrade::BRONZE,
             emailVerifiedAt: null,
-            tags: new \AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection,
-            createdAt: TestIso8601DateTime::now()
+            tags: new StringTypedCollection,
+            createdAt: TestIso8601DateTime::from(new DateTime)
         );
         $type = PhpType::fromValue($value);
 
@@ -760,7 +763,8 @@ final class PhpTypeTest extends TestCase
 
     public function test_get_display_name_returns_concrete_class_name_for_anonymous_class(): void
     {
-        $value = new class {
+        $value = new class
+        {
             public string $name = 'anonymous';
         };
         $type = PhpType::fromValue($value);

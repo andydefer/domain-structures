@@ -1,4 +1,5 @@
 <?php
+
 // FILE: src/Interfaces/Transformable.php
 
 declare(strict_types=1);
@@ -13,8 +14,8 @@ interface Transformable
     /**
      * Creates an instance from a source.
      *
-     * @param mixed $source The source data (array, object, string, int, etc.)
-     * @return static
+     * @param  mixed  $source  The source data (array, object, string, int, etc.)
+     *
      * @throws \InvalidArgumentException If the source cannot be converted
      */
     public static function from(mixed $source): static;

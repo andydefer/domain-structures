@@ -15,7 +15,7 @@ final class NormalizerChain
     public static function get(): NormalizerInterface
     {
         if (self::$instance === null) {
-            self::$instance = new RootNormalizer();
+            self::$instance = new RootNormalizer;
         }
 
         return self::$instance;

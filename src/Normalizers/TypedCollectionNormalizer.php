@@ -16,7 +16,7 @@ final class TypedCollectionNormalizer extends AbstractNormalizer
 
     public function normalize(mixed $value): mixed
     {
-        if (!$value instanceof AbstractTypedCollection) {
+        if (! $value instanceof AbstractTypedCollection) {
             return $this->next($value);
         }
 

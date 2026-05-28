@@ -6,21 +6,22 @@ namespace AndyDefer\DomainStructures\Tests\Unit\Normalizers;
 
 use AndyDefer\DomainStructures\Normalizers\DataObjectNormalizer;
 use AndyDefer\DomainStructures\Normalizers\RootNormalizer;
-use AndyDefer\DomainStructures\Utils\DataObject;
 use AndyDefer\DomainStructures\Tests\TestCase;
+use AndyDefer\DomainStructures\Utils\DataObject;
 
 final class DataObjectNormalizerTest extends TestCase
 {
     private DataObjectNormalizer $normalizer;
+
     private RootNormalizer $rootNormalizer;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->rootNormalizer = new RootNormalizer();
+        $this->rootNormalizer = new RootNormalizer;
 
-        $this->normalizer = new DataObjectNormalizer();
+        $this->normalizer = new DataObjectNormalizer;
         $this->normalizer->setRecursiveNormalizer($this->rootNormalizer);
     }
 
@@ -51,7 +52,7 @@ final class DataObjectNormalizerTest extends TestCase
 
         foreach ($values as $value) {
             $result = $this->normalizer->supports($value);
-            $this->assertFalse($result, 'Failed for class: ' . $value::class);
+            $this->assertFalse($result, 'Failed for class: '.$value::class);
         }
     }
 
@@ -61,7 +62,7 @@ final class DataObjectNormalizerTest extends TestCase
 
         foreach ($values as $value) {
             $result = $this->normalizer->supports($value);
-            $this->assertFalse($result, 'Failed for value type: ' . gettype($value));
+            $this->assertFalse($result, 'Failed for value type: '.gettype($value));
         }
     }
 
@@ -105,7 +106,7 @@ final class DataObjectNormalizerTest extends TestCase
 
     public function test_normalize_handles_empty_data_object(): void
     {
-        $object = new DataObject();
+        $object = new DataObject;
         $normalized = $this->normalizer->normalize($object);
 
         $this->assertIsArray($normalized);
@@ -136,7 +137,7 @@ final class DataObjectNormalizerTest extends TestCase
             'float' => 3.14,
             'bool' => true,
             'null' => null,
-            'array' => [1, 2, 3]
+            'array' => [1, 2, 3],
         ]);
 
         $normalized = $this->normalizer->normalize($object);

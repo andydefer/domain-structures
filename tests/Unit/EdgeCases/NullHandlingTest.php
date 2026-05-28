@@ -7,11 +7,11 @@ namespace AndyDefer\DomainStructures\Tests\Unit\EdgeCases;
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\IntTypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
-use AndyDefer\DomainStructures\Enums\NormalizeMode;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\TestCase;
+use AndyDefer\DomainStructures\Utils\DataObject;
 use InvalidArgumentException;
 
 /**
@@ -44,13 +44,10 @@ final class NullHandlingTest extends TestCase
      */
     public function test_collection_with_null_allowed_can_store_null_values(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'null');
 
-        // Act
         $collection->add(1, null, 2, null, 3);
 
-        // Assert
         $this->assertCount(5, $collection);
         $this->assertSame(1, $collection[0]);
         $this->assertNull($collection[1]);
@@ -64,10 +61,8 @@ final class NullHandlingTest extends TestCase
      */
     public function test_collection_without_null_rejects_null_values(): void
     {
-        // Arrange
         $collection = new TypedCollection('int');
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected type(s) int');
 
@@ -79,13 +74,10 @@ final class NullHandlingTest extends TestCase
      */
     public function test_multiple_nulls_can_be_added_at_once(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'null');
 
-        // Act
         $collection->add(1, null, 2, null, 3, null);
 
-        // Assert
         $this->assertCount(6, $collection);
         $this->assertNull($collection[1]);
         $this->assertNull($collection[3]);
@@ -99,14 +91,12 @@ final class NullHandlingTest extends TestCase
      */
     public function test_null_values_can_be_filtered_out(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'null');
         $collection->add(1, null, 2, null, 3, null, 4);
 
-        // Act
-        $withoutNulls = $collection->filter(fn($item) => $item !== null);
+        /** @var TypedCollection<int> $withoutNulls */
+        $withoutNulls = $collection->filter(fn ($item) => $item !== null);
 
-        // Assert
         $this->assertCount(4, $withoutNulls);
         $this->assertSame([1, 2, 3, 4], $withoutNulls->toArray());
         $this->assertNotContains(null, $withoutNulls->toArray());
@@ -117,14 +107,12 @@ final class NullHandlingTest extends TestCase
      */
     public function test_filter_can_keep_only_null_values(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'null');
         $collection->add(1, null, 2, null, 3, null, 4);
 
-        // Act
-        $onlyNulls = $collection->filter(fn($item) => $item === null);
+        /** @var TypedCollection<null> $onlyNulls */
+        $onlyNulls = $collection->filter(fn ($item) => $item === null);
 
-        // Assert
         $this->assertCount(3, $onlyNulls);
         $this->assertSame([null, null, null], $onlyNulls->toArray());
     }
@@ -136,14 +124,12 @@ final class NullHandlingTest extends TestCase
      */
     public function test_map_can_handle_null_values(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'null');
         $collection->add(1, null, 2, null, 3);
 
-        // Act
-        $mapped = $collection->map(fn($item) => $item === null ? -1 : $item * 10);
+        /** @var TypedCollection<int> $mapped */
+        $mapped = $collection->map(fn ($item) => $item === null ? -1 : $item * 10);
 
-        // Assert
         $this->assertSame([10, -1, 20, -1, 30], $mapped->toArray());
     }
 
@@ -152,14 +138,12 @@ final class NullHandlingTest extends TestCase
      */
     public function test_map_returning_null_is_allowed_if_collection_allows_null(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'null');
         $collection->add(1, 2, 3);
 
-        // Act
-        $mapped = $collection->map(fn($item) => $item > 2 ? null : $item);
+        /** @var TypedCollection<int|null> $mapped */
+        $mapped = $collection->map(fn ($item) => $item > 2 ? null : $item);
 
-        // Assert
         $this->assertSame([1, 2, null], $mapped->toArray());
     }
 
@@ -170,14 +154,11 @@ final class NullHandlingTest extends TestCase
      */
     public function test_normalize_includes_nulls_when_include_nulls_true(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'null');
         $collection->add(1, null, 2, null, 3);
 
-        // Act
-        $normalized = $collection->normalize(includeNulls: true);
+        $normalized = $collection->normalize(true);
 
-        // Assert
         $this->assertSame([1, null, 2, null, 3], $normalized);
     }
 
@@ -186,48 +167,26 @@ final class NullHandlingTest extends TestCase
      */
     public function test_normalize_excludes_nulls_when_include_nulls_false(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'null');
         $collection->add(1, null, 2, null, 3);
 
-        // Act
-        $normalized = $collection->normalize(includeNulls: false);
+        $normalized = $collection->normalize(false);
 
-        // Assert
         $this->assertSame([1, 2, 3], $normalized);
         $this->assertNotContains(null, $normalized);
     }
 
     /**
-     * Test that normalize with JSON includes nulls.
+     * Test that JSON encoding includes nulls.
      */
-    public function test_normalize_json_includes_nulls_when_requested(): void
+    public function test_json_encoding_includes_nulls(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'null');
         $collection->add(1, null, 2);
 
-        // Act
-        $json = $collection->normalize(NormalizeMode::JSON, includeNulls: true);
+        $json = json_encode($collection);
 
-        // Assert
         $this->assertSame('[1,null,2]', $json);
-    }
-
-    /**
-     * Test that normalize with JSON excludes nulls.
-     */
-    public function test_normalize_json_excludes_nulls_when_requested(): void
-    {
-        // Arrange
-        $collection = new TypedCollection('int', 'null');
-        $collection->add(1, null, 2, null, 3);
-
-        // Act
-        $json = $collection->normalize(NormalizeMode::JSON, includeNulls: false);
-
-        // Assert
-        $this->assertSame('[1,2,3]', $json);
     }
 
     // ==================== RECORD NULL HANDLING TESTS ====================
@@ -237,7 +196,6 @@ final class NullHandlingTest extends TestCase
      */
     public function test_record_can_have_null_properties(): void
     {
-        // Arrange & Act
         $record = new TestUserRecord(
             id: null,
             name: 'John Doe',
@@ -246,7 +204,6 @@ final class NullHandlingTest extends TestCase
             featuredProduct: null
         );
 
-        // Assert
         $this->assertNull($record->id);
         $this->assertNull($record->emailVerifiedAt);
         $this->assertNull($record->featuredProduct);
@@ -258,7 +215,6 @@ final class NullHandlingTest extends TestCase
      */
     public function test_record_normalization_excludes_nulls_when_requested(): void
     {
-        // Arrange
         $record = new TestUserRecord(
             id: null,
             name: 'John Doe',
@@ -266,10 +222,8 @@ final class NullHandlingTest extends TestCase
             emailVerifiedAt: null
         );
 
-        // Act
-        $normalized = $record->normalize(includeNulls: false);
+        $normalized = $record->normalize(false);
 
-        // Assert
         $this->assertArrayNotHasKey('id', $normalized);
         $this->assertArrayNotHasKey('email_verified_at', $normalized);
         $this->assertArrayHasKey('name', $normalized);
@@ -281,17 +235,14 @@ final class NullHandlingTest extends TestCase
      */
     public function test_record_normalization_includes_nulls_when_requested(): void
     {
-        // Arrange
         $record = new TestUserRecord(
             id: null,
             name: 'John Doe',
             email: $this->testEmail
         );
 
-        // Act
-        $normalized = $record->normalize(includeNulls: true);
+        $normalized = $record->normalize(true);
 
-        // Assert
         $this->assertArrayHasKey('id', $normalized);
         $this->assertNull($normalized['id']);
     }
@@ -299,21 +250,19 @@ final class NullHandlingTest extends TestCase
     // ==================== HYDRATION WITH NULL VALUES TESTS ====================
 
     /**
-     * Test that hydration with null values works correctly.
+     * Test that hydration with null values works correctly using DataObject.
      */
     public function test_hydration_with_null_values_works_correctly(): void
     {
-        // Arrange
-        $source = new \stdClass;
-        $source->id = null;
-        $source->name = 'John Doe';
-        $source->email = 'john@example.com';
-        $source->emailVerifiedAt = null;
+        $source = new DataObject([
+            'id' => null,
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+            'emailVerifiedAt' => null,
+        ]);
 
-        // Act
         $record = TestUserRecord::from($source);
 
-        // Assert
         $this->assertNull($record->id);
         $this->assertNull($record->emailVerifiedAt);
         $this->assertSame('John Doe', $record->name);
@@ -324,16 +273,14 @@ final class NullHandlingTest extends TestCase
      */
     public function test_explicit_null_overrides_default_values_in_record(): void
     {
-        // Arrange
-        $source = new \stdClass;
-        $source->name = 'John Doe';
-        $source->email = 'john@example.com';
-        $source->status = null;  // Override default ACTIVE
+        $source = new DataObject([
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+            'status' => null,
+        ]);
 
-        // Act
         $record = TestUserRecord::from($source);
 
-        // Assert
         $this->assertNull($record->status);
         $this->assertNotSame(TestUserStatus::ACTIVE, $record->status);
     }
@@ -345,14 +292,11 @@ final class NullHandlingTest extends TestCase
      */
     public function test_reduce_handles_null_initial_value(): void
     {
-        // Arrange
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3);
 
-        // Act
-        $result = $collection->reduce(fn($carry, $item) => ($carry ?? 0) + $item, null);
+        $result = $collection->reduce(fn ($carry, $item) => ($carry ?? 0) + $item, null);
 
-        // Assert
         $this->assertSame(6, $result);
     }
 
@@ -361,16 +305,13 @@ final class NullHandlingTest extends TestCase
      */
     public function test_reduce_with_null_items_works(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'null');
         $collection->add(1, null, 2, null, 3);
 
-        // Act - Sum ignoring nulls
         $sum = $collection->reduce(function ($carry, $item) {
             return $carry + ($item ?? 0);
         }, 0);
 
-        // Assert
         $this->assertSame(6, $sum);
     }
 
@@ -381,14 +322,12 @@ final class NullHandlingTest extends TestCase
      */
     public function test_find_can_find_null_values(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'null');
         $collection->add(1, null, 2, null, 3);
 
-        // Act
-        $found = $collection->find(fn($item) => $item === null);
+        /** @var int|null $found */
+        $found = $collection->find(fn ($item) => $item === null);
 
-        // Assert
         $this->assertNull($found);
     }
 
@@ -397,14 +336,12 @@ final class NullHandlingTest extends TestCase
      */
     public function test_find_returns_null_when_searching_non_existent_value(): void
     {
-        // Arrange
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3);
 
-        // Act
-        $found = $collection->find(fn($item) => $item === 5);
+        /** @var int|null $found */
+        $found = $collection->find(fn ($item) => $item === 5);
 
-        // Assert
         $this->assertNull($found);
     }
 
@@ -415,15 +352,12 @@ final class NullHandlingTest extends TestCase
      */
     public function test_every_works_with_null_values(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'null');
         $collection->add(null, null, null);
 
-        // Act
-        $allNull = $collection->every(fn($item) => $item === null);
-        $allNotNull = $collection->every(fn($item) => $item !== null);
+        $allNull = $collection->every(fn ($item) => $item === null);
+        $allNotNull = $collection->every(fn ($item) => $item !== null);
 
-        // Assert
         $this->assertTrue($allNull);
         $this->assertFalse($allNotNull);
     }
@@ -433,15 +367,12 @@ final class NullHandlingTest extends TestCase
      */
     public function test_some_works_with_null_values(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'null');
         $collection->add(1, 2, null, 3);
 
-        // Act
-        $hasNull = $collection->some(fn($item) => $item === null);
-        $allNull = $collection->some(fn($item) => $item === null && $item !== null);
+        $hasNull = $collection->some(fn ($item) => $item === null);
+        $allNull = $collection->some(fn ($item) => $item === null && $item !== null);
 
-        // Assert
         $this->assertTrue($hasNull);
         $this->assertFalse($allNull);
     }
@@ -453,11 +384,9 @@ final class NullHandlingTest extends TestCase
      */
     public function test_contains_works_with_null_values(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'null');
         $collection->add(1, null, 2, 3);
 
-        // Act & Assert
         $this->assertTrue($collection->contains(null));
         $this->assertTrue($collection->contains(1));
         $this->assertFalse($collection->contains(5));
@@ -468,14 +397,12 @@ final class NullHandlingTest extends TestCase
      */
     public function test_contains_with_strict_comparison_works_for_null(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'null');
         $collection->add(null);
 
-        // Act & Assert
         $this->assertTrue($collection->contains(null));
-        $this->assertFalse($collection->contains(0));  // 0 !== null
-        $this->assertFalse($collection->contains(false));  // false !== null
+        $this->assertFalse($collection->contains(0));
+        $this->assertFalse($collection->contains(false));
     }
 
     // ==================== STRING COLLECTION NULL HANDLING TESTS ====================
@@ -485,10 +412,8 @@ final class NullHandlingTest extends TestCase
      */
     public function test_string_collection_rejects_null_by_default(): void
     {
-        // Arrange
         $collection = new StringTypedCollection;
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $collection->add(null);
     }
@@ -498,13 +423,10 @@ final class NullHandlingTest extends TestCase
      */
     public function test_string_collection_with_null_allowed_accepts_null(): void
     {
-        // Arrange
         $collection = new TypedCollection('string', 'null');
 
-        // Act
         $collection->add('hello', null, 'world');
 
-        // Assert
         $this->assertCount(3, $collection);
         $this->assertSame('hello', $collection[0]);
         $this->assertNull($collection[1]);
@@ -518,10 +440,8 @@ final class NullHandlingTest extends TestCase
      */
     public function test_int_collection_rejects_null_by_default(): void
     {
-        // Arrange
         $collection = new IntTypedCollection;
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $collection->add(null);
     }
@@ -531,13 +451,10 @@ final class NullHandlingTest extends TestCase
      */
     public function test_int_collection_with_null_allowed_accepts_null(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'null');
 
-        // Act
         $collection->add(1, null, 2, null, 3);
 
-        // Assert
         $this->assertCount(5, $collection);
         $this->assertContains(null, $collection->toArray());
     }
@@ -549,21 +466,19 @@ final class NullHandlingTest extends TestCase
      */
     public function test_string_operations_skip_nulls(): void
     {
-        // Arranger
         $collection = new TypedCollection('string', 'null');
         $collection->add('hello', null, 'world', null, 'test');
 
-        // Act - Filtrer les nulls d'abord, puis convertir en StringTypedCollection pour utiliser join
-        $filtered = $collection->filter(fn($item) => $item !== null);
+        $filtered = $collection->filter(fn ($item) => $item !== null);
 
-        // Créer une StringTypedCollection à partir des valeurs non-null
         $stringCollection = new StringTypedCollection;
-        foreach ($filtered->toArray() as $item) {
+        /** @var array<int, string> $filteredArray */
+        $filteredArray = $filtered->toArray();
+        foreach ($filteredArray as $item) {
             $stringCollection->add($item);
         }
         $joined = $stringCollection->join(' ');
 
-        // Assert
         $this->assertSame('hello world test', $joined);
     }
 
@@ -574,15 +489,12 @@ final class NullHandlingTest extends TestCase
      */
     public function test_numeric_operations_skip_nulls(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'float', 'null');
         $collection->add(10, null, 20.5, null, 30);
 
-        // Act - Filter out nulls then sum
-        $filtered = $collection->filter(fn($item) => $item !== null);
-        $sum = $filtered->reduce(fn($carry, $item) => $carry + $item, 0);
+        $filtered = $collection->filter(fn ($item) => $item !== null);
+        $sum = $filtered->reduce(fn ($carry, $item) => $carry + $item, 0);
 
-        // Assert
         $this->assertSame(60.5, $sum);
     }
 
@@ -593,14 +505,11 @@ final class NullHandlingTest extends TestCase
      */
     public function test_sort_works_with_null_values(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'null');
         $collection->add(3, null, 1, null, 2);
 
-        // Act
         $sorted = $collection->sort();
 
-        // Assert - nulls come first in PHP sort
         $this->assertSame([null, null, 1, 2, 3], $sorted->toArray());
     }
 
@@ -611,14 +520,11 @@ final class NullHandlingTest extends TestCase
      */
     public function test_reverse_works_with_null_values(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'null');
         $collection->add(1, null, 2, null, 3);
 
-        // Act
         $reversed = $collection->reverse();
 
-        // Assert
         $this->assertSame([3, null, 2, null, 1], $reversed->toArray());
     }
 
@@ -629,16 +535,13 @@ final class NullHandlingTest extends TestCase
      */
     public function test_merge_preserves_null_values(): void
     {
-        // Arrange
         $collection1 = new TypedCollection('int', 'null');
         $collection2 = new TypedCollection('int', 'null');
         $collection1->add(1, null, 2);
         $collection2->add(3, null, 4);
 
-        // Act
         $merged = $collection1->merge($collection2);
 
-        // Assert
         $this->assertSame([1, null, 2, 3, null, 4], $merged->toArray());
     }
 
@@ -649,14 +552,11 @@ final class NullHandlingTest extends TestCase
      */
     public function test_clone_preserves_null_values(): void
     {
-        // Arrange
         $original = new TypedCollection('int', 'null');
         $original->add(1, null, 2, null, 3);
 
-        // Act
         $cloned = clone $original;
 
-        // Assert
         $this->assertEquals($original->toArray(), $cloned->toArray());
         $this->assertNull($cloned[1]);
         $this->assertNull($cloned[3]);
@@ -669,14 +569,50 @@ final class NullHandlingTest extends TestCase
      */
     public function test_json_serialization_preserves_nulls(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'null');
         $collection->add(1, null, 2, null, 3);
 
-        // Act
         $json = json_encode($collection);
 
-        // Assert
         $this->assertSame('[1,null,2,null,3]', $json);
+    }
+
+    // ==================== NULL IN DATAOBJECT HYDRATION TESTS ====================
+
+    /**
+     * Test that DataObject with null values can be converted to array.
+     */
+    public function test_data_object_with_null_values_can_be_converted_to_array(): void
+    {
+        $data = new DataObject([
+            'id' => null,
+            'name' => 'John Doe',
+            'email' => null,
+            'tags' => ['premium', null, 'vip'],
+        ]);
+
+        $array = $data->toArray();
+
+        $this->assertNull($array['id']);
+        $this->assertNull($array['email']);
+        $this->assertSame(['premium', null, 'vip'], $array['tags']);
+    }
+
+    /**
+     * Test that DataObject with null values can be normalized.
+     */
+    public function test_data_object_with_null_values_can_be_normalized(): void
+    {
+        $data = new DataObject([
+            'id' => null,
+            'name' => 'John Doe',
+            'email' => null,
+        ]);
+
+        $normalized = $data->toArray();
+
+        $this->assertNull($normalized['id']);
+        $this->assertNull($normalized['email']);
+        $this->assertSame('John Doe', $normalized['name']);
     }
 }

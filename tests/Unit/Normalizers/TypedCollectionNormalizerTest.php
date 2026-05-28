@@ -16,19 +16,21 @@ use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserRole;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\TestCase;
+use AndyDefer\DomainStructures\Utils\DataObject;
 
 final class TypedCollectionNormalizerTest extends TestCase
 {
     private TypedCollectionNormalizer $normalizer;
+
     private RootNormalizer $rootNormalizer;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->rootNormalizer = new RootNormalizer();
+        $this->rootNormalizer = new RootNormalizer;
 
-        $this->normalizer = new TypedCollectionNormalizer();
+        $this->normalizer = new TypedCollectionNormalizer;
         $this->normalizer->setRecursiveNormalizer($this->rootNormalizer);
     }
 
@@ -94,14 +96,14 @@ final class TypedCollectionNormalizerTest extends TestCase
             3.14,
             true,
             null,
-            new \stdClass,
+            new DataObject,
             TestEmailAddress::from('test@example.com'),
             [],
         ];
 
         foreach ($values as $value) {
             $result = $this->normalizer->supports($value);
-            $this->assertFalse($result, 'Failed for value type: ' . (is_object($value) ? $value::class : gettype($value)));
+            $this->assertFalse($result, 'Failed for value type: '.(is_object($value) ? $value::class : gettype($value)));
         }
     }
 
@@ -191,6 +193,24 @@ final class TypedCollectionNormalizerTest extends TestCase
         $this->assertSame([42, 'hello', 3.14, true], $normalized);
     }
 
+    public function test_normalize_handles_collection_of_data_objects(): void
+    {
+        $collection = new TypedCollection(DataObject::class);
+        $collection->add(
+            new DataObject(['id' => 1, 'name' => 'Item 1']),
+            new DataObject(['id' => 2, 'name' => 'Item 2'])
+        );
+
+        $normalized = $this->normalizer->normalize($collection);
+
+        $this->assertIsArray($normalized);
+        $this->assertCount(2, $normalized);
+        $this->assertSame(1, $normalized[0]['id']);
+        $this->assertSame('Item 1', $normalized[0]['name']);
+        $this->assertSame(2, $normalized[1]['id']);
+        $this->assertSame('Item 2', $normalized[1]['name']);
+    }
+
     public function test_normalize_forwards_to_next_normalizer_when_not_collection(): void
     {
         $value = 'not a collection';
@@ -259,5 +279,14 @@ final class TypedCollectionNormalizerTest extends TestCase
 
         $this->assertIsArray($normalized);
         $this->assertSame([1, 2, 3], $normalized);
+    }
+
+    public function test_normalize_forwards_data_object_to_next_normalizer(): void
+    {
+        $value = new DataObject(['name' => 'test', 'value' => 123]);
+        $normalized = $this->normalizer->normalize($value);
+
+        $this->assertIsArray($normalized);
+        $this->assertSame(['name' => 'test', 'value' => 123], $normalized);
     }
 }

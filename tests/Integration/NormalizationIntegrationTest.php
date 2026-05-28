@@ -23,20 +23,22 @@ use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\DataObject;
-use stdClass;
 
 final class NormalizationIntegrationTest extends TestCase
 {
     private TestIso8601DateTime $now;
+
     private TestEmailAddress $testEmail;
+
     private StringTypedCollection $tags;
+
     private RootNormalizer $rootNormalizer;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->rootNormalizer = new RootNormalizer();
+        $this->rootNormalizer = new RootNormalizer;
         $this->now = TestIso8601DateTime::from('2024-01-01T12:00:00+00:00');
         $this->testEmail = TestEmailAddress::from('john@example.com');
         $this->tags = new StringTypedCollection;
@@ -342,7 +344,7 @@ final class NormalizationIntegrationTest extends TestCase
         $dataObject = DataObject::from([
             'name' => 'John Doe',
             'email' => 'john@example.com',
-            'age' => 30
+            'age' => 30,
         ]);
 
         $collection = new TypedCollection(DataObject::class);

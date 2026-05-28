@@ -26,7 +26,7 @@ enum PhpType: string
     case BOOLEAN = 'boolean';
     case NULL = 'NULL';
 
-        // Domain-specific abstract types
+    // Domain-specific abstract types
     case UNIT_ENUM = UnitEnum::class;
     case ABSTRACT_RECORD = AbstractRecord::class;
     case ABSTRACT_VALUE_OBJECT = AbstractValueObject::class;
@@ -259,7 +259,7 @@ enum PhpType: string
      */
     public static function getScalarTypeNames(): array
     {
-        return array_map(fn($type) => $type->getNormalizedName(), self::getScalarTypes());
+        return array_map(fn ($type) => $type->getNormalizedName(), self::getScalarTypes());
     }
 
     /**
@@ -281,8 +281,6 @@ enum PhpType: string
 
     /**
      * Get a human-readable description of allowed types.
-     *
-     * @return string
      */
     public static function getAllowedTypeDescription(): string
     {
@@ -313,9 +311,6 @@ enum PhpType: string
 
     /**
      * Check if a given type string or class name is valid.
-     *
-     * @param string $type
-     * @return bool
      */
     public static function isValidType(string $type): bool
     {
@@ -344,8 +339,6 @@ enum PhpType: string
     /**
      * Get the corresponding PhpType from a type string or class name.
      *
-     * @param string $type
-     * @return self
      * @throws \InvalidArgumentException
      */
     public static function fromTypeString(string $type): self

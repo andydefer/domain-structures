@@ -16,7 +16,7 @@ final class EnumNormalizer extends AbstractNormalizer
 
     public function normalize(mixed $value): mixed
     {
-        if (!$value instanceof UnitEnum) {
+        if (! $value instanceof UnitEnum) {
             return $this->next($value);
         }
 

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
-use AndyDefer\DomainStructures\Utils\DataObject;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestCurrency;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestMoneyRecord;
+use AndyDefer\DomainStructures\Utils\DataObject;
 use InvalidArgumentException;
 
 final class TestMoney extends AbstractValueObject
@@ -67,6 +67,6 @@ final class TestMoney extends AbstractValueObject
 
     public function format(): string
     {
-        return $this->currency->getSymbol() . number_format($this->amount, 2);
+        return $this->currency->getSymbol().number_format($this->amount, 2);
     }
 }

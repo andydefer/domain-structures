@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Normalizers;
 
-use AndyDefer\DomainStructures\Utils\DataObject;
 use AndyDefer\DomainStructures\Normalizers\Core\AbstractNormalizer;
+use AndyDefer\DomainStructures\Utils\DataObject;
 
 final class DataObjectNormalizer extends AbstractNormalizer
 {
@@ -16,7 +16,7 @@ final class DataObjectNormalizer extends AbstractNormalizer
 
     public function normalize(mixed $value): mixed
     {
-        if (!$value instanceof DataObject) {
+        if (! $value instanceof DataObject) {
             return $this->next($value);
         }
 

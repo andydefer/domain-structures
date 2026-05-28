@@ -16,11 +16,12 @@ final class ValueObjectNormalizer extends AbstractNormalizer
 
     public function normalize(mixed $value): mixed
     {
-        if (!$value instanceof AbstractValueObject) {
+        if (! $value instanceof AbstractValueObject) {
             return $this->next($value);
         }
 
         $voValue = $value->getValue();
+
         return $this->next($voValue);
     }
 }

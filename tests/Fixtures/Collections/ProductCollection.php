@@ -23,12 +23,10 @@ final class ProductCollection extends AbstractTypedCollection
 
     /**
      * Convert all items to Data objects.
-     *
-     * @return ProductDataCollection
      */
     public function toDataCollection(): ProductDataCollection
     {
-        $dataCollection = new ProductDataCollection();
+        $dataCollection = new ProductDataCollection;
 
         foreach ($this->items as $item) {
             if ($item instanceof TestProductRecord) {
@@ -43,12 +41,10 @@ final class ProductCollection extends AbstractTypedCollection
 
     /**
      * Convert all items to Record objects.
-     *
-     * @return ProductRecordCollection
      */
     public function toRecordCollection(): ProductRecordCollection
     {
-        $recordCollection = new ProductRecordCollection();
+        $recordCollection = new ProductRecordCollection;
 
         foreach ($this->items as $item) {
             if ($item instanceof TestProductData) {

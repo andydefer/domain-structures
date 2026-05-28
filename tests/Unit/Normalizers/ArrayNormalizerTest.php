@@ -10,19 +10,21 @@ use AndyDefer\DomainStructures\Normalizers\RootNormalizer;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\TestCase;
+use AndyDefer\DomainStructures\Utils\DataObject;
 
 final class ArrayNormalizerTest extends TestCase
 {
     private ArrayNormalizer $normalizer;
+
     private RootNormalizer $rootNormalizer;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->rootNormalizer = new RootNormalizer();
+        $this->rootNormalizer = new RootNormalizer;
 
-        $this->normalizer = new ArrayNormalizer();
+        $this->normalizer = new ArrayNormalizer;
         $this->normalizer->setRecursiveNormalizer($this->rootNormalizer);
     }
 
@@ -38,11 +40,11 @@ final class ArrayNormalizerTest extends TestCase
 
     public function test_supports_returns_false_for_non_array(): void
     {
-        $values = [42, 'string', 3.14, true, null, new \stdClass];
+        $values = [42, 'string', 3.14, true, null, new DataObject([])];
 
         foreach ($values as $value) {
             $result = $this->normalizer->supports($value);
-            $this->assertFalse($result, 'Failed for value: ' . gettype($value));
+            $this->assertFalse($result, 'Failed for value: '.gettype($value));
         }
     }
 

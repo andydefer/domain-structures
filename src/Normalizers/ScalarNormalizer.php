@@ -15,7 +15,7 @@ final class ScalarNormalizer extends AbstractNormalizer
 
     public function normalize(mixed $value): mixed
     {
-        if (!is_scalar($value)) {
+        if (! is_scalar($value)) {
             return $this->next($value);
         }
 

@@ -9,6 +9,7 @@ use InvalidArgumentException;
 abstract class AbstractNormalizer implements NormalizerInterface
 {
     protected ?NormalizerInterface $next = null;
+
     protected ?NormalizerInterface $recursiveNormalizer = null;
 
     public function setNext(?NormalizerInterface $next): void
@@ -24,8 +25,9 @@ abstract class AbstractNormalizer implements NormalizerInterface
     /**
      * Passes the value to the next normalizer in the chain.
      *
-     * @param mixed $value The value to normalize
+     * @param  mixed  $value  The value to normalize
      * @return mixed The normalized value
+     *
      * @throws InvalidArgumentException If no normalizer is available
      */
     protected function next(mixed $value): mixed

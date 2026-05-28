@@ -13,7 +13,6 @@ use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestProductRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\TestCase;
-use stdClass;
 
 final class NormalizerChainTest extends TestCase
 {
@@ -140,18 +139,6 @@ final class NormalizerChainTest extends TestCase
         $this->assertCount(2, $normalized);
         $this->assertSame('Product 1', $normalized[0]['name']);
         $this->assertSame('Product 2', $normalized[1]['name']);
-    }
-
-    public function test_stdclass_is_normalized_correctly_through_chain(): void
-    {
-        $object = new stdClass;
-        $object->name = 'John';
-        $object->age = 30;
-        $normalized = $this->chain->normalize($object);
-
-        $this->assertIsArray($normalized);
-        $this->assertSame('John', $normalized['name']);
-        $this->assertSame(30, $normalized['age']);
     }
 
     public function test_array_is_normalized_correctly_through_chain(): void

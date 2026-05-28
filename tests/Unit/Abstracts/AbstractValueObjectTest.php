@@ -5,11 +5,7 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Tests\Unit\Abstracts;
 
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
-use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
-use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestUserRoleCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestCurrency;
-use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
-use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestMoneyRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserProfileRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
@@ -160,7 +156,7 @@ final class AbstractValueObjectTest extends TestCase
             'grade' => 1,
             'emailVerifiedAt' => null,
             'tags' => [],
-            'createdAt' => $this->now->getValue()
+            'createdAt' => $this->now->getValue(),
         ]);
 
         $value = $profile->getValue();
@@ -287,7 +283,7 @@ final class AbstractValueObjectTest extends TestCase
         $datetime = TestIso8601DateTime::from('2024-01-01T12:00:00+00:00');
         $dateTime = $datetime->toDateTime();
 
-        $this->assertInstanceOf(\DateTime::class, $dateTime);
+        $this->assertInstanceOf(DateTime::class, $dateTime);
         $this->assertSame('2024-01-01 12:00:00', $dateTime->format('Y-m-d H:i:s'));
     }
 

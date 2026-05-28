@@ -4,22 +4,24 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Collections\Utility;
 
+use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
+use InvalidArgumentException;
+
 /**
- * Type-safe collection for mixed numeric values (integers or floats).
+ * Base class for type-safe collections of numeric values (int|float).
  *
- * Unlike IntTypedCollection and FloatTypedCollection which enforce a single
- * numeric type, this collection accepts both integers and floats. This is
- * useful when working with mixed numeric data or when type flexibility is needed.
+ * Provides common mathematical operations and filtering methods specifically
+ * designed for collections containing only integers or floats. All items are
+ * validated against the numeric type at construction time.
  *
- * Provides filtering methods specifically for numeric values including zero
- * detection and non-negative filtering across both integer and float types.
+ * @template TValue of int|float
  *
- * @extends AbstractNumberTypedCollection<int|float>
+ * @extends AbstractTypedCollection<TValue>
  */
-final class NumberTypedCollection extends AbstractNumberTypedCollection
+class NumberTypedCollection extends AbstractNumberTypedCollection
 {
     /**
-     * Create a new mixed numeric collection.
+     * Create a new numeric collection.
      *
      * The constructor allows both integer and float values to be added to
      * this collection. All items will be validated against both types.
@@ -35,11 +37,11 @@ final class NumberTypedCollection extends AbstractNumberTypedCollection
      * This method considers both integer 0 and float 0.0 as zero values.
      * Uses strict comparison to ensure only actual numeric zeros are matched.
      *
-     * @return self New collection containing only zero values
+     * @return static<TValue> New collection containing only zero values
      */
-    public function zero(): self
+    public function zero(): static
     {
-        return $this->filter(fn ($item): bool => $item === 0 || $item === 0.0);
+        return $this->filter(fn($item): bool => $item === 0 || $item === 0.0);
     }
 
     /**
@@ -48,11 +50,11 @@ final class NumberTypedCollection extends AbstractNumberTypedCollection
      * This includes zero and all positive numbers, regardless of whether they
      * are integers or floats.
      *
-     * @return self New collection containing only non-negative values
+     * @return static<TValue> New collection containing only non-negative values
      */
-    public function nonNegative(): self
+    public function nonNegative(): static
     {
-        return $this->filter(fn ($item): bool => $item >= 0);
+        return $this->filter(fn($item): bool => $item >= 0);
     }
 
     /**
@@ -62,7 +64,7 @@ final class NumberTypedCollection extends AbstractNumberTypedCollection
      */
     public function areAllIntegers(): bool
     {
-        return $this->every(fn ($item): bool => is_int($item));
+        return $this->every(fn($item): bool => is_int($item));
     }
 
     /**
@@ -72,7 +74,7 @@ final class NumberTypedCollection extends AbstractNumberTypedCollection
      */
     public function hasAnyFloat(): bool
     {
-        return $this->some(fn ($item): bool => is_float($item));
+        return $this->some(fn($item): bool => is_float($item));
     }
 
     /**
@@ -86,7 +88,7 @@ final class NumberTypedCollection extends AbstractNumberTypedCollection
     {
         $collection = new FloatTypedCollection;
 
-        foreach ($this->toArray() as $item) {
+        foreach ($this->items as $item) {
             $collection->add((float) $item);
         }
 
@@ -105,7 +107,7 @@ final class NumberTypedCollection extends AbstractNumberTypedCollection
     {
         $collection = new IntTypedCollection;
 
-        foreach ($this->toArray() as $item) {
+        foreach ($this->items as $item) {
             $collection->add((int) $item);
         }
 
@@ -122,7 +124,7 @@ final class NumberTypedCollection extends AbstractNumberTypedCollection
         $integers = new IntTypedCollection;
         $floats = new FloatTypedCollection;
 
-        foreach ($this->toArray() as $item) {
+        foreach ($this->items as $item) {
             if (is_int($item)) {
                 $integers->add($item);
             } else {

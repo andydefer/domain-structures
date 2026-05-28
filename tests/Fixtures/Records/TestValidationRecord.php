@@ -7,7 +7,7 @@ namespace AndyDefer\DomainStructures\Tests\Fixtures\Records;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
-use stdClass;
+use AndyDefer\DomainStructures\Utils\DataObject;
 
 /**
  * Fixture record for testing validation rules.
@@ -24,7 +24,7 @@ final class TestValidationRecord extends AbstractRecord
         public readonly int $validInt = 0,
         public readonly StringTypedCollection $validCollection = new StringTypedCollection,
         public readonly ?StringTypedCollection $invalidNullableCollection = new StringTypedCollection,
-        public readonly TypedCollection|stdClass $invalidUnionCollection = new TypedCollection,
+        public readonly TypedCollection|DataObject $invalidUnionCollection = new TypedCollection,
         public readonly array $invalidArray = [],
     ) {}
 }

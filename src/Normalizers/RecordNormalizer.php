@@ -16,7 +16,7 @@ final class RecordNormalizer extends AbstractNormalizer
 
     public function normalize(mixed $value): mixed
     {
-        if (!$value instanceof AbstractRecord) {
+        if (! $value instanceof AbstractRecord) {
             return $this->next($value);
         }
 

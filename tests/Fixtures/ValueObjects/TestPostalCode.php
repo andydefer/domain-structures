@@ -13,11 +13,11 @@ final class TestPostalCode extends AbstractValueObject
 
     public static function from(mixed $source): static
     {
-        if (!is_string($source)) {
+        if (! is_string($source)) {
             throw new InvalidArgumentException('Postal code must be a string');
         }
 
-        if (!preg_match('/^[0-9]{5}$/', $source)) {
+        if (! preg_match('/^[0-9]{5}$/', $source)) {
             throw new InvalidArgumentException("Invalid postal code: {$source}");
         }
 

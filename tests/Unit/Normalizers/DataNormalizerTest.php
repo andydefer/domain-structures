@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Tests\Unit\Normalizers;
 
-use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\DomainStructures\Collections\Core\DataCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Normalizers\DataNormalizer;
@@ -18,22 +17,26 @@ use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 use AndyDefer\DomainStructures\Tests\TestCase;
+use AndyDefer\DomainStructures\Utils\DataObject;
 use AndyDefer\DomainStructures\Utils\EmptyData;
 
 final class DataNormalizerTest extends TestCase
 {
     private DataNormalizer $normalizer;
+
     private RootNormalizer $rootNormalizer;
+
     private TestIso8601DateTime $now;
+
     private TestEmailAddress $testEmail;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->rootNormalizer = new RootNormalizer();
+        $this->rootNormalizer = new RootNormalizer;
 
-        $this->normalizer = new DataNormalizer();
+        $this->normalizer = new DataNormalizer;
         $this->normalizer->setRecursiveNormalizer($this->rootNormalizer);
 
         $this->now = TestIso8601DateTime::from('2024-01-01T12:00:00+00:00');
@@ -72,14 +75,14 @@ final class DataNormalizerTest extends TestCase
             3.14,
             true,
             null,
-            new \stdClass,
+            new DataObject([]),
             new TestUserRecord(name: 'Test', email: $this->testEmail),
             TestEmailAddress::from('test@example.com'),
         ];
 
         foreach ($values as $value) {
             $result = $this->normalizer->supports($value);
-            $this->assertFalse($result, 'Failed for value type: ' . (is_object($value) ? $value::class : gettype($value)));
+            $this->assertFalse($result, 'Failed for value type: '.(is_object($value) ? $value::class : gettype($value)));
         }
     }
 

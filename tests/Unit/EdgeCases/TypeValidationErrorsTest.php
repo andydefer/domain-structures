@@ -20,8 +20,8 @@ use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\TestCase;
+use AndyDefer\DomainStructures\Utils\DataObject;
 use InvalidArgumentException;
-use stdClass;
 use UnitEnum;
 
 /**
@@ -55,7 +55,6 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_constructor_throws_exception_when_no_types_provided(): void
     {
-        // Arrange & Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('At least one type must be provided');
 
@@ -73,9 +72,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_constructor_throws_exception_for_non_existent_class(): void
     {
-        // Arrange & Act & Assert
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Type "NonExistentClass123" is not a valid class');
+        $this->expectExceptionMessage('Type "NonExistentClass123" is not allowed');
 
         new TypedCollection('NonExistentClass123');
     }
@@ -85,7 +83,6 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_constructor_throws_exception_for_disallowed_scalar_type(): void
     {
-        // Arrange & Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Type "array" is not allowed');
 
@@ -97,7 +94,6 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_constructor_throws_exception_for_disallowed_object_type(): void
     {
-        // Arrange & Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Type "DateTime" is not allowed');
 
@@ -109,7 +105,6 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_constructor_throws_exception_for_resource_type(): void
     {
-        // Arrange & Act & Assert
         $this->expectException(InvalidArgumentException::class);
 
         new TypedCollection('resource');
@@ -122,10 +117,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_add_throws_exception_for_wrong_scalar_type(): void
     {
-        // Arrange
         $collection = new TypedCollection('int');
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected type(s) int');
 
@@ -133,14 +126,12 @@ final class TypeValidationErrorsTest extends TestCase
     }
 
     /**
-     * Test that add throws exception for wrong float when int expected.
+     * Test that add throws exception for float when int expected.
      */
     public function test_add_throws_exception_for_float_when_int_expected(): void
     {
-        // Arrange
         $collection = new TypedCollection('int');
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected type(s) int');
 
@@ -152,10 +143,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_add_throws_exception_for_wrong_enum_type(): void
     {
-        // Arrange
         $collection = new TypedCollection(TestUserStatus::class);
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/Expected type\(s\) .*TestUserStatus/');
 
@@ -167,10 +156,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_add_throws_exception_for_non_enum_when_enum_expected(): void
     {
-        // Arrange
         $collection = new TypedCollection(UnitEnum::class);
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected type(s) UnitEnum');
 
@@ -182,7 +169,6 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_add_throws_exception_for_wrong_record_type(): void
     {
-        // Arrange
         $collection = new TypedCollection(AbstractRecord::class);
 
         // This should work because any AbstractRecord is accepted
@@ -198,10 +184,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_add_throws_exception_for_wrong_value_object_type(): void
     {
-        // Arrange
         $collection = new TypedCollection(AbstractValueObject::class);
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected type(s) AbstractValueObject');
 
@@ -213,10 +197,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_add_throws_exception_for_wrong_data_type(): void
     {
-        // Arrange
         $collection = new TypedCollection(AbstractData::class);
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected type(s) AbstractData');
 
@@ -228,10 +210,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_add_throws_exception_for_wrong_collection_type(): void
     {
-        // Arrange
         $collection = new TypedCollection(AbstractTypedCollection::class);
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected type(s) AbstractTypedCollection');
 
@@ -239,18 +219,16 @@ final class TypeValidationErrorsTest extends TestCase
     }
 
     /**
-     * Test that add throws exception for stdClass when not allowed.
+     * Test that add throws exception for DataObject when not allowed.
      */
-    public function test_add_throws_exception_for_stdclass_when_not_allowed(): void
+    public function test_add_throws_exception_for_data_object_when_not_allowed(): void
     {
-        // Arrange
         $collection = new TypedCollection('int');
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Object of type "stdClass" is not allowed');
+        $this->expectExceptionMessage('Expected type(s) int');
 
-        $collection->add(new stdClass);
+        $collection->add(new DataObject([]));
     }
 
     /**
@@ -258,10 +236,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_add_throws_exception_for_null_when_not_allowed(): void
     {
-        // Arrange
         $collection = new TypedCollection('int');
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected type(s) int');
 
@@ -275,10 +251,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_add_throws_exception_for_type_not_in_allowed_list(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'string');
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected type(s) int|string');
 
@@ -290,10 +264,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_add_throws_exception_with_all_allowed_types_in_message(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'string', 'float', 'bool');
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected type(s) int|string|float|bool');
 
@@ -305,10 +277,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_add_throws_exception_for_enum_not_in_allowed_list(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'string');
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/Expected type\(s\) int\|string/');
 
@@ -322,10 +292,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_int_typed_collection_rejects_string(): void
     {
-        // Arrange
         $collection = new IntTypedCollection;
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected type(s) int');
 
@@ -337,10 +305,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_int_typed_collection_rejects_float(): void
     {
-        // Arrange
         $collection = new IntTypedCollection;
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected type(s) int');
 
@@ -352,10 +318,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_float_typed_collection_rejects_int(): void
     {
-        // Arrange
         $collection = new FloatTypedCollection;
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected type(s) float');
 
@@ -367,10 +331,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_string_typed_collection_rejects_int(): void
     {
-        // Arrange
         $collection = new StringTypedCollection;
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected type(s) string');
 
@@ -382,10 +344,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_bool_typed_collection_rejects_string(): void
     {
-        // Arrange
         $collection = new BoolTypedCollection;
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected type(s) bool');
 
@@ -397,10 +357,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_record_collection_rejects_non_record(): void
     {
-        // Arrange
         $collection = new RecordCollection;
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected type(s) AbstractRecord');
 
@@ -412,10 +370,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_data_collection_rejects_non_data(): void
     {
-        // Arrange
         $collection = new DataCollection;
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected type(s) AbstractData');
 
@@ -429,14 +385,11 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_collection_with_parent_class_accepts_child_class(): void
     {
-        // Arrange
         $collection = new TypedCollection(AbstractRecord::class);
         $childRecord = new TestUserRecord(name: 'Test', email: $this->testEmail);
 
-        // Act
         $collection->add($childRecord);
 
-        // Assert - Should not throw exception
         $this->assertCount(1, $collection);
     }
 
@@ -445,13 +398,10 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_collection_with_parent_enum_accepts_child_enum(): void
     {
-        // Arrange
         $collection = new TypedCollection(UnitEnum::class);
 
-        // Act - Should accept any enum
         $collection->add(TestUserStatus::ACTIVE);
 
-        // Assert
         $this->assertCount(1, $collection);
     }
 
@@ -460,14 +410,11 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_collection_with_parent_collection_accepts_child_collection(): void
     {
-        // Arrange
         $collection = new TypedCollection(AbstractTypedCollection::class);
         $childCollection = new TypedCollection('int');
 
-        // Act
         $collection->add($childCollection);
 
-        // Assert
         $this->assertCount(1, $collection);
     }
 
@@ -478,14 +425,10 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_hydration_throws_exception_for_missing_required_property(): void
     {
-        // Arrange
-        $source = new stdClass;
-        $source->email = 'test@example.com';
-        // Missing 'name' which has no default
+        $source = DataObject::from(['email' => 'test@example.com']);
 
-        // Act & Assert
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Missing required properties: name');
+        $this->expectExceptionMessage('Missing required parameter "$name"');
 
         TestUserRecord::from($source);
     }
@@ -495,14 +438,13 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_hydration_throws_exception_for_type_mismatch(): void
     {
-        // Arrange
-        $source = new stdClass;
-        $source->name = 'John Doe';
-        $source->email = 12345; // Should be string or Email VO
+        $source = DataObject::from([
+            'name' => 'John Doe',
+            'email' => 12345,
+        ]);
 
-        // Act & Assert
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Type mismatches');
+        $this->expectExceptionMessage('Cannot convert value to string');
 
         TestUserRecord::from($source);
     }
@@ -512,15 +454,14 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_hydration_throws_exception_for_invalid_enum_value(): void
     {
-        // Arrange
-        $source = new stdClass;
-        $source->name = 'John Doe';
-        $source->email = 'john@example.com';
-        $source->status = 'invalid_status_value';
+        $source = DataObject::from([
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+            'status' => 'invalid_status_value',
+        ]);
 
-        // Act & Assert
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Type mismatches');
+        $this->expectExceptionMessage('Invalid value "invalid_status_value" for enum');
 
         TestUserRecord::from($source);
     }
@@ -530,15 +471,14 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_hydration_throws_exception_for_wrong_enum_type(): void
     {
-        // Arrange
-        $source = new stdClass;
-        $source->name = 'John Doe';
-        $source->email = 'john@example.com';
-        $source->status = 'admin'; // Should be user status, not role
+        $source = DataObject::from([
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+            'status' => 'admin',
+        ]);
 
-        // Act & Assert
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Type mismatches');
+        $this->expectExceptionMessage('Invalid value "admin" for enum');
 
         TestUserRecord::from($source);
     }
@@ -550,10 +490,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_array_offset_set_validates_type(): void
     {
-        // Arrange
         $collection = new TypedCollection('int');
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected type(s) int');
 
@@ -565,10 +503,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_array_offset_set_with_null_validates_type(): void
     {
-        // Arrange
         $collection = new TypedCollection('int');
 
-        // Act & Assert
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected type(s) int');
 
@@ -582,12 +518,12 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_map_validates_return_type(): void
     {
-        // Arrange
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3);
 
-        // Act & Assert - Return type is int, which matches, so no exception
-        $result = $collection->map(fn($item) => $item * 2);
+        /** @var TypedCollection<int> $result */
+        $result = $collection->map(fn ($item) => $item * 2);
+
         $this->assertCount(3, $result);
     }
 
@@ -596,20 +532,15 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_map_throws_exception_for_invalid_return_type(): void
     {
-        // Arrange
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3);
 
-        // Act & Assert - The collection will try to detect return type
-        // and add the items. If the return type doesn't match allowed types,
-        // it will throw an exception during add.
-        $result = $collection->map(fn($item) => (string) $item);
+        /** @var TypedCollection<string> $result */
+        $result = $collection->map(fn ($item) => (string) $item);
 
-        // The collection now contains strings but allowed type is 'int'
-        // This will fail when adding to a new collection
         $this->expectException(InvalidArgumentException::class);
 
-        $result->add(4); // This should work, but let's verify
+        $result->add(4);
     }
 
     // ==================== MERGE TYPE VALIDATION TESTS ====================
@@ -619,16 +550,13 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_merge_validates_types_from_other_collection(): void
     {
-        // Arrange
         $collection1 = new TypedCollection('int');
         $collection2 = new TypedCollection('int');
         $collection1->add(1, 2, 3);
         $collection2->add(4, 5, 6);
 
-        // Act - Both have same allowed types, should work
         $merged = $collection1->merge($collection2);
 
-        // Assert
         $this->assertCount(6, $merged);
     }
 
@@ -637,13 +565,11 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_merge_with_incompatible_collections_throws_exception(): void
     {
-        // Arrange
         $collection1 = new TypedCollection('int');
         $collection2 = new TypedCollection('string');
         $collection1->add(1, 2, 3);
         $collection2->add('a', 'b', 'c');
 
-        // Act - Merge will try to add string to int collection
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected type(s) int');
 
@@ -657,10 +583,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_error_message_includes_expected_types(): void
     {
-        // Arrange
         $collection = new TypedCollection('int', 'string', 'float');
 
-        // Act & Assert
         try {
             $collection->add(true);
         } catch (InvalidArgumentException $e) {
@@ -674,10 +598,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_error_message_includes_actual_type(): void
     {
-        // Arrange
         $collection = new TypedCollection('int');
 
-        // Act & Assert
         try {
             $collection->add('hello');
         } catch (InvalidArgumentException $e) {
@@ -690,14 +612,12 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_error_message_for_object_includes_class_name(): void
     {
-        // Arrange
         $collection = new TypedCollection('int');
 
-        // Act & Assert
         try {
-            $collection->add(new stdClass);
+            $collection->add(new DataObject([]));
         } catch (InvalidArgumentException $e) {
-            $this->assertStringContainsString('stdClass', $e->getMessage());
+            $this->assertStringContainsString('DataObject', $e->getMessage());
         }
     }
 
@@ -706,10 +626,8 @@ final class TypeValidationErrorsTest extends TestCase
      */
     public function test_error_message_for_enum_includes_enum_class(): void
     {
-        // Arrange
         $collection = new TypedCollection('int');
 
-        // Act & Assert
         try {
             $collection->add(TestUserStatus::ACTIVE);
         } catch (InvalidArgumentException $e) {

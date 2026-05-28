@@ -10,7 +10,7 @@ use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
  * Type-safe collection that accepts any allowed type by default.
  *
  * If no types are specified, the collection accepts all allowed types
- * (scalars, enums, records, value objects, data, collections, stdClass).
+ * (scalars, enums, records, value objects, data, collections, DataObject).
  *
  * @template TValue of object|string|int|float|bool
  */

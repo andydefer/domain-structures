@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Collections\Utility;
 
+use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
+
 /**
  * Type-safe collection for floating-point numbers.
  *
@@ -33,7 +35,13 @@ final class FloatTypedCollection extends AbstractNumberTypedCollection
      */
     public function round(int $precision = 0): self
     {
-        return $this->map(fn ($item): float => round($item, $precision));
+        $result = new self;
+
+        foreach ($this->items as $item) {
+            $result->add(round($item, $precision));
+        }
+
+        return $result;
     }
 
     /**
@@ -43,7 +51,13 @@ final class FloatTypedCollection extends AbstractNumberTypedCollection
      */
     public function ceil(): self
     {
-        return $this->map(fn ($item): float => ceil($item));
+        $result = new self;
+
+        foreach ($this->items as $item) {
+            $result->add(ceil($item));
+        }
+
+        return $result;
     }
 
     /**
@@ -53,7 +67,13 @@ final class FloatTypedCollection extends AbstractNumberTypedCollection
      */
     public function floor(): self
     {
-        return $this->map(fn ($item): float => floor($item));
+        $result = new self;
+
+        foreach ($this->items as $item) {
+            $result->add(floor($item));
+        }
+
+        return $result;
     }
 
     /**
@@ -67,7 +87,7 @@ final class FloatTypedCollection extends AbstractNumberTypedCollection
      */
     public function format(int $decimals = 2): self
     {
-        return $this->map(fn ($item): float => round($item, $decimals));
+        return $this->round($decimals);
     }
 
     /**
@@ -82,7 +102,7 @@ final class FloatTypedCollection extends AbstractNumberTypedCollection
     {
         $collection = new IntTypedCollection;
 
-        foreach ($this->toArray() as $item) {
+        foreach ($this->items as $item) {
             $collection->add((int) $item);
         }
 

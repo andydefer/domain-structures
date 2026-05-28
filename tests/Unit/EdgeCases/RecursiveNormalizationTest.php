@@ -5,14 +5,12 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Tests\Unit\EdgeCases;
 
 use AndyDefer\DomainStructures\Collections\Core\DataCollection;
-use AndyDefer\DomainStructures\Collections\Core\RecordCollection;
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\NestedCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ProductRecordCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestProductData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
-use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestCurrency;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestProductRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
@@ -20,12 +18,13 @@ use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestMoney;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\DataObject;
-use stdClass;
 
 final class RecursiveNormalizationTest extends TestCase
 {
     private TestIso8601DateTime $now;
+
     private TestEmailAddress $testEmail;
+
     private StringTypedCollection $tags;
 
     protected function setUp(): void

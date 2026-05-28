@@ -6,13 +6,11 @@ namespace AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
-use AndyDefer\DomainStructures\Utils\DataObject;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestUserRoleCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserProfileRecord;
-use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
-use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
+use AndyDefer\DomainStructures\Utils\DataObject;
 use InvalidArgumentException;
 
 /**
@@ -38,8 +36,13 @@ final class TestUserProfile extends AbstractValueObject
             return $source;
         }
 
-        // Normalisation : tableau ou objet → DataObject
         $data = DataObject::from($source);
+
+        // Gérer emailVerifiedAt qui peut être null
+        $emailVerifiedAt = null;
+        if (property_exists($data, 'emailVerifiedAt') && $data->emailVerifiedAt !== null) {
+            $emailVerifiedAt = TestIso8601DateTime::from($data->emailVerifiedAt);
+        }
 
         return new self(
             id: $data->id ?? throw new InvalidArgumentException('Missing id'),
@@ -48,7 +51,7 @@ final class TestUserProfile extends AbstractValueObject
             status: TestUserStatus::from($data->status ?? throw new InvalidArgumentException('Missing status')),
             roles: TestUserRoleCollection::from($data->roles ?? throw new InvalidArgumentException('Missing roles')),
             grade: TestUserGrade::from($data->grade ?? throw new InvalidArgumentException('Missing grade')),
-            emailVerifiedAt: isset($data->emailVerifiedAt) ? TestIso8601DateTime::from($data->emailVerifiedAt) : null,
+            emailVerifiedAt: $emailVerifiedAt,
             tags: StringTypedCollection::from($data->tags ?? throw new InvalidArgumentException('Missing tags')),
             createdAt: TestIso8601DateTime::from($data->createdAt ?? throw new InvalidArgumentException('Missing createdAt')),
         );

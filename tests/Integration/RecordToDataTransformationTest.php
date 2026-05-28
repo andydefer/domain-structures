@@ -27,7 +27,9 @@ use RuntimeException;
 final class RecordToDataTransformationTest extends TestCase
 {
     private TestIso8601DateTime $now;
+
     private TestEmailAddress $testEmail;
+
     private StringTypedCollection $tags;
 
     protected function setUp(): void
@@ -186,7 +188,7 @@ final class RecordToDataTransformationTest extends TestCase
         );
 
         // Créer une ProductCollection qui accepte les deux types
-        $productCollection = new ProductRecordCollection();
+        $productCollection = new ProductRecordCollection;
         foreach ($productRecords as $record) {
             $productCollection->add($record);
         }
@@ -244,7 +246,7 @@ final class RecordToDataTransformationTest extends TestCase
             'grade' => 1,
             'emailVerifiedAt' => null,
             'tags' => [],
-            'createdAt' => $this->now->getValue()
+            'createdAt' => $this->now->getValue(),
         ]);
 
         $this->assertInstanceOf(TestUserWithRolesData::class, $userData);
@@ -484,7 +486,7 @@ final class RecordToDataTransformationTest extends TestCase
             new TestUserRecord(id: 4, name: 'User Suspended', email: TestEmailAddress::from('suspended@example.com'), status: TestUserStatus::SUSPENDED)
         );
 
-        $activeRecords = $recordCollection->filter(fn(TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
+        $activeRecords = $recordCollection->filter(fn (TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
 
         $dataCollection = new DataCollection;
         foreach ($activeRecords->all() as $record) {
@@ -502,8 +504,6 @@ final class RecordToDataTransformationTest extends TestCase
 
     /**
      * Test that mapped record collection transforms correctly using collect method.
-     *
-     * @return void
      */
     public function test_mapped_record_collection_transforms_correctly(): void
     {

@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Tests\Unit\Abstracts;
 
-use AndyDefer\DomainStructures\Collections\Core\DataCollection;
 use AndyDefer\DomainStructures\Collections\Core\RecordCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
-use AndyDefer\DomainStructures\Enums\NormalizeMode;
-use AndyDefer\DomainStructures\Utils\DataObject;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ProductRecordCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserRole;
@@ -20,13 +17,15 @@ use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserUpdateRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 use AndyDefer\DomainStructures\Tests\TestCase;
-use DateTime;
+use AndyDefer\DomainStructures\Utils\DataObject;
 use RuntimeException;
 
 final class AbstractRecordTest extends TestCase
 {
     private TestIso8601DateTime $now;
+
     private TestEmailAddress $testEmail;
+
     private StringTypedCollection $tags;
 
     protected function setUp(): void
@@ -190,7 +189,7 @@ final class AbstractRecordTest extends TestCase
             'email' => 'john.doe@example.com',
             'status' => 'active',
             'role' => 'admin',
-            'grade' => 4
+            'grade' => 4,
         ]);
 
         $record = TestUserRecord::from($source);
@@ -233,7 +232,7 @@ final class AbstractRecordTest extends TestCase
     {
         $source = DataObject::from([
             'name' => 'John Doe',
-            'email' => 'john@example.com'
+            'email' => 'john@example.com',
         ]);
 
         $record = TestUserRecord::from($source);
@@ -250,7 +249,7 @@ final class AbstractRecordTest extends TestCase
             'email' => 'john@example.com',
             'status' => null,
             'role' => null,
-            'grade' => null
+            'grade' => null,
         ]);
 
         $record = TestUserRecord::from($source);
@@ -356,7 +355,7 @@ final class AbstractRecordTest extends TestCase
         $source = DataObject::from([
             'id' => '123',
             'name' => 'John Doe',
-            'email' => 'john@example.com'
+            'email' => 'john@example.com',
         ]);
 
         $record = TestUserRecord::from($source);
@@ -372,7 +371,7 @@ final class AbstractRecordTest extends TestCase
             'email' => 'john@example.com',
             'status' => 'suspended',
             'role' => 'admin',
-            'grade' => 4
+            'grade' => 4,
         ]);
 
         $record = TestUserRecord::from($source);
@@ -443,7 +442,7 @@ final class AbstractRecordTest extends TestCase
         $source = DataObject::from([
             'name' => 'John Doe',
             'email' => 'john@example.com',
-            'status' => 'invalid_status_value'
+            'status' => 'invalid_status_value',
         ]);
 
         $this->expectException(RuntimeException::class);
@@ -457,7 +456,7 @@ final class AbstractRecordTest extends TestCase
         $source = DataObject::from([
             'id' => 'not an integer',
             'name' => 'John Doe',
-            'email' => 'john@example.com'
+            'email' => 'john@example.com',
         ]);
 
         $this->expectException(RuntimeException::class);

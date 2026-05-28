@@ -20,11 +20,11 @@ final class TestEmailAddress extends AbstractValueObject
             return $source;
         }
 
-        if (!is_string($source)) {
+        if (! is_string($source)) {
             throw new InvalidArgumentException('Email must be a string');
         }
 
-        if (!filter_var($source, FILTER_VALIDATE_EMAIL)) {
+        if (! filter_var($source, FILTER_VALIDATE_EMAIL)) {
             throw new InvalidArgumentException("Invalid email: {$source}");
         }
 

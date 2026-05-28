@@ -11,6 +11,7 @@ final class RootNormalizer implements NormalizerInterface
 {
     /** @var array<NormalizerInterface> */
     private array $normalizers = [];
+
     private ?NormalizerInterface $next = null;
 
     public function __construct()
@@ -21,15 +22,15 @@ final class RootNormalizer implements NormalizerInterface
     private function initializeNormalizers(): void
     {
         // Créer tous les normaliseurs
-        $null = new NullNormalizer();
-        $scalar = new ScalarNormalizer();
-        $enum = new EnumNormalizer();
-        $record = new RecordNormalizer();
-        $vo = new ValueObjectNormalizer();
-        $data = new DataNormalizer();
-        $collection = new TypedCollectionNormalizer();
-        $dataObject = new DataObjectNormalizer();
-        $array = new ArrayNormalizer();
+        $null = new NullNormalizer;
+        $scalar = new ScalarNormalizer;
+        $enum = new EnumNormalizer;
+        $record = new RecordNormalizer;
+        $vo = new ValueObjectNormalizer;
+        $data = new DataNormalizer;
+        $collection = new TypedCollectionNormalizer;
+        $dataObject = new DataObjectNormalizer;
+        $array = new ArrayNormalizer;
 
         // Configurer le normaliseur récursif pour chacun
         $normalizers = [$null, $scalar, $enum, $record, $vo, $data, $collection, $dataObject, $array];

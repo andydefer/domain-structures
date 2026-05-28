@@ -7,13 +7,13 @@ namespace AndyDefer\DomainStructures\Tests\Fixtures\Collections;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
-use stdClass;
+use AndyDefer\DomainStructures\Utils\DataObject;
 use UnitEnum;
 
 /**
  * Mixed collection for testing multiple allowed types.
  *
- * @extends AbstractTypedCollection<AbstractRecord|AbstractValueObject|UnitEnum|stdClass>
+ * @extends AbstractTypedCollection<AbstractRecord|AbstractValueObject|UnitEnum|DataObject>
  */
 final class MixedTypedCollection extends AbstractTypedCollection
 {
@@ -23,7 +23,7 @@ final class MixedTypedCollection extends AbstractTypedCollection
             AbstractRecord::class,
             AbstractValueObject::class,
             UnitEnum::class,
-            stdClass::class
+            DataObject::class
         );
     }
 
@@ -41,7 +41,7 @@ final class MixedTypedCollection extends AbstractTypedCollection
                 $item instanceof AbstractRecord => 'record',
                 $item instanceof AbstractValueObject => 'value_object',
                 $item instanceof UnitEnum => 'enum',
-                $item instanceof stdClass => 'stdclass',
+                $item instanceof DataObject => 'data_object',
                 default => 'unknown'
             };
             $groups[$type][] = $item;

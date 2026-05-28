@@ -6,7 +6,6 @@ namespace AndyDefer\DomainStructures\Tests\Unit\Abstracts;
 
 use AndyDefer\DomainStructures\Collections\Core\RecordCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
-use AndyDefer\DomainStructures\EmptyData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestProductData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
@@ -16,11 +15,13 @@ use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 use AndyDefer\DomainStructures\Tests\TestCase;
+use AndyDefer\DomainStructures\Utils\DataObject;
 use RuntimeException;
 
 final class AbstractDataTest extends TestCase
 {
     private TestIso8601DateTime $now;
+
     private TestEmailAddress $testEmail;
 
     protected function setUp(): void
@@ -43,7 +44,7 @@ final class AbstractDataTest extends TestCase
             role: TestUserRole::USER,
             grade: TestUserGrade::BRONZE,
             emailVerifiedAt: $this->now,
-            tags: new StringTypedCollection(),
+            tags: new StringTypedCollection,
             createdAt: $this->now
         );
 
@@ -162,15 +163,16 @@ final class AbstractDataTest extends TestCase
         $this->assertSame(TestUserGrade::GOLD, $data->grade);
     }
 
-    public function test_data_dto_hydrates_from_stdclass(): void
+    public function test_data_dto_hydrates_from_data_object(): void
     {
-        $source = new \stdClass;
-        $source->id = 1;
-        $source->name = 'John Doe';
-        $source->email = 'john.doe@example.com';
-        $source->status = 'active';
-        $source->role = 'user';
-        $source->grade = 1;
+        $source = DataObject::from([
+            'id' => 1,
+            'name' => 'John Doe',
+            'email' => 'john.doe@example.com',
+            'status' => 'active',
+            'role' => 'user',
+            'grade' => 1,
+        ]);
 
         $data = TestUserData::from($source);
 
@@ -381,8 +383,7 @@ final class AbstractDataTest extends TestCase
 
     public function test_hydration_throws_exception_when_required_property_missing(): void
     {
-        $source = new \stdClass;
-        $source->name = 'John Doe';
+        $source = DataObject::from(['name' => 'John Doe']);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Missing required parameter "$email"');

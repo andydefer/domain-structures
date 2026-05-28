@@ -13,6 +13,7 @@ use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\TestCase;
+use AndyDefer\DomainStructures\Utils\DataObject;
 
 /**
  * Unit tests for TypedCollection class.
@@ -50,7 +51,7 @@ final class TypedCollectionTest extends TestCase
         $this->assertContains(AbstractValueObject::class, $allowedTypes);
         $this->assertContains(AbstractData::class, $allowedTypes);
         $this->assertContains(AbstractTypedCollection::class, $allowedTypes);
-        $this->assertContains(\stdClass::class, $allowedTypes);
+        $this->assertContains(DataObject::class, $allowedTypes);
     }
 
     /**
@@ -73,7 +74,7 @@ final class TypedCollectionTest extends TestCase
                 name: 'User',
                 email: TestEmailAddress::from('user@example.com')
             ),
-            new \stdClass,         // stdClass
+            new DataObject(['name' => 'John']),
             new TypedCollection    // collection
         );
 
@@ -151,7 +152,7 @@ final class TypedCollectionTest extends TestCase
         $collection->add(1, 2, 3);
 
         // Act
-        $doubled = $collection->map(fn($item) => $item * 2);
+        $doubled = $collection->map(fn ($item) => $item * 2);
 
         // Assert
         $this->assertInstanceOf(TypedCollection::class, $doubled);
@@ -168,7 +169,7 @@ final class TypedCollectionTest extends TestCase
         $collection->add(1, 2, 3, 4, 5);
 
         // Act
-        $evens = $collection->filter(fn($item) => $item % 2 === 0);
+        $evens = $collection->filter(fn ($item) => $item % 2 === 0);
 
         // Assert
         $this->assertInstanceOf(TypedCollection::class, $evens);
@@ -293,5 +294,42 @@ final class TypedCollectionTest extends TestCase
         // Act & Assert
         $this->assertCount(3, $collection);
         $this->assertSame(3, $collection->count());
+    }
+
+    /**
+     * Test that TypedCollection can store DataObject instances.
+     */
+    public function test_typed_collection_can_store_data_objects(): void
+    {
+        // Arrange
+        $collection = new TypedCollection(DataObject::class);
+
+        $data1 = new DataObject(['id' => 1, 'name' => 'John']);
+        $data2 = new DataObject(['id' => 2, 'name' => 'Jane']);
+
+        // Act
+        $collection->add($data1, $data2);
+
+        // Assert
+        $this->assertCount(2, $collection);
+        $this->assertSame(1, $collection[0]->get('id'));
+        $this->assertSame('John', $collection[0]->get('name'));
+        $this->assertSame(2, $collection[1]->get('id'));
+        $this->assertSame('Jane', $collection[1]->get('name'));
+    }
+
+    /**
+     * Test that TypedCollection with DataObject type rejects non-DataObject items.
+     */
+    public function test_typed_collection_with_data_object_type_rejects_other_types(): void
+    {
+        // Arrange
+        $collection = new TypedCollection(DataObject::class);
+
+        // Expect
+        $this->expectException(\InvalidArgumentException::class);
+
+        // Act
+        $collection->add('not a data object');
     }
 }

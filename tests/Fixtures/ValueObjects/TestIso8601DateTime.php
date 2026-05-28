@@ -22,12 +22,20 @@ final class TestIso8601DateTime extends AbstractValueObject
             return $source;
         }
 
+        // 🔥 Si la source est null, retourner null ?
+        // Mais Attention : le type de retour est static, pas nullable
+        // Donc on doit lancer une exception ou ne pas appeler from avec null
+        if ($source === null) {
+            throw new InvalidArgumentException('Cannot create TestIso8601DateTime from null');
+        }
+
         // Si c'est une string ISO
         if (is_string($source)) {
             $date = DateTime::createFromFormat(self::FORMAT, $source);
-            if (!$date || $date->format(self::FORMAT) !== $source) {
+            if (! $date || $date->format(self::FORMAT) !== $source) {
                 throw new InvalidArgumentException("Invalid ISO 8601 datetime: {$source}");
             }
+
             return new self($source);
         }
 

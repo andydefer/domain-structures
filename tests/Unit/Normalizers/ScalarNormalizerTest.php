@@ -7,19 +7,21 @@ namespace AndyDefer\DomainStructures\Tests\Unit\Normalizers;
 use AndyDefer\DomainStructures\Normalizers\RootNormalizer;
 use AndyDefer\DomainStructures\Normalizers\ScalarNormalizer;
 use AndyDefer\DomainStructures\Tests\TestCase;
+use AndyDefer\DomainStructures\Utils\DataObject;
 
 final class ScalarNormalizerTest extends TestCase
 {
     private ScalarNormalizer $normalizer;
+
     private RootNormalizer $rootNormalizer;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->rootNormalizer = new RootNormalizer();
+        $this->rootNormalizer = new RootNormalizer;
 
-        $this->normalizer = new ScalarNormalizer();
+        $this->normalizer = new ScalarNormalizer;
         $this->normalizer->setRecursiveNormalizer($this->rootNormalizer);
     }
 
@@ -102,13 +104,13 @@ final class ScalarNormalizerTest extends TestCase
         $values = [
             null,
             [],
-            new \stdClass,
+            new DataObject,
             fopen('php://memory', 'r'),
         ];
 
         foreach ($values as $value) {
             $result = $this->normalizer->supports($value);
-            $this->assertFalse($result, 'Failed for value type: ' . gettype($value));
+            $this->assertFalse($result, 'Failed for value type: '.(is_object($value) ? $value::class : gettype($value)));
         }
 
         if (isset($values[3]) && is_resource($values[3])) {
@@ -178,8 +180,7 @@ final class ScalarNormalizerTest extends TestCase
 
     public function test_normalize_forwards_object_to_next_normalizer(): void
     {
-        $value = new \stdClass();
-        $value->name = 'test';
+        $value = new DataObject(['name' => 'test']);
         $normalized = $this->normalizer->normalize($value);
 
         $this->assertIsArray($normalized);
@@ -211,5 +212,34 @@ final class ScalarNormalizerTest extends TestCase
 
         $this->assertSame($first, $second);
         $this->assertSame($second, $third);
+    }
+
+    /**
+     * Test that normalize forwards DataObject with complex structure.
+     */
+    public function test_normalize_forwards_complex_data_object(): void
+    {
+        $value = new DataObject([
+            'user' => new DataObject([
+                'name' => 'Alice',
+                'profile' => new DataObject([
+                    'age' => 28,
+                    'city' => 'Paris',
+                ]),
+            ]),
+            'active' => true,
+            'score' => 95.5,
+        ]);
+
+        $normalized = $this->normalizer->normalize($value);
+
+        $this->assertIsArray($normalized);
+        $this->assertIsArray($normalized['user']);
+        $this->assertSame('Alice', $normalized['user']['name']);
+        $this->assertIsArray($normalized['user']['profile']);
+        $this->assertSame(28, $normalized['user']['profile']['age']);
+        $this->assertSame('Paris', $normalized['user']['profile']['city']);
+        $this->assertTrue($normalized['active']);
+        $this->assertSame(95.5, $normalized['score']);
     }
 }

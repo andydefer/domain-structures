@@ -8,6 +8,7 @@ use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
+use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Utils\DataObject;
 use Closure;
 use Countable;
@@ -76,7 +77,7 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
      * @param  Closure(TValue): TReturn  $callback
      * @return static<TReturn>
      */
-    public function map(Closure $callback): static;
+    public function map(Closure $callback): TypedCollection;
 
     /**
      * Filter items.

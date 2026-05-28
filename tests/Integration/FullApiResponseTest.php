@@ -27,7 +27,9 @@ use AndyDefer\DomainStructures\Tests\TestCase;
 final class FullApiResponseTest extends TestCase
 {
     private TestIso8601DateTime $now;
+
     private TestEmailAddress $testEmail;
+
     private StringTypedCollection $tags;
 
     protected function setUp(): void
@@ -364,7 +366,7 @@ final class FullApiResponseTest extends TestCase
             new TestProductRecord(id: 5, name: 'Desk', price: 499, isFeatured: true)
         );
 
-        $featuredProducts = $allProducts->filter(fn($product) => $product->isFeatured === true);
+        $featuredProducts = $allProducts->filter(fn ($product) => $product->isFeatured === true);
 
         $productDataCollection = new ProductDataCollection;
         foreach ($featuredProducts->all() as $product) {
@@ -418,7 +420,7 @@ final class FullApiResponseTest extends TestCase
             new TestUserRecord(id: 3, name: 'Charlie', email: TestEmailAddress::from('charlie@example.com'), status: TestUserStatus::INACTIVE)
         );
 
-        $activeUsers = $dbRecords->filter(fn(TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
+        $activeUsers = $dbRecords->filter(fn (TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
 
         $apiData = new DataCollection;
         foreach ($activeUsers->all() as $record) {

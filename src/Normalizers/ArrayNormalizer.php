@@ -15,7 +15,7 @@ final class ArrayNormalizer extends AbstractNormalizer
 
     public function normalize(mixed $value): mixed
     {
-        if (!is_array($value)) {
+        if (! is_array($value)) {
             return $this->next($value);
         }
 

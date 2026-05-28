@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Abstracts;
 
+use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Enums\PhpType;
 use AndyDefer\DomainStructures\Interfaces\Transformable;
 use AndyDefer\DomainStructures\Interfaces\TypedCollectionInterface;
@@ -19,10 +20,11 @@ use UnitEnum;
  * Abstract type-safe collection for records, value objects, data DTOs, enums, and scalar values.
  *
  * @template TValue of object|string|int|float|bool
+ *
  * @implements TypedCollectionInterface<TValue>
  * @implements Transformable<static>
  */
-abstract class AbstractTypedCollection implements TypedCollectionInterface, Transformable, \ArrayAccess, \JsonSerializable
+abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializable, Transformable, TypedCollectionInterface
 {
     /** @var array<TValue> */
     protected array $items = [];
@@ -84,6 +86,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface, Tran
                 if ($allowedType === UnitEnum::class || $value instanceof $allowedType) {
                     return true;
                 }
+
                 continue;
             }
 
@@ -105,8 +108,8 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface, Tran
     {
         $itemType = PhpType::fromValue($item);
 
-        if (!$this->matchesAllowedType($item)) {
-            if ($itemType->isObject() && !$this->isAllowedObjectType($itemType)) {
+        if (! $this->matchesAllowedType($item)) {
+            if ($itemType->isObject() && ! $this->isAllowedObjectType($itemType)) {
                 throw new InvalidArgumentException(sprintf(
                     'Object of type "%s" is not allowed. Only DataObject, UnitEnum, AbstractRecord, AbstractValueObject, AbstractData, and TypedCollection are allowed.',
                     $item::class
@@ -163,7 +166,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface, Tran
 
     final public function isNotEmpty(): bool
     {
-        return !$this->isEmpty();
+        return ! $this->isEmpty();
     }
 
     // ==================== NORMALIZATION ====================
@@ -171,7 +174,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface, Tran
     /**
      * Normalize the collection to an array.
      *
-     * @param bool $includeNulls Whether to include null values
+     * @param  bool  $includeNulls  Whether to include null values
      * @return array<int, mixed>
      */
     public function normalize(bool $includeNulls = true): array
@@ -182,7 +185,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface, Tran
         foreach ($this->items as $item) {
             $normalized = $normalizer->normalize($item);
 
-            if (!$includeNulls && $normalized === null) {
+            if (! $includeNulls && $normalized === null) {
                 continue;
             }
 
@@ -194,17 +197,30 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface, Tran
 
     // ==================== TRANSFORMATION METHODS ====================
 
-    final public function map(Closure $callback): static
+
+    /**
+     * Transform each item in the collection into a new collection.
+     *
+     * Applies the callback to every item in the collection and returns a new
+     * collection containing the transformed values. The new collection's allowed
+     * type is automatically determined from the transformed items.
+     *
+     * @template TReturn
+     * @param Closure(TValue): TReturn $callback
+     * @return TypedCollection<TReturn>
+     */
+    final public function map(Closure $callback): TypedCollection
     {
         if (empty($this->items)) {
-            return new static(...$this->allowedTypes);
+            // Conserver les types d'origine sur une collection vide
+            return new TypedCollection(...$this->allowedTypes);
         }
 
         /** @var array<TReturn> $mappedItems */
         $mappedItems = array_map($callback, $this->items);
 
         if (empty($mappedItems)) {
-            return new static(...$this->allowedTypes);
+            return new TypedCollection(...$this->allowedTypes);
         }
 
         // Collect unique types from mapped items
@@ -215,11 +231,10 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface, Tran
         }
         $uniqueTypes = array_values($uniqueTypes);
 
-        /** @var static<TReturn> $result */
-        $result = new static(...$uniqueTypes);
+        // Créer une nouvelle collection TYPEDCOLLECTION (pas static)
+        $result = new TypedCollection(...$uniqueTypes);
 
         foreach ($mappedItems as $item) {
-            /** @var DataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|AbstractTypedCollection|int|string|float|bool|null $item */
             $result->add($item);
         }
 
@@ -274,7 +289,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface, Tran
     final public function every(Closure $callback): bool
     {
         foreach ($this->items as $item) {
-            if (!$callback($item)) {
+            if (! $callback($item)) {
                 return false;
             }
         }
@@ -388,28 +403,31 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface, Tran
             throw new InvalidArgumentException('Cannot determine type to hydrate');
         }
 
-        if (!is_iterable($source)) {
+        if (! is_iterable($source)) {
             throw new InvalidArgumentException(sprintf(
                 'Cannot hydrate %s from non-iterable source',
                 static::class
             ));
         }
 
-        $collection = new static();
+        $collection = new static;
 
         foreach ($source as $item) {
             if ($item instanceof $allowedType) {
                 $collection->add($item);
+
                 continue;
             }
 
             if (in_array($allowedType, PhpType::getScalarTypeNames(), true)) {
                 $collection->add($item);
+
                 continue;
             }
 
             if (is_subclass_of($allowedType, Transformable::class)) {
                 $collection->add($allowedType::from($item));
+
                 continue;
             }
 

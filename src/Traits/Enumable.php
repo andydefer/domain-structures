@@ -83,6 +83,16 @@ trait Enumable
     public static function fromValue(string|int $value): ?self
     {
         if (self::isBackedEnum()) {
+            // Vérifier si la valeur est vide (uniquement pour les string enums)
+            if (is_string($value) && $value === '') {
+                return null;
+            }
+
+            // Pour les backed enums int, convertir la string en int si possible
+            if (is_string($value) && is_numeric($value)) {
+                $value = (int) $value;
+            }
+
             return self::tryFrom($value);
         }
 
@@ -105,13 +115,13 @@ trait Enumable
      * - For backed enums, converts from string/int via tryFrom()
      * - For pure enums, matches by case name
      *
-     * @param mixed $source The source value (string, int, or existing enum)
+     * @param  mixed  $source  The source value (string, int, or existing enum)
      * @return self The matching enum case
+     *
      * @throws \InvalidArgumentException If the source cannot be converted
      */
     public static function from(mixed $source): self
     {
-        dd($source);
         // Si c'est déjà une instance du même enum, la retourner directement
         if ($source instanceof self) {
             return $source;
@@ -119,8 +129,20 @@ trait Enumable
 
         // Pour les backed enums (avec valeur scalaire)
         if (self::isBackedEnum()) {
+            // CORRECTION: Vérifier les valeurs vides AVANT tout traitement
+            if (is_string($source) && $source === '') {
+                throw new \InvalidArgumentException(sprintf(
+                    'Empty string is not a valid backing value for enum %s',
+                    self::class
+                ));
+            }
+
             // Si c'est une string ou un entier
             if (is_string($source) || is_int($source)) {
+                // Pour les int enums, convertir la string en int si nécessaire
+                if (is_string($source) && is_numeric($source)) {
+                    $source = (int) $source;
+                }
                 $enum = self::tryFrom($source);
                 if ($enum !== null) {
                     return $enum;

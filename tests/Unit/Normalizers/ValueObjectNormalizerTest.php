@@ -6,26 +6,27 @@ namespace AndyDefer\DomainStructures\Tests\Unit\Normalizers;
 
 use AndyDefer\DomainStructures\Normalizers\RootNormalizer;
 use AndyDefer\DomainStructures\Normalizers\ValueObjectNormalizer;
-use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestCurrency;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestMoney;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestPostalCode;
 use AndyDefer\DomainStructures\Tests\TestCase;
+use AndyDefer\DomainStructures\Utils\DataObject;
 
 final class ValueObjectNormalizerTest extends TestCase
 {
     private ValueObjectNormalizer $normalizer;
+
     private RootNormalizer $rootNormalizer;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->rootNormalizer = new RootNormalizer();
+        $this->rootNormalizer = new RootNormalizer;
 
-        $this->normalizer = new ValueObjectNormalizer();
+        $this->normalizer = new ValueObjectNormalizer;
         $this->normalizer->setRecursiveNormalizer($this->rootNormalizer);
     }
 
@@ -71,14 +72,14 @@ final class ValueObjectNormalizerTest extends TestCase
             3.14,
             true,
             null,
-            new \stdClass,
+            new DataObject,
             new TestUserRecord(name: 'Test', email: TestEmailAddress::from('test@example.com')),
             [],
         ];
 
         foreach ($values as $value) {
             $result = $this->normalizer->supports($value);
-            $this->assertFalse($result, 'Failed for value type: ' . (is_object($value) ? $value::class : gettype($value)));
+            $this->assertFalse($result, 'Failed for value type: '.(is_object($value) ? $value::class : gettype($value)));
         }
     }
 

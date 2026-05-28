@@ -8,7 +8,6 @@ use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\DomainStructures\Collections\Core\DataCollection;
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
-use AndyDefer\DomainStructures\Enums\NormalizeMode;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestProductData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
@@ -161,6 +160,10 @@ final class DataCollectionTest extends TestCase
 
     // ==================== MAP METHOD TESTS ====================
 
+    /**
+     * Test that map can transform data objects to scalar values.
+     * CORRIGÉ: map retourne un TypedCollection générique, pas un DataCollection
+     */
     public function test_map_can_transform_data_objects(): void
     {
         $collection = new DataCollection;
@@ -171,10 +174,16 @@ final class DataCollectionTest extends TestCase
 
         $names = $collection->map(fn($item) => $item->name);
 
+        // map retourne un TypedCollection générique, pas DataCollection
         $this->assertInstanceOf(TypedCollection::class, $names);
+        $this->assertNotInstanceOf(DataCollection::class, $names);
         $this->assertSame(['John', 'Jane'], $names->toArray());
     }
 
+    /**
+     * Test that map can transform data objects to scalar values.
+     * CORRIGÉ: map retourne un TypedCollection générique
+     */
     public function test_map_can_produce_new_data_collection(): void
     {
         $collection = new DataCollection;
@@ -185,6 +194,9 @@ final class DataCollectionTest extends TestCase
 
         $prices = $collection->map(fn($item) => $item->price * 1.2);
 
+        // map retourne un TypedCollection générique
+        $this->assertInstanceOf(TypedCollection::class, $prices);
+        $this->assertNotInstanceOf(DataCollection::class, $prices);
         $this->assertSame([120.0, 240.0], $prices->toArray());
     }
 

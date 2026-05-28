@@ -14,7 +14,7 @@ use RuntimeException;
 
 /**
  * Trait for automatic hydration of objects.
- * 
+ *
  * Provides the from() method which analyzes the constructor and hydrates
  * the object automatically.
  */
@@ -25,8 +25,8 @@ trait Hydratable
     /**
      * Creates an instance from a source.
      *
-     * @param mixed $source The source data
-     * @return static
+     * @param  mixed  $source  The source data
+     *
      * @throws RuntimeException
      */
     public static function from(mixed $source): static
@@ -38,7 +38,7 @@ trait Hydratable
         $reflection = new ReflectionClass(static::class);
         $constructor = $reflection->getConstructor();
 
-        if (!$constructor) {
+        if (! $constructor) {
             throw new RuntimeException(sprintf('%s must have a constructor', static::class));
         }
 
@@ -58,18 +58,21 @@ trait Hydratable
             // CASE 1: Value is ABSENT (source doesn't have the key) -> use default value
             if ($isAbsent && $parameter->isDefaultValueAvailable()) {
                 $parameters[] = $parameter->getDefaultValue();
+
                 continue;
             }
 
             // CASE 2: Explicit NULL (source has key with null value) -> keep null
             if ($value === null && $parameter->allowsNull()) {
                 $parameters[] = null;
+
                 continue;
             }
 
             // CASE 3: Normal value (not null) -> use it
             if ($value !== null) {
                 $parameters[] = $value;
+
                 continue;
             }
 
@@ -87,7 +90,7 @@ trait Hydratable
     /**
      * Hydrates a collection of sources.
      *
-     * @param iterable<mixed> $sources
+     * @param  iterable<mixed>  $sources
      * @return array<static>
      */
     public static function collect(iterable $sources): array
@@ -96,32 +99,26 @@ trait Hydratable
         foreach ($sources as $source) {
             $results[] = static::from($source);
         }
+
         return $results;
     }
 
     /**
      * Gets a value from DataObject.
      * Returns VALUE_ABSENT sentinel if the key doesn't exist.
-     *
-     * @param DataObject $dataObject
-     * @param string $paramName
-     * @return mixed
      */
     private static function getValueFromDataObject(DataObject $dataObject, string $paramName): mixed
     {
         if ($dataObject->has($paramName)) {
             return $dataObject->get($paramName);
         }
+
         return self::VALUE_ABSENT;
     }
 
     /**
      * Converts raw value to expected parameter type.
      *
-     * @param mixed $rawValue
-     * @param \ReflectionType|null $paramType
-     * @param string $paramName
-     * @return mixed
      * @throws RuntimeException
      */
     private static function convertToType(
@@ -161,10 +158,6 @@ trait Hydratable
     /**
      * Converts to a named type using PhpType.
      *
-     * @param mixed $rawValue
-     * @param ReflectionNamedType $type
-     * @param string $paramName
-     * @return mixed
      * @throws RuntimeException
      */
     private static function convertToNamedType(
@@ -221,9 +214,6 @@ trait Hydratable
     /**
      * Converts a value to integer.
      *
-     * @param mixed $rawValue
-     * @param string $paramName
-     * @return int
      * @throws RuntimeException
      */
     private static function toInt(mixed $rawValue, string $paramName): int
@@ -240,9 +230,6 @@ trait Hydratable
     /**
      * Converts a value to float.
      *
-     * @param mixed $rawValue
-     * @param string $paramName
-     * @return float
      * @throws RuntimeException
      */
     private static function toFloat(mixed $rawValue, string $paramName): float
@@ -259,9 +246,6 @@ trait Hydratable
     /**
      * Converts a value to string.
      *
-     * @param mixed $rawValue
-     * @param string $paramName
-     * @return string
      * @throws RuntimeException
      */
     private static function toString(mixed $rawValue, string $paramName): string
@@ -277,10 +261,6 @@ trait Hydratable
 
     /**
      * Converts a value to boolean.
-     *
-     * @param mixed $rawValue
-     * @param string $paramName
-     * @return bool
      */
     private static function toBool(mixed $rawValue, string $paramName): bool
     {

@@ -7,19 +7,21 @@ namespace AndyDefer\DomainStructures\Tests\Unit\Normalizers;
 use AndyDefer\DomainStructures\Normalizers\NullNormalizer;
 use AndyDefer\DomainStructures\Normalizers\RootNormalizer;
 use AndyDefer\DomainStructures\Tests\TestCase;
+use AndyDefer\DomainStructures\Utils\DataObject;
 
 final class NullNormalizerTest extends TestCase
 {
     private NullNormalizer $normalizer;
+
     private RootNormalizer $rootNormalizer;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->rootNormalizer = new RootNormalizer();
+        $this->rootNormalizer = new RootNormalizer;
 
-        $this->normalizer = new NullNormalizer();
+        $this->normalizer = new NullNormalizer;
         $this->normalizer->setRecursiveNormalizer($this->rootNormalizer);
     }
 
@@ -42,12 +44,12 @@ final class NullNormalizerTest extends TestCase
             true,
             false,
             [],
-            new \stdClass,
+            new DataObject,
         ];
 
         foreach ($values as $value) {
             $result = $this->normalizer->supports($value);
-            $this->assertFalse($result, 'Failed for value type: ' . gettype($value));
+            $this->assertFalse($result, 'Failed for value type: '.(is_object($value) ? $value::class : gettype($value)));
         }
     }
 
@@ -104,9 +106,7 @@ final class NullNormalizerTest extends TestCase
 
     public function test_normalize_forwards_object_to_next_normalizer(): void
     {
-        $value = new \stdClass();
-        $value->name = 'test';
-        $value->age = 30;
+        $value = new DataObject(['name' => 'test', 'age' => 30]);
         $normalized = $this->normalizer->normalize($value);
 
         $this->assertIsArray($normalized);
@@ -142,11 +142,10 @@ final class NullNormalizerTest extends TestCase
             'user' => [
                 'name' => 'John',
                 'age' => 30,
-                'tags' => ['premium', 'vip']
+                'tags' => ['premium', 'vip'],
             ],
-            'metadata' => new \stdClass(),
+            'metadata' => new DataObject(['version' => '1.0']),
         ];
-        $value['metadata']->version = '1.0';
 
         $normalized = $this->normalizer->normalize($value);
 
@@ -157,5 +156,53 @@ final class NullNormalizerTest extends TestCase
         $this->assertSame(['premium', 'vip'], $normalized['user']['tags']);
         $this->assertIsArray($normalized['metadata']);
         $this->assertSame('1.0', $normalized['metadata']['version']);
+    }
+
+    /**
+     * Test that normalize forwards DataObject with nested structure.
+     */
+    public function test_normalize_forwards_data_object_with_nested_structure(): void
+    {
+        $value = new DataObject([
+            'user' => new DataObject([
+                'name' => 'Jane',
+                'age' => 25,
+                'tags' => ['standard', 'basic'],
+            ]),
+            'metadata' => new DataObject([
+                'version' => '2.0',
+                'environment' => 'test',
+            ]),
+        ]);
+
+        $normalized = $this->normalizer->normalize($value);
+
+        $this->assertIsArray($normalized);
+        $this->assertIsArray($normalized['user']);
+        $this->assertSame('Jane', $normalized['user']['name']);
+        $this->assertSame(25, $normalized['user']['age']);
+        $this->assertSame(['standard', 'basic'], $normalized['user']['tags']);
+        $this->assertIsArray($normalized['metadata']);
+        $this->assertSame('2.0', $normalized['metadata']['version']);
+        $this->assertSame('test', $normalized['metadata']['environment']);
+    }
+
+    /**
+     * Test that normalize forwards DataObject with null values.
+     */
+    public function test_normalize_forwards_data_object_with_null_values(): void
+    {
+        $value = new DataObject([
+            'id' => null,
+            'name' => 'Test',
+            'optional' => null,
+        ]);
+
+        $normalized = $this->normalizer->normalize($value);
+
+        $this->assertIsArray($normalized);
+        $this->assertNull($normalized['id']);
+        $this->assertSame('Test', $normalized['name']);
+        $this->assertNull($normalized['optional']);
     }
 }

@@ -25,7 +25,7 @@ interface RecordInterface
      * - DateTime objects (converted to ISO 8601 format)
      * - Property keys are converted to snake_case
      *
-     * @param bool $includeNulls Whether to include null values in the result
+     * @param  bool  $includeNulls  Whether to include null values in the result
      * @return array<string, mixed> Associative array with snake_case keys
      */
     public function normalize(bool $includeNulls = true): array;

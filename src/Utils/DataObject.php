@@ -4,20 +4,19 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Utils;
 
-
 use AndyDefer\DomainStructures\Interfaces\Transformable;
 
 /**
  * DataObject IMMUTABLE - Représente une source de données flexible.
- * 
+ *
  * Une fois construit, on ne peut pas le modifier.
  * Pour "modifier", on crée une nouvelle instance avec with(), merge() ou without().
  * Supporte l'accès par propriété (->) et par tableau ([]).
  * Supporte camelCase et snake_case.
- * 
+ *
  * @template T
  */
-class DataObject implements Transformable, \ArrayAccess
+class DataObject implements \ArrayAccess, Transformable
 {
     /**
      * @var array<string|int, mixed>
@@ -25,7 +24,7 @@ class DataObject implements Transformable, \ArrayAccess
     protected array $data = [];
 
     /**
-     * @param array<string|int, mixed> $data
+     * @param  array<string|int, mixed>  $data
      */
     public function __construct(array $data = [])
     {
@@ -40,10 +39,6 @@ class DataObject implements Transformable, \ArrayAccess
 
     /**
      * Crée une nouvelle instance avec une propriété modifiée.
-     * 
-     * @param string $key
-     * @param mixed $value
-     * @return static
      */
     public function with(string $key, mixed $value): static
     {
@@ -56,9 +51,8 @@ class DataObject implements Transformable, \ArrayAccess
 
     /**
      * Crée une nouvelle instance en fusionnant avec un tableau.
-     * 
-     * @param array<string|int, mixed> $data
-     * @return static
+     *
+     * @param  array<string|int, mixed>  $data
      */
     public function merge(array $data): static
     {
@@ -67,9 +61,6 @@ class DataObject implements Transformable, \ArrayAccess
 
     /**
      * Crée une nouvelle instance sans certaines clés.
-     * 
-     * @param string ...$keys
-     * @return static
      */
     public function without(string ...$keys): static
     {
@@ -78,38 +69,32 @@ class DataObject implements Transformable, \ArrayAccess
             $normalizedKey = $this->normalizeKey($key);
             unset($newData[$normalizedKey]);
         }
+
         return new static($newData);
     }
 
     // ========== MAGIC GETTER ==========
 
-    /**
-     * @param string $name
-     * @return mixed
-     */
     public function __get(string $name): mixed
     {
         $normalizedKey = $this->normalizeKey($name);
+
         return $this->convertValue($this->data[$normalizedKey] ?? null);
     }
 
     /**
      * Vérifie si une propriété existe (même si sa valeur est null).
-     * 
-     * @param string $name
-     * @return bool
      */
     public function __isset(string $name): bool
     {
         $normalizedKey = $this->normalizeKey($name);
+
         return array_key_exists($normalizedKey, $this->data);
     }
 
     /**
      * ❌ INTERDIT - DataObject est immutable !
-     * 
-     * @param string $name
-     * @param mixed $value
+     *
      * @throws \RuntimeException
      */
     public function __set(string $name, mixed $value): void
@@ -119,10 +104,6 @@ class DataObject implements Transformable, \ArrayAccess
 
     // ========== ARRAYACCESS (READ ONLY) ==========
 
-    /**
-     * @param mixed $offset
-     * @return bool
-     */
     public function offsetExists(mixed $offset): bool
     {
         if (is_int($offset)) {
@@ -131,13 +112,10 @@ class DataObject implements Transformable, \ArrayAccess
         if (is_string($offset)) {
             return array_key_exists($this->normalizeKey($offset), $this->data);
         }
+
         return false;
     }
 
-    /**
-     * @param mixed $offset
-     * @return mixed
-     */
     public function offsetGet(mixed $offset): mixed
     {
         if (is_int($offset)) {
@@ -146,14 +124,13 @@ class DataObject implements Transformable, \ArrayAccess
         if (is_string($offset)) {
             return $this->convertValue($this->data[$this->normalizeKey($offset)] ?? null);
         }
+
         return null;
     }
 
     /**
      * ❌ INTERDIT - DataObject est immutable !
-     * 
-     * @param mixed $offset
-     * @param mixed $value
+     *
      * @throws \RuntimeException
      */
     public function offsetSet(mixed $offset, mixed $value): void
@@ -163,8 +140,7 @@ class DataObject implements Transformable, \ArrayAccess
 
     /**
      * ❌ INTERDIT - DataObject est immutable !
-     * 
-     * @param mixed $offset
+     *
      * @throws \RuntimeException
      */
     public function offsetUnset(mixed $offset): void
@@ -176,9 +152,6 @@ class DataObject implements Transformable, \ArrayAccess
 
     /**
      * Convertit récursivement les valeurs.
-     * 
-     * @param mixed $value
-     * @return mixed
      */
     protected function convertValue(mixed $value): mixed
     {
@@ -190,7 +163,8 @@ class DataObject implements Transformable, \ArrayAccess
             if ($this->isAssociativeArray($value)) {
                 return new static($value);
             }
-            return array_map(fn($item) => $this->convertValue($item), $value);
+
+            return array_map(fn ($item) => $this->convertValue($item), $value);
         }
 
         return $value;
@@ -198,23 +172,20 @@ class DataObject implements Transformable, \ArrayAccess
 
     /**
      * Vérifie si un tableau est associatif.
-     * 
-     * @param array<mixed> $array
-     * @return bool
+     *
+     * @param  array<mixed>  $array
      */
     protected function isAssociativeArray(array $array): bool
     {
         if (empty($array)) {
             return false;
         }
+
         return array_keys($array) !== range(0, count($array) - 1);
     }
 
     /**
      * Normalise une clé string en camelCase.
-     * 
-     * @param string $key
-     * @return string
      */
     protected function normalizeKey(string $key): string
     {
@@ -223,9 +194,6 @@ class DataObject implements Transformable, \ArrayAccess
 
     /**
      * Convertit snake_case en camelCase.
-     * 
-     * @param string $string
-     * @return string
      */
     protected function snakeToCamel(string $string): string
     {
@@ -234,9 +202,6 @@ class DataObject implements Transformable, \ArrayAccess
 
     /**
      * Convertit camelCase en snake_case.
-     * 
-     * @param string $string
-     * @return string
      */
     protected function camelToSnake(string $string): string
     {
@@ -247,9 +212,7 @@ class DataObject implements Transformable, \ArrayAccess
 
     /**
      * Crée une instance à partir d'une source.
-     * 
-     * @param mixed $source
-     * @return static
+     *
      * @throws \InvalidArgumentException
      */
     public static function from(mixed $source): static
@@ -271,7 +234,7 @@ class DataObject implements Transformable, \ArrayAccess
 
     /**
      * Retourne le tableau original.
-     * 
+     *
      * @return array<string|int, mixed>
      */
     public function toArray(): array
@@ -288,50 +251,42 @@ class DataObject implements Transformable, \ArrayAccess
                 $result[$key] = $value;
             }
         }
+
         return $result;
     }
 
     /**
      * Crée une instance à partir de JSON.
-     * 
-     * @param string $json
-     * @return static
      */
     public static function fromJson(string $json): static
     {
         $data = json_decode($json, true);
+
         return new static($data ?? []);
     }
 
     /**
      * Obtient une propriété avec valeur par défaut.
-     * 
-     * @param string $name
-     * @param mixed $default
-     * @return mixed
      */
     public function get(string $name, mixed $default = null): mixed
     {
         $value = $this->__get($name);
+
         return $value !== null ? $value : $default;
     }
 
     /**
      * Vérifie si une propriété existe (même si sa valeur est null).
-     * 
-     * @param string $name
-     * @return bool
      */
     public function has(string $name): bool
     {
         $normalizedKey = $this->normalizeKey($name);
+
         return array_key_exists($normalizedKey, $this->data);
     }
 
     /**
      * Représentation JSON.
-     * 
-     * @return string
      */
     public function __toString(): string
     {

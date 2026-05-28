@@ -5,22 +5,22 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Tests\Unit\Traits;
 
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestSimpleUserData;
-use AndyDefer\DomainStructures\Utils\DataObject;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserRole;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestRequiredRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
-use AndyDefer\DomainStructures\Tests\Fixtures\Mixed\UserWithGetters;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 use AndyDefer\DomainStructures\Tests\TestCase;
+use AndyDefer\DomainStructures\Utils\DataObject;
 use RuntimeException;
 
 final class HydratableTest extends TestCase
 {
     private TestIso8601DateTime $now;
+
     private TestEmailAddress $testEmail;
 
     protected function setUp(): void
@@ -81,7 +81,7 @@ final class HydratableTest extends TestCase
         $source = DataObject::from([
             'first_name' => 'John',
             'last_name' => 'Doe',
-            'email' => 'john@example.com'
+            'email' => 'john@example.com',
         ]);
 
         $result = TestSimpleUserData::from($source);
@@ -96,7 +96,7 @@ final class HydratableTest extends TestCase
     {
         $source = DataObject::from([
             'name' => 'John Doe',
-            'email' => $this->testEmail
+            'email' => $this->testEmail,
         ]);
 
         $result = TestUserRecord::from($source);
@@ -114,7 +114,7 @@ final class HydratableTest extends TestCase
             'email' => $this->testEmail,
             'status' => null,
             'role' => null,
-            'grade' => null
+            'grade' => null,
         ]);
 
         $result = TestUserRecord::from($source);
@@ -160,7 +160,7 @@ final class HydratableTest extends TestCase
             'email' => 'john@example.com',
             'status' => 'active',
             'role' => 'user',
-            'grade' => 1
+            'grade' => 1,
         ]);
 
         $result = TestUserData::from($source);
@@ -187,7 +187,7 @@ final class HydratableTest extends TestCase
         $source = DataObject::from([
             'name' => 'John Doe',
             'email' => $this->testEmail,
-            'status' => 'invalid_status'
+            'status' => 'invalid_status',
         ]);
 
         $this->expectException(RuntimeException::class);
@@ -220,7 +220,7 @@ final class HydratableTest extends TestCase
             'email' => 'john@example.com',
             'status' => 'active',
             'role' => 'user',
-            'grade' => 1
+            'grade' => 1,
         ]);
 
         $result = TestUserData::from($source);

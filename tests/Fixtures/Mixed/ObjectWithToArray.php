@@ -21,7 +21,7 @@ final class ObjectWithToArray
             'name' => 'ToArray Name',
             'email' => TestEmailAddress::from('toarray@example.com'),
             'status' => TestUserStatus::ACTIVE,
-            'createdAt' => TestIso8601DateTime::now(),
+            'createdAt' => TestIso8601DateTime::from(new DateTime),
         ];
     }
 }

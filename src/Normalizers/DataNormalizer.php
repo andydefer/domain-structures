@@ -16,7 +16,7 @@ final class DataNormalizer extends AbstractNormalizer
 
     public function normalize(mixed $value): mixed
     {
-        if (!$value instanceof AbstractData) {
+        if (! $value instanceof AbstractData) {
             return $this->next($value);
         }
 

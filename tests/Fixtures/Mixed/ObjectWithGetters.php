@@ -13,7 +13,9 @@ use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 final class ObjectWithGetters
 {
     private int $id = 42;
+
     private string $name = 'Getter Name';
+
     private TestEmailAddress $email;
 
     public function __construct()
