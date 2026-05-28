@@ -21,8 +21,11 @@ interface Transformable
     public static function from(mixed $source): static;
 
     /**
-     * Normalize the object to a primitive type (array, string, int, float, bool, null).
+     * Creates an instance from a JSON string.
      *
-     * @return mixed The normalized representation of the object
+     * @param  string  $json  JSON string representation of the object
+     *
+     * @throws \InvalidArgumentException If the JSON is invalid or cannot be converted
      */
+    public static function fromJson(string $json): static;
 }

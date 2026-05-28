@@ -74,6 +74,95 @@ final class HydratableTest extends TestCase
         $this->assertSame(TestUserGrade::BRONZE, $result->grade);
     }
 
+    // ==================== JSON HYDRATION TESTS ====================
+
+    public function test_hydrates_from_json_string(): void
+    {
+        $json = '{"id": 1, "name": "John Doe", "email": "john@example.com", "status": "active", "role": "user", "grade": 1}';
+
+        $result = TestUserData::fromJson($json);
+
+        $this->assertSame(1, $result->id);
+        $this->assertSame('John Doe', $result->name);
+        $this->assertSame('john@example.com', $result->email->getValue());
+        $this->assertSame(TestUserStatus::ACTIVE, $result->status);
+        $this->assertSame(TestUserRole::USER, $result->role);
+        $this->assertSame(TestUserGrade::BRONZE, $result->grade);
+    }
+
+    public function test_hydrates_from_json_with_snake_case_keys(): void
+    {
+        $json = '{"first_name": "John", "last_name": "Doe", "email": "john@example.com"}';
+
+        $result = TestSimpleUserData::fromJson($json);
+
+        $this->assertSame('John', $result->firstName);
+        $this->assertSame('john@example.com', $result->email->getValue());
+    }
+
+    public function test_hydrates_from_json_with_nested_objects(): void
+    {
+        $json = '{
+            "name": "John Doe",
+            "email": "john@example.com",
+            "status": "active",
+            "role": "user",
+            "grade": 1
+        }';
+
+        $result = TestUserData::fromJson($json);
+
+        $this->assertInstanceOf(TestEmailAddress::class, $result->email);
+        $this->assertSame('john@example.com', $result->email->getValue());
+        $this->assertSame(TestUserStatus::ACTIVE, $result->status);
+        $this->assertSame(TestUserRole::USER, $result->role);
+        $this->assertSame(TestUserGrade::BRONZE, $result->grade);
+    }
+
+    public function test_hydrates_record_from_json(): void
+    {
+        $json = '{"name": "John Doe", "email": "john@example.com", "status": "active", "role": "user", "grade": 1}';
+
+        $result = TestUserRecord::fromJson($json);
+
+        $this->assertInstanceOf(TestUserRecord::class, $result);
+        $this->assertSame('John Doe', $result->name);
+        $this->assertSame('john@example.com', $result->email->getValue());
+        $this->assertSame(TestUserStatus::ACTIVE, $result->status);
+        $this->assertSame(TestUserRole::USER, $result->role);
+        $this->assertSame(TestUserGrade::BRONZE, $result->grade);
+    }
+
+    public function test_throws_exception_for_invalid_json(): void
+    {
+        $invalidJson = '{invalid json}';
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Invalid JSON');
+
+        TestUserData::fromJson($invalidJson);
+    }
+
+    public function test_throws_exception_for_empty_json(): void
+    {
+        $emptyJson = '';
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Invalid JSON');
+
+        TestUserData::fromJson($emptyJson);
+    }
+
+    public function test_throws_exception_for_malformed_json(): void
+    {
+        $malformedJson = '{"name": "John", "email": "john@example.com"';
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Invalid JSON');
+
+        TestUserData::fromJson($malformedJson);
+    }
+
     // ==================== CAMELCASE / SNAKE_CASE TESTS ====================
 
     public function test_converts_snake_case_to_camel_case(): void
@@ -210,6 +299,18 @@ final class HydratableTest extends TestCase
         $this->assertSame($second->id, $third->id);
     }
 
+    public function test_fromJson_is_idempotent(): void
+    {
+        $json = '{"id": 1, "name": "John Doe", "email": "john@example.com", "status": "active", "role": "user", "grade": 1}';
+
+        $first = TestUserData::fromJson($json);
+        $second = TestUserData::fromJson($json);
+        $third = TestUserData::fromJson($json);
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertSame($second->id, $third->id);
+    }
+
     // ==================== NULL HANDLING TESTS ====================
 
     public function test_handles_null_values(): void
@@ -227,5 +328,64 @@ final class HydratableTest extends TestCase
 
         $this->assertNull($result->id);
         $this->assertSame('John Doe', $result->name);
+    }
+
+    public function test_fromJson_handles_null_values(): void
+    {
+        $json = '{"id": null, "name": "John Doe", "email": "john@example.com", "status": "active", "role": "user", "grade": 1}';
+
+        $result = TestUserData::fromJson($json);
+
+        $this->assertNull($result->id);
+        $this->assertSame('John Doe', $result->name);
+        $this->assertSame('john@example.com', $result->email->getValue());
+    }
+
+    // ==================== TYPE CONVERSION TESTS ====================
+
+    public function test_fromJson_converts_string_id_to_int(): void
+    {
+        $json = '{"id": "123", "name": "John Doe", "email": "john@example.com", "status": "active", "role": "user", "grade": 1}';
+
+        $result = TestUserData::fromJson($json);
+
+        $this->assertIsInt($result->id);
+        $this->assertSame(123, $result->id);
+    }
+
+    public function test_fromJson_converts_string_enum_value_to_enum(): void
+    {
+        $json = '{"name": "John Doe", "email": "john@example.com", "status": "suspended", "role": "admin", "grade": 4}';
+
+        $result = TestUserRecord::fromJson($json);
+
+        $this->assertSame(TestUserStatus::SUSPENDED, $result->status);
+        $this->assertSame(TestUserRole::ADMIN, $result->role);
+        $this->assertSame(TestUserGrade::PLATINUM, $result->grade);
+    }
+
+    // ==================== CONSISTENCY TESTS ====================
+
+    public function test_from_and_fromJson_produce_same_result(): void
+    {
+        $array = [
+            'id' => 1,
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+            'status' => 'active',
+            'role' => 'user',
+            'grade' => 1,
+        ];
+        $json = json_encode($array);
+
+        $fromArray = TestUserData::from($array);
+        $fromJson = TestUserData::fromJson($json);
+
+        $this->assertSame($fromArray->id, $fromJson->id);
+        $this->assertSame($fromArray->name, $fromJson->name);
+        $this->assertSame($fromArray->email->getValue(), $fromJson->email->getValue());
+        $this->assertSame($fromArray->status, $fromJson->status);
+        $this->assertSame($fromArray->role, $fromJson->role);
+        $this->assertSame($fromArray->grade, $fromJson->grade);
     }
 }

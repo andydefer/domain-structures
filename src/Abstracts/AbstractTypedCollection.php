@@ -74,7 +74,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
             return $types;
         } catch (\ArgumentCountError $e) {
             throw new InvalidArgumentException(sprintf(
-                'Cannot determine allowed types for %s. '.
+                'Cannot determine allowed types for %s. ' .
                     'Please create an instance first before calling from(): new %s(...)',
                 $class,
                 $class
@@ -280,7 +280,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
 
         if (is_string($callback)) {
             $property = $callback;
-            $callback = fn ($item) => is_object($item) ? ($item->$property ?? null) : null;
+            $callback = fn($item) => is_object($item) ? ($item->$property ?? null) : null;
         }
 
         $values = array_map($callback, $items);
@@ -429,7 +429,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
     final public function __clone()
     {
         $this->items = array_map(
-            fn ($item) => is_object($item) ? clone $item : $item,
+            fn($item) => is_object($item) ? clone $item : $item,
             $this->items
         );
     }
@@ -518,7 +518,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
 
             if (count($matchedTypes) > 1) {
                 throw new InvalidArgumentException(sprintf(
-                    'Ambiguous item #%d: data can be hydrated by multiple types [%s]. '.
+                    'Ambiguous item #%d: data can be hydrated by multiple types [%s]. ' .
                         'Please specify the type using a "_type" key in the source data.',
                     $itemIndex,
                     implode('|', $matchedTypes)
@@ -538,5 +538,35 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
         }
 
         return $collection;
+    }
+
+    /**
+     * Creates a collection instance from a JSON string.
+     *
+     * @param  string  $json  JSON string representing an array of items
+     * @return static
+     *
+     * @throws InvalidArgumentException If JSON is invalid or source cannot be hydrated
+     */
+    final public static function fromJson(string $json): static
+    {
+        $data = json_decode($json, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new InvalidArgumentException(sprintf(
+                'Invalid JSON: %s',
+                json_last_error_msg()
+            ));
+        }
+
+        // Vérifier que c'est un tableau (pour une collection)
+        if (!is_array($data)) {
+            throw new InvalidArgumentException(sprintf(
+                'JSON must decode to an array for collection hydration. Got %s.',
+                gettype($data)
+            ));
+        }
+
+        return static::from($data);
     }
 }

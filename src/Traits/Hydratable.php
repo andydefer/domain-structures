@@ -25,7 +25,7 @@ trait Hydratable
     /**
      * Creates an instance from a source.
      *
-     * @param  mixed  $source  The source data
+     * @param  mixed  $source  The source data (array, object, DataObject)
      *
      * @throws RuntimeException
      */
@@ -85,6 +85,27 @@ trait Hydratable
         }
 
         return new static(...$parameters);
+    }
+
+    /**
+     * Creates an instance from a JSON string.
+     *
+     * @param  string  $json  JSON string
+     *
+     * @throws RuntimeException If JSON is invalid
+     */
+    public static function fromJson(string $json): static
+    {
+        $data = json_decode($json, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new RuntimeException(sprintf(
+                'Invalid JSON: %s',
+                json_last_error_msg()
+            ));
+        }
+
+        return static::from($data);
     }
 
     /**

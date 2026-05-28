@@ -8,6 +8,7 @@ use AndyDefer\DomainStructures\Interfaces\Transformable;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Utils\DataObject;
 use UnitEnum;
+use InvalidArgumentException;
 
 abstract class AbstractValueObject implements Transformable
 {
@@ -23,6 +24,28 @@ abstract class AbstractValueObject implements Transformable
      * Force children to define from() logic for their specific construction.
      */
     abstract public static function from(mixed $source): static;
+
+    /**
+     * Creates an instance from a JSON string.
+     *
+     * @param  string  $json  JSON string representation of the value object
+     * @return static
+     *
+     * @throws InvalidArgumentException If the JSON is invalid
+     */
+    final public static function fromJson(string $json): static
+    {
+        $data = json_decode($json, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new InvalidArgumentException(sprintf(
+                'Invalid JSON: %s',
+                json_last_error_msg()
+            ));
+        }
+
+        return static::from($data);
+    }
 
     /**
      * Checks if this value object is equal to another.

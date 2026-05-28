@@ -164,7 +164,7 @@ class DataObject implements \ArrayAccess, Transformable
                 return new static($value);
             }
 
-            return array_map(fn ($item) => $this->convertValue($item), $value);
+            return array_map(fn($item) => $this->convertValue($item), $value);
         }
 
         return $value;
@@ -267,12 +267,18 @@ class DataObject implements \ArrayAccess, Transformable
 
     /**
      * Obtient une propriété avec valeur par défaut.
+     * Si la clé existe (même avec valeur null), retourne la valeur.
+     * Sinon, retourne la valeur par défaut.
      */
     public function get(string $name, mixed $default = null): mixed
     {
-        $value = $this->__get($name);
+        $normalizedKey = $this->normalizeKey($name);
 
-        return $value !== null ? $value : $default;
+        if (array_key_exists($normalizedKey, $this->data)) {
+            return $this->convertValue($this->data[$normalizedKey]);
+        }
+
+        return $default;
     }
 
     /**
