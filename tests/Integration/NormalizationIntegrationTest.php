@@ -9,7 +9,7 @@ use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\IntTypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Normalizers\RootNormalizer;
-use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ProductRecordCollection;
+use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestProductRecordCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestUserRoleCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserWithRolesData;
@@ -257,7 +257,7 @@ final class NormalizationIntegrationTest extends TestCase
 
     public function test_record_with_nested_product_collection_normalizes_correctly(): void
     {
-        $products = new ProductRecordCollection;
+        $products = new TestProductRecordCollection;
         $products->add(
             new TestProductRecord(id: 1, name: 'Laptop', price: 999, isFeatured: true),
             new TestProductRecord(id: 2, name: 'Mouse', price: 29, isFeatured: false)
@@ -282,7 +282,7 @@ final class NormalizationIntegrationTest extends TestCase
 
     public function test_deeply_nested_structures_normalize_recursively(): void
     {
-        $innerProducts = new ProductRecordCollection;
+        $innerProducts = new TestProductRecordCollection;
         $innerProducts->add(
             new TestProductRecord(id: 1, name: 'Product A', price: 100),
             new TestProductRecord(id: 2, name: 'Product B', price: 200)
@@ -306,9 +306,6 @@ final class NormalizationIntegrationTest extends TestCase
         $this->assertSame('Product B', $normalized[0]['products'][1]['name']);
     }
 
-    /**
-     * ✅ CORRECTION: Utiliser TypedCollection<StringTypedCollection> au lieu de NestedCollection
-     */
     public function test_nested_collections_within_collections_normalize_correctly(): void
     {
         $container = new TypedCollection(StringTypedCollection::class);

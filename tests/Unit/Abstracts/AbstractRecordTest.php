@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Tests\Unit\Abstracts;
 
 use AndyDefer\DomainStructures\Collections\Core\RecordCollection;
+use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
-use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ProductRecordCollection;
+use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestProductRecordCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserRole;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
@@ -282,7 +283,7 @@ final class AbstractRecordTest extends TestCase
 
     // ==================== COLLECTION HYDRATION TESTS ====================
 
-    public function test_collect_creates_array_of_records_from_collection(): void
+    public function test_collect_creates_collection_of_records_from_collection(): void
     {
         $recordCollection = new RecordCollection(TestUserRecord::class);
         $recordCollection->add(
@@ -290,28 +291,33 @@ final class AbstractRecordTest extends TestCase
             new TestUserRecord(id: 2, name: 'User 2', email: TestEmailAddress::from('user2@example.com'))
         );
 
-        $recordArray = TestUserRecord::collect($recordCollection);
+        $resultCollection = TestUserRecord::collect($recordCollection);
 
-        $this->assertIsArray($recordArray);
-        $this->assertCount(2, $recordArray);
-        $this->assertInstanceOf(TestUserRecord::class, $recordArray[0]);
-        $this->assertInstanceOf(TestUserRecord::class, $recordArray[1]);
+        $this->assertInstanceOf(TypedCollection::class, $resultCollection);
+        $this->assertCount(2, $resultCollection);
+        $this->assertInstanceOf(TestUserRecord::class, $resultCollection[0]);
+        $this->assertInstanceOf(TestUserRecord::class, $resultCollection[1]);
+        $this->assertSame(1, $resultCollection[0]->id);
+        $this->assertSame('User 1', $resultCollection[0]->name);
+        $this->assertSame(2, $resultCollection[1]->id);
+        $this->assertSame('User 2', $resultCollection[1]->name);
     }
 
-    public function test_collect_on_empty_collection_returns_empty_array(): void
+    public function test_collect_on_empty_collection_returns_empty_typed_collection(): void
     {
         $emptyCollection = new RecordCollection(TestUserRecord::class);
         $result = TestUserRecord::collect($emptyCollection);
 
-        $this->assertIsArray($result);
-        $this->assertEmpty($result);
+        $this->assertInstanceOf(\AndyDefer\DomainStructures\Collections\Core\TypedCollection::class, $result);
+        $this->assertCount(0, $result);
+        $this->assertTrue($result->isEmpty());
     }
 
     // ==================== NESTED RECORD TESTS ====================
 
     public function test_record_with_nested_product_collection_normalizes_correctly(): void
     {
-        $products = new ProductRecordCollection;
+        $products = new TestProductRecordCollection;
         $products->add(
             new TestProductRecord(id: 1, name: 'Laptop', price: 999, isFeatured: true),
             new TestProductRecord(id: 2, name: 'Mouse', price: 29, isFeatured: false)

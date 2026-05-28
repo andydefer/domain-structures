@@ -8,7 +8,7 @@ namespace AndyDefer\DomainStructures\Tests\Fixtures\Data;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
-use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ProductDataCollection;
+use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestProductDataCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestUserRoleCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
@@ -30,7 +30,7 @@ final class TestFullUserData extends AbstractData
         public readonly TestUserGrade $grade,
         public readonly ?string $emailVerifiedAt,
         public readonly StringTypedCollection $tags,
-        public readonly ProductDataCollection $products,
+        public readonly TestProductDataCollection $products,
         public readonly ?TestProductData $featuredProduct,
         public readonly ?string $createdAt,
     ) {}

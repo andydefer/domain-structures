@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Tests\Unit\Traits;
 
+use AndyDefer\DomainStructures\Collections\Core\DataCollection;
+use AndyDefer\DomainStructures\Collections\Core\RecordCollection;
+use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestSimpleUserData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
@@ -16,6 +19,7 @@ use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\DataObject;
 use RuntimeException;
+use InvalidArgumentException;
 
 final class HydratableTest extends TestCase
 {
@@ -215,7 +219,10 @@ final class HydratableTest extends TestCase
 
     // ==================== COLLECTION METHOD TESTS ====================
 
-    public function test_collect_creates_array_of_instances(): void
+    /**
+     * ✅ CORRECTION: collect() retourne désormais une TypedCollection, pas un array
+     */
+    public function test_collect_returns_typed_collection(): void
     {
         $sources = [
             ['id' => 1, 'name' => 'User 1', 'email' => 'user1@example.com', 'status' => 'active', 'role' => 'user', 'grade' => 1],
@@ -223,21 +230,84 @@ final class HydratableTest extends TestCase
             ['id' => 3, 'name' => 'User 3', 'email' => 'user3@example.com', 'status' => 'active', 'role' => 'user', 'grade' => 1],
         ];
 
-        $results = TestUserData::collect($sources);
+        $collection = TestUserData::collect($sources);
 
-        $this->assertCount(3, $results);
-        $this->assertInstanceOf(TestUserData::class, $results[0]);
-        $this->assertSame(1, $results[0]->id);
-        $this->assertSame('User 2', $results[1]->name);
-        $this->assertSame('user3@example.com', $results[2]->email->getValue());
+        $this->assertInstanceOf(TypedCollection::class, $collection);
+        $this->assertSame([TestUserData::class], $collection->getAllowedTypes());
+        $this->assertCount(3, $collection);
+        $this->assertSame(1, $collection[0]->id);
+        $this->assertSame('User 2', $collection[1]->name);
+        $this->assertSame('user3@example.com', $collection[2]->email->getValue());
     }
 
-    public function test_collect_returns_empty_array_for_empty_iterable(): void
+    /**
+     * ✅ CORRECTION: collect() retourne une collection vide, pas un tableau vide
+     */
+    public function test_collect_returns_empty_collection_for_empty_iterable(): void
     {
-        $results = TestUserData::collect([]);
+        $collection = TestUserData::collect([]);
 
-        $this->assertIsArray($results);
-        $this->assertEmpty($results);
+        $this->assertInstanceOf(TypedCollection::class, $collection);
+        $this->assertCount(0, $collection);
+        $this->assertTrue($collection->isEmpty());
+    }
+
+    public function test_collect_into_record_collection(): void
+    {
+        $sources = [
+            ['id' => 1, 'name' => 'User 1', 'email' => 'user1@example.com', 'status' => 'active', 'role' => 'user', 'grade' => 1],
+            ['id' => 2, 'name' => 'User 2', 'email' => 'user2@example.com', 'status' => 'active', 'role' => 'user', 'grade' => 1],
+        ];
+
+        $collection = TestUserRecord::collect($sources, RecordCollection::class);
+
+        $this->assertInstanceOf(RecordCollection::class, $collection);
+        $this->assertSame([TestUserRecord::class], $collection->getAllowedTypes());
+        $this->assertCount(2, $collection);
+    }
+
+    public function test_collect_into_data_collection(): void
+    {
+        $sources = [
+            ['id' => 1, 'name' => 'User 1', 'email' => 'user1@example.com', 'status' => 'active', 'role' => 'user', 'grade' => 1],
+            ['id' => 2, 'name' => 'User 2', 'email' => 'user2@example.com', 'status' => 'active', 'role' => 'user', 'grade' => 1],
+        ];
+
+        $collection = TestUserData::collect($sources, DataCollection::class);
+
+        $this->assertInstanceOf(DataCollection::class, $collection);
+        $this->assertSame([TestUserData::class], $collection->getAllowedTypes());
+        $this->assertCount(2, $collection);
+    }
+
+    /**
+     * ✅ CORRECTION: Le message d'exception contient le nom complet de la classe
+     */
+    public function test_collect_throws_exception_for_invalid_collection_class(): void
+    {
+        $sources = [
+            ['id' => 1, 'name' => 'User 1', 'email' => 'user1@example.com'],
+        ];
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Collection class "stdClass" must extend AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection');
+
+        TestUserRecord::collect($sources, \stdClass::class);
+    }
+
+    public function test_collect_preserves_order(): void
+    {
+        $sources = [
+            ['id' => 1, 'name' => 'First', 'email' => 'first@example.com', 'status' => 'active', 'role' => 'user', 'grade' => 1],
+            ['id' => 2, 'name' => 'Second', 'email' => 'second@example.com', 'status' => 'active', 'role' => 'user', 'grade' => 1],
+            ['id' => 3, 'name' => 'Third', 'email' => 'third@example.com', 'status' => 'active', 'role' => 'user', 'grade' => 1],
+        ];
+
+        $collection = TestUserRecord::collect($sources);
+
+        $this->assertSame('First', $collection[0]->name);
+        $this->assertSame('Second', $collection[1]->name);
+        $this->assertSame('Third', $collection[2]->name);
     }
 
     // ==================== RECURSIVE HYDRATION TESTS ====================
@@ -387,5 +457,23 @@ final class HydratableTest extends TestCase
         $this->assertSame($fromArray->status, $fromJson->status);
         $this->assertSame($fromArray->role, $fromJson->role);
         $this->assertSame($fromArray->grade, $fromJson->grade);
+    }
+
+    // ==================== CHAINING OPERATIONS TESTS ====================
+
+    public function test_collect_chaining_operations(): void
+    {
+        $sources = [
+            ['id' => 1, 'name' => 'Alice', 'email' => 'alice@example.com', 'status' => 'active', 'role' => 'user', 'grade' => 1],
+            ['id' => 2, 'name' => 'Bob', 'email' => 'bob@example.com', 'status' => 'active', 'role' => 'user', 'grade' => 1],
+            ['id' => 3, 'name' => 'Alice', 'email' => 'alice2@example.com', 'status' => 'active', 'role' => 'user', 'grade' => 1],
+        ];
+
+        $emails = TestUserRecord::collect($sources)
+            ->filter(fn($user) => $user->name === 'Alice')
+            ->map(fn($user) => $user->email->getValue())  // ✅ getValue() retourne la string
+            ->toArray();
+
+        $this->assertSame(['alice@example.com', 'alice2@example.com'], $emails);
     }
 }

@@ -8,8 +8,8 @@ use AndyDefer\DomainStructures\Collections\Core\DataCollection;
 use AndyDefer\DomainStructures\Collections\Core\RecordCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
-use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ProductDataCollection;
-use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ProductRecordCollection;
+use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestProductDataCollection;
+use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestProductRecordCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestUserRoleCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestFullUserData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestProductData;
@@ -170,7 +170,7 @@ final class FullApiResponseTest extends TestCase
 
     public function test_user_with_nested_product_collection_normalizes_correctly(): void
     {
-        $productCollection = new ProductRecordCollection;
+        $productCollection = new TestProductRecordCollection;
         $productCollection->add(
             new TestProductRecord(id: 1, name: 'Laptop', price: 999, isFeatured: true),
             new TestProductRecord(id: 2, name: 'Mouse', price: 29, isFeatured: false)
@@ -223,7 +223,7 @@ final class FullApiResponseTest extends TestCase
 
     public function test_deeply_nested_collections_normalize_correctly(): void
     {
-        $innerProducts = new ProductRecordCollection;
+        $innerProducts = new TestProductRecordCollection;
         $innerProducts->add(
             new TestProductRecord(id: 1, name: 'Product A', price: 100),
             new TestProductRecord(id: 2, name: 'Product B', price: 200)
@@ -365,7 +365,7 @@ final class FullApiResponseTest extends TestCase
 
     public function test_api_response_can_be_filtered_using_collection_methods(): void
     {
-        $allProducts = new ProductRecordCollection;
+        $allProducts = new TestProductRecordCollection;
         $allProducts->add(
             new TestProductRecord(id: 1, name: 'Laptop', price: 999, isFeatured: true),
             new TestProductRecord(id: 2, name: 'Mouse', price: 29, isFeatured: false),
@@ -374,9 +374,9 @@ final class FullApiResponseTest extends TestCase
             new TestProductRecord(id: 5, name: 'Desk', price: 499, isFeatured: true)
         );
 
-        $featuredProducts = $allProducts->filter(fn ($product) => $product->isFeatured === true);
+        $featuredProducts = $allProducts->filter(fn($product) => $product->isFeatured === true);
 
-        $productDataCollection = new ProductDataCollection;
+        $productDataCollection = new TestProductDataCollection;
         foreach ($featuredProducts->all() as $product) {
             $productDataCollection->add(TestProductData::from($product));
         }
@@ -397,7 +397,7 @@ final class FullApiResponseTest extends TestCase
      */
     public function test_api_response_can_be_sorted_using_collection_methods(): void
     {
-        $allProducts = new ProductRecordCollection;
+        $allProducts = new TestProductRecordCollection;
         $allProducts->add(
             new TestProductRecord(id: 1, name: 'Laptop', price: 999),
             new TestProductRecord(id: 2, name: 'Mouse', price: 29),
@@ -419,7 +419,7 @@ final class FullApiResponseTest extends TestCase
         // Ou avec usort
         $sortedByPrice = $allProducts
             ->all()
-            ->usort(fn ($a, $b) => $a->price <=> $b->price)
+            ->usort(fn($a, $b) => $a->price <=> $b->price)
             ->toArray();
 
         $this->assertSame('Mouse', $sortedByPrice[0]->name);
@@ -437,7 +437,7 @@ final class FullApiResponseTest extends TestCase
             new TestUserRecord(id: 3, name: 'Charlie', email: TestEmailAddress::from('charlie@example.com'), status: TestUserStatus::INACTIVE)
         );
 
-        $activeUsers = $dbRecords->filter(fn (TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
+        $activeUsers = $dbRecords->filter(fn(TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
 
         $apiData = new DataCollection(TestUserData::class);
         foreach ($activeUsers->all() as $record) {
@@ -461,13 +461,13 @@ final class FullApiResponseTest extends TestCase
 
     public function test_complete_api_workflow_with_nested_relationships(): void
     {
-        $aliceProducts = new ProductRecordCollection;
+        $aliceProducts = new TestProductRecordCollection;
         $aliceProducts->add(
             new TestProductRecord(id: 1, name: 'Laptop', price: 999),
             new TestProductRecord(id: 2, name: 'Mouse', price: 29)
         );
 
-        $bobProducts = new ProductRecordCollection;
+        $bobProducts = new TestProductRecordCollection;
         $bobProducts->add(
             new TestProductRecord(id: 3, name: 'Keyboard', price: 89)
         );

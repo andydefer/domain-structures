@@ -6,7 +6,7 @@ namespace AndyDefer\DomainStructures\Tests\Unit\Normalizers;
 
 use AndyDefer\DomainStructures\Normalizers\Core\NormalizerInterface;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
-use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ProductRecordCollection;
+use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestProductRecordCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestProductData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestBackedStringEnum;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestProductRecord;
@@ -129,7 +129,7 @@ final class NormalizerChainTest extends TestCase
 
     public function test_collection_is_normalized_correctly_through_chain(): void
     {
-        $collection = new ProductRecordCollection;
+        $collection = new TestProductRecordCollection;
         $collection->add(
             new TestProductRecord(id: 1, name: 'Product 1', price: 100),
             new TestProductRecord(id: 2, name: 'Product 2', price: 200)

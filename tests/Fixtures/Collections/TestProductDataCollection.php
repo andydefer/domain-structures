@@ -1,6 +1,6 @@
 <?php
 
-// FILE: tests/Fixtures/Collections/ProductDataCollection.php
+// FILE: tests/Fixtures/Collections/TestProductDataCollection.php
 
 declare(strict_types=1);
 
@@ -15,7 +15,7 @@ use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestProductData;
  *
  * @extends AbstractTypedCollection<TestProductData>
  */
-final class ProductDataCollection extends AbstractTypedCollection
+final class TestProductDataCollection extends AbstractTypedCollection
 {
     public function __construct()
     {

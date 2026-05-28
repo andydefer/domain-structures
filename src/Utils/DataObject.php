@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Utils;
 
+use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
+use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Interfaces\Transformable;
 
 /**
@@ -263,6 +265,35 @@ class DataObject implements \ArrayAccess, Transformable
         $data = json_decode($json, true);
 
         return new static($data ?? []);
+    }
+
+    /**
+     * Hydrates a collection of sources into a typed collection.
+     *
+     * @template TCollection of \AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection
+     * @param  iterable<mixed>       $sources
+     * @param  class-string<TCollection>  $collectionClass
+     * @return TCollection
+     *
+     * @throws \InvalidArgumentException
+     */
+    public static function collect(iterable $sources, string $collectionClass = TypedCollection::class): AbstractTypedCollection
+    {
+        if (!is_subclass_of($collectionClass, AbstractTypedCollection::class)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Collection class "%s" must extend %s',
+                $collectionClass,
+                AbstractTypedCollection::class
+            ));
+        }
+
+        $collection = new $collectionClass(static::class);
+
+        foreach ($sources as $source) {
+            $collection->add(static::from($source));
+        }
+
+        return $collection;
     }
 
     /**

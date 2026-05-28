@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Tests\Unit\Abstracts;
 
 use AndyDefer\DomainStructures\Collections\Core\RecordCollection;
+use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestProductData;
@@ -241,25 +242,27 @@ final class AbstractDataTest extends TestCase
             new TestUserRecord(id: 2, name: 'User 2', email: TestEmailAddress::from('user2@example.com'))
         );
 
-        $dataArray = TestUserData::collect($recordCollection);
+        // ✅ collect() retourne maintenant une TypedCollection, pas un array
+        $dataCollection = TestUserData::collect($recordCollection);
 
-        $this->assertIsArray($dataArray);
-        $this->assertCount(2, $dataArray);
-        $this->assertInstanceOf(TestUserData::class, $dataArray[0]);
-        $this->assertInstanceOf(TestUserData::class, $dataArray[1]);
-        $this->assertSame(1, $dataArray[0]->id);
-        $this->assertSame('User 1', $dataArray[0]->name);
-        $this->assertSame(2, $dataArray[1]->id);
-        $this->assertSame('User 2', $dataArray[1]->name);
+        $this->assertInstanceOf(TypedCollection::class, $dataCollection);
+        $this->assertCount(2, $dataCollection);
+        $this->assertInstanceOf(TestUserData::class, $dataCollection[0]);
+        $this->assertInstanceOf(TestUserData::class, $dataCollection[1]);
+        $this->assertSame(1, $dataCollection[0]->id);
+        $this->assertSame('User 1', $dataCollection[0]->name);
+        $this->assertSame(2, $dataCollection[1]->id);
+        $this->assertSame('User 2', $dataCollection[1]->name);
     }
 
-    public function test_collect_on_empty_collection_returns_empty_array(): void
+    public function test_collect_on_empty_collection_returns_empty_collection(): void
     {
         $emptyCollection = new RecordCollection(TestUserRecord::class);
         $result = TestUserData::collect($emptyCollection);
 
-        $this->assertIsArray($result);
-        $this->assertEmpty($result);
+        $this->assertInstanceOf(TypedCollection::class, $result);
+        $this->assertCount(0, $result);
+        $this->assertTrue($result->isEmpty());
     }
 
     // ==================== NESTED DATA DTO TESTS ====================

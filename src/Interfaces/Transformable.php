@@ -6,6 +6,9 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Interfaces;
 
+use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
+use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
+
 /**
  * Interface for objects that can be hydrated from a source and normalized.
  */
@@ -28,4 +31,16 @@ interface Transformable
      * @throws \InvalidArgumentException If the JSON is invalid or cannot be converted
      */
     public static function fromJson(string $json): static;
+
+    /**
+     * Hydrates a collection of sources into a typed collection.
+     *
+     * @template TCollection of AbstractTypedCollection
+     * @param  iterable<mixed>       $sources
+     * @param  class-string<TCollection>  $collectionClass
+     * @return TCollection
+     *
+     * @throws \InvalidArgumentException
+     */
+    public static function collect(iterable $sources, string $collectionClass = TypedCollection::class): AbstractTypedCollection;
 }

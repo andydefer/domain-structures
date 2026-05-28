@@ -6,10 +6,11 @@ namespace AndyDefer\DomainStructures\Tests\Integration;
 
 use AndyDefer\DomainStructures\Collections\Core\DataCollection;
 use AndyDefer\DomainStructures\Collections\Core\RecordCollection;
+use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
-use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ProductDataCollection;
-use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ProductRecordCollection;
+use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestProductDataCollection;
+use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestProductRecordCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestUserRoleCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestFullUserData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
@@ -171,23 +172,23 @@ final class RecordToDataTransformationTest extends TestCase
             new TestUserRecord(id: 2, name: 'User 2', email: TestEmailAddress::from('user2@example.com'))
         );
 
-        /** @var array<int, TestUserData> $dataArray */
-        $dataArray = TestUserData::collect($recordCollection);
+        /** @var TypedCollection<TestUserData> $dataCollection */
+        $dataCollection = TestUserData::collect($recordCollection);
 
-        $this->assertIsArray($dataArray);
-        $this->assertCount(2, $dataArray);
-        $this->assertInstanceOf(TestUserData::class, $dataArray[0]);
-        $this->assertInstanceOf(TestUserData::class, $dataArray[1]);
-        $this->assertEquals(1, $dataArray[0]->id);
-        $this->assertEquals(2, $dataArray[1]->id);
+        $this->assertInstanceOf(TypedCollection::class, $dataCollection);
+        $this->assertCount(2, $dataCollection);
+        $this->assertInstanceOf(TestUserData::class, $dataCollection[0]);
+        $this->assertInstanceOf(TestUserData::class, $dataCollection[1]);
+        $this->assertEquals(1, $dataCollection[0]->id);
+        $this->assertEquals(2, $dataCollection[1]->id);
     }
 
     // ==================== NESTED COLLECTION TRANSFORMATION TESTS ====================
 
     public function test_record_with_nested_product_collection_transforms_correctly(): void
     {
-        /** @var ProductRecordCollection $productRecords */
-        $productRecords = new ProductRecordCollection;
+        /** @var TestProductRecordCollection $productRecords */
+        $productRecords = new TestProductRecordCollection;
         $productRecords->add(
             new TestProductRecord(id: 1, name: 'Laptop', price: 999, isFeatured: true),
             new TestProductRecord(id: 2, name: 'Mouse', price: 29, isFeatured: false),
@@ -205,7 +206,7 @@ final class RecordToDataTransformationTest extends TestCase
         $fullUserData = TestFullUserData::from($userRecord);
 
         $this->assertInstanceOf(TestFullUserData::class, $fullUserData);
-        $this->assertInstanceOf(ProductDataCollection::class, $fullUserData->products);
+        $this->assertInstanceOf(TestProductDataCollection::class, $fullUserData->products);
         $this->assertCount(3, $fullUserData->products);
 
         /** @var array<int, TestProductRecord> $products */
@@ -252,8 +253,8 @@ final class RecordToDataTransformationTest extends TestCase
 
     public function test_deeply_nested_collections_transform_recursively(): void
     {
-        /** @var ProductRecordCollection $innerProducts */
-        $innerProducts = new ProductRecordCollection;
+        /** @var TestProductRecordCollection $innerProducts */
+        $innerProducts = new TestProductRecordCollection;
         $innerProducts->add(
             new TestProductRecord(id: 1, name: 'Product A', price: 100),
             new TestProductRecord(id: 2, name: 'Product B', price: 200)
@@ -269,7 +270,7 @@ final class RecordToDataTransformationTest extends TestCase
 
         $fullUserData = TestFullUserData::from($userRecord);
 
-        $this->assertInstanceOf(ProductDataCollection::class, $fullUserData->products);
+        $this->assertInstanceOf(TestProductDataCollection::class, $fullUserData->products);
         $this->assertCount(2, $fullUserData->products);
 
         /** @var array<int, TestProductRecord> $products */
@@ -483,7 +484,7 @@ final class RecordToDataTransformationTest extends TestCase
         );
 
         /** @var RecordCollection<TestUserRecord> $activeRecords */
-        $activeRecords = $recordCollection->filter(fn (TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
+        $activeRecords = $recordCollection->filter(fn(TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
 
         /** @var DataCollection<TestUserData> $dataCollection */
         $dataCollection = new DataCollection(TestUserData::class);

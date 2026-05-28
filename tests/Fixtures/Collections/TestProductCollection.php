@@ -14,7 +14,7 @@ use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestProductRecord;
  *
  * @extends AbstractTypedCollection<TestProductData|TestProductRecord>
  */
-final class ProductCollection extends AbstractTypedCollection
+final class TestProductCollection extends AbstractTypedCollection
 {
     public function __construct()
     {
@@ -24,9 +24,9 @@ final class ProductCollection extends AbstractTypedCollection
     /**
      * Convert all items to Data objects.
      */
-    public function toDataCollection(): ProductDataCollection
+    public function toDataCollection(): TestProductDataCollection
     {
-        $dataCollection = new ProductDataCollection;
+        $dataCollection = new TestProductDataCollection;
 
         foreach ($this->items as $item) {
             if ($item instanceof TestProductRecord) {
@@ -42,9 +42,9 @@ final class ProductCollection extends AbstractTypedCollection
     /**
      * Convert all items to Record objects.
      */
-    public function toRecordCollection(): ProductRecordCollection
+    public function toRecordCollection(): TestProductRecordCollection
     {
-        $recordCollection = new ProductRecordCollection;
+        $recordCollection = new TestProductRecordCollection;
 
         foreach ($this->items as $item) {
             if ($item instanceof TestProductData) {

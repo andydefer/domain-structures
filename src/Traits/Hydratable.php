@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Traits;
 
+use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
+use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Enums\PhpType;
 use AndyDefer\DomainStructures\Interfaces\Transformable;
 use AndyDefer\DomainStructures\Utils\DataObject;
@@ -109,19 +111,32 @@ trait Hydratable
     }
 
     /**
-     * Hydrates a collection of sources.
+     * Hydrates a collection of sources into a typed collection.
      *
-     * @param  iterable<mixed>  $sources
-     * @return array<static>
+     * @template TCollection of AbstractTypedCollection
+     * @param  iterable<mixed>       $sources
+     * @param  class-string<TCollection>  $collectionClass
+     * @return TCollection
+     *
+     * @throws \InvalidArgumentException
      */
-    public static function collect(iterable $sources): array
+    public static function collect(iterable $sources, string $collectionClass = TypedCollection::class): AbstractTypedCollection
     {
-        $results = [];
-        foreach ($sources as $source) {
-            $results[] = static::from($source);
+        if (!is_subclass_of($collectionClass, AbstractTypedCollection::class)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Collection class "%s" must extend %s',
+                $collectionClass,
+                AbstractTypedCollection::class
+            ));
         }
 
-        return $results;
+        $collection = new $collectionClass(static::class);
+
+        foreach ($sources as $source) {
+            $collection->add(static::from($source));
+        }
+
+        return $collection;
     }
 
     /**

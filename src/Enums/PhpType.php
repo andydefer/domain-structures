@@ -26,7 +26,7 @@ enum PhpType: string
     case BOOLEAN = 'boolean';
     case NULL = 'NULL';
 
-    // Domain-specific abstract types
+        // Domain-specific abstract types
     case UNIT_ENUM = UnitEnum::class;
     case ABSTRACT_RECORD = AbstractRecord::class;
     case ABSTRACT_VALUE_OBJECT = AbstractValueObject::class;
@@ -68,18 +68,25 @@ enum PhpType: string
 
     /**
      * Get the class string representation.
+     * For scalars, returns the normalized type name.
+     * For objects, returns the concrete class name when an object is provided.
+     * For abstract types without an object, returns the abstract class name.
+     *
+     * @param  mixed  $object  Optional object to get the concrete class name from
+     * @return string
      */
-    public function getClassString(): string
+    public function getClassString(mixed $object = null): string
     {
-        return match ($this) {
-            self::UNIT_ENUM => UnitEnum::class,
-            self::ABSTRACT_RECORD => AbstractRecord::class,
-            self::ABSTRACT_VALUE_OBJECT => AbstractValueObject::class,
-            self::ABSTRACT_DATA => AbstractData::class,
-            self::ABSTRACT_TYPED_COLLECTION => AbstractTypedCollection::class,
-            self::DATA_OBJECT => DataObject::class,
-            default => $this->getNormalizedName(),
-        };
+        if ($this->isScalar()) {
+            return $this->getNormalizedName();
+        }
+
+        return is_object($object) ? $object::class : $this->getNormalizedName();
+    }
+
+    public function isTransformable(): bool
+    {
+        return $this->isRecord() || $this->isValueObject() || $this->isData() || $this->isCollection();
     }
 
     /**
@@ -259,7 +266,7 @@ enum PhpType: string
      */
     public static function getScalarTypeNames(): array
     {
-        return array_map(fn ($type) => $type->getNormalizedName(), self::getScalarTypes());
+        return array_map(fn($type) => $type->getNormalizedName(), self::getScalarTypes());
     }
 
     /**
@@ -300,7 +307,7 @@ enum PhpType: string
             self::DOUBLE->getNormalizedName(),
             self::BOOLEAN->getNormalizedName(),
             self::NULL->getNormalizedName(),
-            self::UNIT_ENUM->getClassString(),
+            self::UNIT_ENUM->getNormalizedName(),
             self::ABSTRACT_RECORD->getClassString(),
             self::ABSTRACT_VALUE_OBJECT->getClassString(),
             self::ABSTRACT_DATA->getClassString(),

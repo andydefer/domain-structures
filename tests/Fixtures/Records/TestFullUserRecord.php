@@ -6,7 +6,7 @@ namespace AndyDefer\DomainStructures\Tests\Fixtures\Records;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
-use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ProductRecordCollection;
+use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestProductRecordCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserRole;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
@@ -27,7 +27,7 @@ final class TestFullUserRecord extends AbstractRecord
         public readonly TestUserGrade $grade,
         public readonly ?TestIso8601DateTime $emailVerifiedAt,
         public readonly StringTypedCollection $tags,
-        public readonly ProductRecordCollection $products,
+        public readonly TestProductRecordCollection $products,
         public readonly ?TestProductRecord $featuredProduct,
         public readonly TestIso8601DateTime $createdAt,
     ) {}

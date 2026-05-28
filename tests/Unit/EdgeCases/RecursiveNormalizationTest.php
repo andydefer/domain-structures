@@ -10,7 +10,7 @@ use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\IntTypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
-use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ProductRecordCollection;
+use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestProductRecordCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestProductData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestProductRecord;
@@ -83,7 +83,7 @@ final class RecursiveNormalizationTest extends TestCase
             id: 1,
             name: 'John Doe',
             email: $this->testEmail,
-            products: (new ProductRecordCollection)->add($product)
+            products: (new TestProductRecordCollection)->add($product)
         );
 
         $normalized = NormalizerChain::get()->normalize($userRecord);
@@ -134,9 +134,6 @@ final class RecursiveNormalizationTest extends TestCase
         $this->assertSame(['x', 'y', 'z'], $normalized[0][0]);
     }
 
-    /**
-     * ✅ Utilisation de CollectionContainer au lieu de NestedCollection
-     */
     public function test_nested_collection_normalizes_correctly(): void
     {
         $container = new CollectionContainer(StringTypedCollection::class);
@@ -161,7 +158,7 @@ final class RecursiveNormalizationTest extends TestCase
 
     public function test_record_containing_collection_normalizes_recursively(): void
     {
-        $products = new ProductRecordCollection;
+        $products = new TestProductRecordCollection;
         $products->add(
             new TestProductRecord(id: 1, name: 'Product 1', price: 100),
             new TestProductRecord(id: 2, name: 'Product 2', price: 200)
@@ -191,7 +188,7 @@ final class RecursiveNormalizationTest extends TestCase
         $product1 = new TestProductRecord(id: 1, name: 'Laptop', price: 999);
         $product2 = new TestProductRecord(id: 2, name: 'Mouse', price: 29);
 
-        $products = new ProductRecordCollection;
+        $products = new TestProductRecordCollection;
         $products->add($product1, $product2);
 
         $userRecord = new TestUserRecord(
@@ -241,7 +238,7 @@ final class RecursiveNormalizationTest extends TestCase
 
     public function test_record_to_data_transformation_preserves_nested_structure(): void
     {
-        $products = new ProductRecordCollection;
+        $products = new TestProductRecordCollection;
         $products->add(
             new TestProductRecord(id: 1, name: 'Product A', price: 100),
             new TestProductRecord(id: 2, name: 'Product B', price: 200)
@@ -334,7 +331,7 @@ final class RecursiveNormalizationTest extends TestCase
 
     public function test_mixed_nested_types_normalize_together(): void
     {
-        $products = new ProductRecordCollection;
+        $products = new TestProductRecordCollection;
         $products->add(
             new TestProductRecord(id: 1, name: 'Product', price: 100)
         );
@@ -361,7 +358,7 @@ final class RecursiveNormalizationTest extends TestCase
     public function test_three_level_deep_nesting_normalizes_correctly(): void
     {
         $product = new TestProductRecord(id: 1, name: 'Deep Product', price: 100);
-        $productCollection = new ProductRecordCollection;
+        $productCollection = new TestProductRecordCollection;
         $productCollection->add($product);
 
         $userRecord = new TestUserRecord(
@@ -384,7 +381,7 @@ final class RecursiveNormalizationTest extends TestCase
     {
         $email = TestEmailAddress::from('deep@example.com');
         $product = new TestProductRecord(id: 1, name: 'Product', price: 100);
-        $productCollection = new ProductRecordCollection;
+        $productCollection = new TestProductRecordCollection;
         $productCollection->add($product);
 
         $userRecord = new TestUserRecord(
@@ -425,12 +422,12 @@ final class RecursiveNormalizationTest extends TestCase
 
     public function test_record_collection_containing_record_collection_normalizes(): void
     {
-        $innerProducts = new ProductRecordCollection;
+        $innerProducts = new TestProductRecordCollection;
         $innerProducts->add(
             new TestProductRecord(id: 1, name: 'Inner Product', price: 50)
         );
 
-        $outerCollection = new TypedCollection(ProductRecordCollection::class);
+        $outerCollection = new TypedCollection(TestProductRecordCollection::class);
         $outerCollection->add($innerProducts);
 
         $normalized = NormalizerChain::get()->normalize($outerCollection);
@@ -464,7 +461,7 @@ final class RecursiveNormalizationTest extends TestCase
     public function test_normalization_result_is_consistent_across_calls(): void
     {
         $product = new TestProductRecord(id: 1, name: 'Product', price: 100);
-        $products = (new ProductRecordCollection)->add($product);
+        $products = (new TestProductRecordCollection)->add($product);
         $userRecord = new TestUserRecord(
             id: 1,
             name: 'John Doe',

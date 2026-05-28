@@ -96,6 +96,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
                 continue;
             }
 
+
             throw new InvalidArgumentException(sprintf(
                 'Type "%s" is not allowed. Must be %s',
                 $type,
@@ -207,9 +208,6 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
         return ! $this->isEmpty();
     }
 
-    // ==================== NORMALIZATION ====================
-    // ❌ SUPPRIMÉE - La logique est maintenant dans TypedCollectionNormalizer
-
     // ==================== TRANSFORMATION METHODS ====================
 
     /**
@@ -233,7 +231,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
 
         $uniqueTypes = [];
         foreach ($mappedItems as $item) {
-            $type = PhpType::fromValue($item)->getClassString();
+            $type = PhpType::fromValue($item)->getClassString($item);
             $uniqueTypes[$type] = $type;
         }
         $uniqueTypes = array_values($uniqueTypes);
@@ -434,9 +432,123 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
         );
     }
 
+    // ==================== HYDRATION HELPERS (EXTRACTED LOGIC) ====================
+
+    /**
+     * Validates that allowed types are not empty.
+     *
+     * @param array<string> $allowedTypes
+     * @throws InvalidArgumentException
+     */
+    private static function validateAllowedTypes(array $allowedTypes): void
+    {
+        if (empty($allowedTypes)) {
+            throw new InvalidArgumentException('Cannot determine type to hydrate');
+        }
+    }
+
+    /**
+     * Extracts explicit type from item if present.
+     *
+     * @param mixed $item
+     * @param array<string> $allowedTypes
+     * @return string|null The explicit type or null if not found
+     * @throws InvalidArgumentException
+     */
+    private static function getExplicitType(mixed $item, array $allowedTypes): ?string
+    {
+        $itemArray = is_object($item) ? (array) $item : $item;
+
+        if (is_array($itemArray) && isset($itemArray['_type'])) {
+            $explicitType = $itemArray['_type'];
+            if (!in_array($explicitType, $allowedTypes, true)) {
+                throw new InvalidArgumentException(sprintf(
+                    'Type "%s" specified in "_type" is not allowed. Allowed: %s',
+                    $explicitType,
+                    implode('|', $allowedTypes)
+                ));
+            }
+            return $explicitType;
+        }
+
+        return null;
+    }
+
+    /**
+     * Detects the appropriate type for an item when multiple types are allowed.
+     *
+     * @param mixed $item
+     * @param array<string> $allowedTypes
+     * @param int|null $itemIndex Optional item index for better error messages
+     * @return string The detected type
+     * @throws InvalidArgumentException
+     */
+    private static function detectTypeForItem(mixed $item, array $allowedTypes, ?int $itemIndex = null): string
+    {
+        $matchedTypes = [];
+
+        foreach ($allowedTypes as $allowedType) {
+            try {
+                self::convertItem($item, $allowedType);
+                $matchedTypes[] = $allowedType;
+            } catch (\Exception $e) {
+                continue;
+            }
+        }
+
+        $prefix = $itemIndex !== null ? "item #{$itemIndex}: " : "";
+
+        if (count($matchedTypes) > 1) {
+            throw new InvalidArgumentException(sprintf(
+                'Ambiguous %sdata can be hydrated by multiple types [%s]. ' .
+                    'Please specify the type using a "_type" key in the source data.',
+                $prefix,
+                implode('|', $matchedTypes)
+            ));
+        }
+
+        if (empty($matchedTypes)) {
+            throw new InvalidArgumentException(sprintf(
+                'Cannot hydrate %sdata: could not be converted to any allowed type [%s]',
+                $prefix,
+                implode('|', $allowedTypes)
+            ));
+        }
+
+        return $matchedTypes[0];
+    }
+
+    /**
+     * Processes a single item for hydration.
+     *
+     * @param mixed $item
+     * @param array<string> $allowedTypes
+     * @param int|null $itemIndex Optional item index for better error messages
+     * @return mixed The converted item
+     * @throws InvalidArgumentException
+     */
+    private static function processItemForHydration(mixed $item, array $allowedTypes, ?int $itemIndex = null): mixed
+    {
+        // Check for explicit type first
+        $explicitType = self::getExplicitType($item, $allowedTypes);
+
+        if ($explicitType !== null) {
+            return self::convertItem($item, $explicitType);
+        }
+
+        // Single type case
+        if (count($allowedTypes) === 1) {
+            return self::convertItem($item, $allowedTypes[0]);
+        }
+
+        // Multiple types - auto detection
+        $detectedType = self::detectTypeForItem($item, $allowedTypes, $itemIndex);
+        return self::convertItem($item, $detectedType);
+    }
+
     // ==================== TRANSFORMABLE IMPLEMENTATION ====================
 
-    private static function convertItem(mixed $item, string $targetType): mixed
+    protected static function convertItem(mixed $item, string $targetType): mixed
     {
         if ($item instanceof $targetType) {
             return $item;
@@ -460,14 +572,9 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
         }
 
         $allowedTypes = static::getStoredAllowedTypes();
+        self::validateAllowedTypes($allowedTypes);
 
-        if (empty($allowedTypes)) {
-            throw new InvalidArgumentException('Cannot determine type to hydrate');
-        }
-
-        $hasMultipleTypes = count($allowedTypes) > 1;
-
-        if (! is_iterable($source)) {
+        if (!is_iterable($source)) {
             throw new InvalidArgumentException(sprintf(
                 'Cannot hydrate %s from non-iterable source',
                 static::class
@@ -479,62 +586,8 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
 
         foreach ($source as $item) {
             $itemIndex++;
-            $itemArray = is_object($item) ? (array) $item : $item;
-
-            if (is_array($itemArray) && isset($itemArray['_type'])) {
-                $explicitType = $itemArray['_type'];
-                if (! in_array($explicitType, $allowedTypes, true)) {
-                    throw new InvalidArgumentException(sprintf(
-                        'Type "%s" specified in "_type" is not allowed. Allowed: %s',
-                        $explicitType,
-                        implode('|', $allowedTypes)
-                    ));
-                }
-                $collection->add(self::convertItem($item, $explicitType));
-
-                continue;
-            }
-
-            if (! $hasMultipleTypes) {
-                $allowedType = $allowedTypes[0];
-                $collection->add(self::convertItem($item, $allowedType));
-
-                continue;
-            }
-
-            $matchedTypes = [];
-            $lastException = null;
-
-            foreach ($allowedTypes as $allowedType) {
-                try {
-                    self::convertItem($item, $allowedType);
-                    $matchedTypes[] = $allowedType;
-                } catch (\Exception $e) {
-                    $lastException = $e;
-
-                    continue;
-                }
-            }
-
-            if (count($matchedTypes) > 1) {
-                throw new InvalidArgumentException(sprintf(
-                    'Ambiguous item #%d: data can be hydrated by multiple types [%s]. ' .
-                        'Please specify the type using a "_type" key in the source data.',
-                    $itemIndex,
-                    implode('|', $matchedTypes)
-                ));
-            }
-
-            if (empty($matchedTypes)) {
-                throw new InvalidArgumentException(sprintf(
-                    'Cannot hydrate %s: item #%d could not be converted to any allowed type [%s]',
-                    static::class,
-                    $itemIndex,
-                    implode('|', $allowedTypes)
-                ));
-            }
-
-            $collection->add(self::convertItem($item, $matchedTypes[0]));
+            $convertedItem = self::processItemForHydration($item, $allowedTypes, $itemIndex);
+            $collection->add($convertedItem);
         }
 
         return $collection;
@@ -568,5 +621,38 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
         }
 
         return static::from($data);
+    }
+
+    /**
+     * Hydrates a collection of sources into a typed collection.
+     *
+     * @template TCollection of AbstractTypedCollection
+     * @param  iterable<mixed>       $sources
+     * @param  class-string<TCollection>  $collectionClass
+     * @return TCollection
+     *
+     * @throws \InvalidArgumentException
+     */
+    public static function collect(iterable $sources, string $collectionClass = TypedCollection::class): AbstractTypedCollection
+    {
+        if (!is_subclass_of($collectionClass, AbstractTypedCollection::class)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Collection class "%s" must extend %s',
+                $collectionClass,
+                AbstractTypedCollection::class
+            ));
+        }
+
+        $allowedTypes = static::getStoredAllowedTypes();
+        self::validateAllowedTypes($allowedTypes);
+
+        $collection = new $collectionClass(...$allowedTypes);
+
+        foreach ($sources as $item) {
+            $convertedItem = self::processItemForHydration($item, $allowedTypes);
+            $collection->add($convertedItem);
+        }
+
+        return $collection;
     }
 }
