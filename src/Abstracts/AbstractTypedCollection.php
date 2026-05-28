@@ -34,6 +34,9 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
 
     private static ?array $allowedTypesList = null;
 
+    /** @var array<string, array<string>> */
+    private static array $cachedAllowedTypes = [];
+
     // ==================== CONSTRUCTOR & VALIDATION ====================
     final protected static function getAllowedTypesList(): array
     {
@@ -42,18 +45,49 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
 
     protected function __construct(string ...$types)
     {
+        if (empty($types)) {
+            throw new InvalidArgumentException(
+                'At least one allowed type must be provided.'
+            );
+        }
+
         $this->validateTypes($types);
         $this->allowedTypes = $types;
+
+        self::$cachedAllowedTypes[static::class] = $types;
+    }
+
+    final protected static function getStoredAllowedTypes(): array
+    {
+        $class = static::class;
+
+        if (isset(self::$cachedAllowedTypes[$class])) {
+            return self::$cachedAllowedTypes[$class];
+        }
+
+        // Pour les collections à types fixes (comme IntTypedCollection, StringTypedCollection)
+        // on peut créer une instance temporaire qui remplira le cache
+        try {
+            $reflection = new \ReflectionClass($class);
+            $tempInstance = $reflection->newInstance();
+            $types = $tempInstance->getAllowedTypes();
+            self::$cachedAllowedTypes[$class] = $types;
+            return $types;
+        } catch (\ArgumentCountError $e) {
+            // Pour les collections dynamiques (comme TypedCollection, DataCollection)
+            // qui ont des paramètres obligatoires au constructeur
+            throw new InvalidArgumentException(sprintf(
+                'Cannot determine allowed types for %s. ' .
+                    'Please create an instance first before calling from(): new %s(...)',
+                $class,
+                $class
+            ));
+        }
     }
 
     private function validateTypes(array $types): void
     {
-        if (empty($types)) {
-            throw new InvalidArgumentException('At least one type must be provided');
-        }
-
         foreach ($types as $type) {
-            // Vérifier que ce n'est pas une classe abstraite
             if (class_exists($type) && (new \ReflectionClass($type))->isAbstract()) {
                 throw new InvalidArgumentException(sprintf(
                     'Type "%s" is abstract. Collections cannot be created with abstract types. Use concrete classes instead.',
@@ -178,12 +212,6 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
 
     // ==================== NORMALIZATION ====================
 
-    /**
-     * Normalize the collection to an array.
-     *
-     * @param  bool  $includeNulls  Whether to include null values
-     * @return array<int, mixed>
-     */
     public function normalize(bool $includeNulls = true): array
     {
         $normalizer = NormalizerChain::get();
@@ -205,12 +233,6 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
     // ==================== TRANSFORMATION METHODS ====================
 
     /**
-     * Transform each item in the collection into a new collection.
-     *
-     * Applies the callback to every item in the collection and returns a new
-     * collection containing the transformed values. The new collection's allowed
-     * type is automatically determined from the transformed items.
-     *
      * @template TReturn
      * @param Closure(TValue): TReturn $callback
      * @return TypedCollection<TReturn>
@@ -228,7 +250,6 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
             return new TypedCollection(...$this->allowedTypes);
         }
 
-        // Collect unique types from mapped items
         $uniqueTypes = [];
         foreach ($mappedItems as $item) {
             $type = PhpType::fromValue($item)->getClassString();
@@ -236,7 +257,6 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
         }
         $uniqueTypes = array_values($uniqueTypes);
 
-        // Créer une nouvelle collection TYPEDCOLLECTION (pas static)
         $result = new TypedCollection(...$uniqueTypes);
 
         foreach ($mappedItems as $item) {
@@ -273,16 +293,6 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
         return $result;
     }
 
-    /**
-     * Sort the collection by a specific property or using a custom callback.
-     *
-     * @param  Closure|string  $callback  Either a closure or a property name
-     * @param  int  $flags  Sorting flags (SORT_REGULAR, SORT_NUMERIC, SORT_STRING, etc.)
-     * @param  bool  $descending  Whether to sort in descending order
-     * @return static<TValue> New collection with sorted items
-     *
-     * @throws InvalidArgumentException If the property doesn't exist on the objects
-     */
     final public function sortBy(Closure|string $callback, int $flags = SORT_REGULAR, bool $descending = false): static
     {
         $items = $this->items;
@@ -311,12 +321,6 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
         return $result;
     }
 
-    /**
-     * Sort the collection using a custom comparison function.
-     *
-     * @param  Closure  $callback  The comparison function (should return -1, 0, or 1)
-     * @return static<TValue> New collection with sorted items
-     */
     final public function usort(Closure $callback): static
     {
         $items = $this->items;
@@ -451,14 +455,6 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
 
     // ==================== TRANSFORMABLE IMPLEMENTATION ====================
 
-    /**
-     * Convert a single item to the target type.
-     *
-     * @param mixed $item The item to convert
-     * @param string $targetType The target type class or scalar name
-     * @return mixed The converted item
-     * @throws \RuntimeException If conversion fails
-     */
     private static function convertItem(mixed $item, string $targetType): mixed
     {
         if ($item instanceof $targetType) {
@@ -482,8 +478,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
             return $source;
         }
 
-        $tempCollection = new static;
-        $allowedTypes = $tempCollection->getAllowedTypes();
+        $allowedTypes = static::getStoredAllowedTypes();
 
         if (empty($allowedTypes)) {
             throw new InvalidArgumentException('Cannot determine type to hydrate');
@@ -498,14 +493,13 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
             ));
         }
 
-        $collection = new static;
+        $collection = new static(...$allowedTypes);
         $itemIndex = 0;
 
         foreach ($source as $item) {
             $itemIndex++;
             $itemArray = is_object($item) ? (array) $item : $item;
 
-            // Vérifier si l'item a un champ '_type' explicite
             if (is_array($itemArray) && isset($itemArray['_type'])) {
                 $explicitType = $itemArray['_type'];
                 if (!in_array($explicitType, $allowedTypes, true)) {
@@ -519,14 +513,12 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
                 continue;
             }
 
-            // Cas avec un seul type autorisé
             if (!$hasMultipleTypes) {
                 $allowedType = $allowedTypes[0];
                 $collection->add(self::convertItem($item, $allowedType));
                 continue;
             }
 
-            // Cas avec plusieurs types autorisés - Détection des types possibles
             $matchedTypes = [];
             $lastException = null;
 
@@ -540,31 +532,24 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
                 }
             }
 
-            // Ambiguïté : plusieurs types peuvent hydrater l'item
             if (count($matchedTypes) > 1) {
                 throw new InvalidArgumentException(sprintf(
                     'Ambiguous item #%d: data can be hydrated by multiple types [%s]. ' .
-                        'Please specify the type using a "_type" key in the source data. ' .
-                        'Item data: %s',
+                        'Please specify the type using a "_type" key in the source data.',
                     $itemIndex,
-                    implode('|', $matchedTypes),
-                    json_encode($itemArray, JSON_THROW_ON_ERROR)
+                    implode('|', $matchedTypes)
                 ));
             }
 
-            // Aucun type trouvé
             if (empty($matchedTypes)) {
                 throw new InvalidArgumentException(sprintf(
-                    'Cannot hydrate %s: item #%d of type %s could not be converted to any allowed type [%s]. Last error: %s',
+                    'Cannot hydrate %s: item #%d could not be converted to any allowed type [%s]',
                     static::class,
                     $itemIndex,
-                    is_object($item) ? $item::class : gettype($item),
-                    implode('|', $allowedTypes),
-                    $lastException ? $lastException->getMessage() : 'Unknown'
+                    implode('|', $allowedTypes)
                 ));
             }
 
-            // Un seul type possible
             $collection->add(self::convertItem($item, $matchedTypes[0]));
         }
 

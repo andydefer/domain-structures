@@ -234,7 +234,8 @@ final class AbstractDataTest extends TestCase
 
     public function test_collect_creates_array_of_data_dtos_from_collection(): void
     {
-        $recordCollection = new RecordCollection;
+        // ✅ CORRECTION: RecordCollection a besoin du type concret
+        $recordCollection = new RecordCollection(TestUserRecord::class);
         $recordCollection->add(
             new TestUserRecord(id: 1, name: 'User 1', email: TestEmailAddress::from('user1@example.com')),
             new TestUserRecord(id: 2, name: 'User 2', email: TestEmailAddress::from('user2@example.com'))
@@ -254,7 +255,8 @@ final class AbstractDataTest extends TestCase
 
     public function test_collect_on_empty_collection_returns_empty_array(): void
     {
-        $emptyCollection = new RecordCollection;
+        // ✅ CORRECTION: RecordCollection a besoin du type concret même vide
+        $emptyCollection = new RecordCollection(TestUserRecord::class);
         $result = TestUserData::collect($emptyCollection);
 
         $this->assertIsArray($result);

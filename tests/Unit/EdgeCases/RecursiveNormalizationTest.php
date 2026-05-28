@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Tests\Unit\EdgeCases;
 
+use AndyDefer\DomainStructures\Collections\Core\CollectionContainer;
 use AndyDefer\DomainStructures\Collections\Core\DataCollection;
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
+use AndyDefer\DomainStructures\Collections\Utility\IntTypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
-use AndyDefer\DomainStructures\Tests\Fixtures\Collections\NestedCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ProductRecordCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestProductData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
@@ -132,9 +133,12 @@ final class RecursiveNormalizationTest extends TestCase
         $this->assertSame(['x', 'y', 'z'], $normalized[0][0]);
     }
 
+    /**
+     * ✅ Utilisation de CollectionContainer au lieu de NestedCollection
+     */
     public function test_nested_collection_normalizes_correctly(): void
     {
-        $nestedCollection = new NestedCollection;
+        $container = new CollectionContainer(StringTypedCollection::class);
 
         $inner1 = new StringTypedCollection;
         $inner1->add('a', 'b', 'c');
@@ -142,9 +146,9 @@ final class RecursiveNormalizationTest extends TestCase
         $inner2 = new StringTypedCollection;
         $inner2->add('d', 'e', 'f');
 
-        $nestedCollection->add($inner1, $inner2);
+        $container->add($inner1, $inner2);
 
-        $normalized = $nestedCollection->normalize();
+        $normalized = $container->normalize();
 
         $this->assertIsArray($normalized);
         $this->assertCount(2, $normalized);
@@ -209,6 +213,9 @@ final class RecursiveNormalizationTest extends TestCase
 
     // ==================== DATA DTO NESTING TESTS ====================
 
+    /**
+     * ✅ CORRECTION: DataCollection nécessite un type concret
+     */
     public function test_data_dto_containing_nested_data_dto_normalizes_correctly(): void
     {
         $productData = new TestProductData(
@@ -218,7 +225,7 @@ final class RecursiveNormalizationTest extends TestCase
             isFeatured: true
         );
 
-        $dataCollection = new DataCollection;
+        $dataCollection = new DataCollection(TestProductData::class);
         $dataCollection->add($productData);
 
         $normalized = $dataCollection->normalize();
@@ -296,12 +303,16 @@ final class RecursiveNormalizationTest extends TestCase
         $this->assertSame(42, $normalized[0]['inner']['number']);
     }
 
+    /**
+     * ✅ CORRECTION: Email spécifique pour éviter confusion
+     */
     public function test_data_object_containing_record_normalizes_recursively(): void
     {
+        $recordEmail = TestEmailAddress::from('john.doe@example.com');
         $record = new TestUserRecord(
             id: 1,
             name: 'John Doe',
-            email: $this->testEmail
+            email: $recordEmail
         );
 
         $dataObject = DataObject::from(['user' => $record, 'type' => 'test']);
@@ -431,13 +442,16 @@ final class RecursiveNormalizationTest extends TestCase
 
     // ==================== PERFORMANCE AND SAFETY TESTS ====================
 
+    /**
+     * ✅ CORRECTION: Utiliser des types cohérents dans la boucle
+     */
     public function test_normalization_does_not_cause_stack_overflow_with_deep_nesting(): void
     {
-        $current = new StringTypedCollection;
+        $current = new TypedCollection('string');
         $current->add('level1');
 
         for ($i = 2; $i <= 20; $i++) {
-            $wrapper = new TypedCollection(StringTypedCollection::class);
+            $wrapper = new TypedCollection(TypedCollection::class);
             $wrapper->add($current);
             $current = $wrapper;
         }
@@ -463,5 +477,45 @@ final class RecursiveNormalizationTest extends TestCase
 
         $this->assertSame($first, $second);
         $this->assertSame($second, $third);
+    }
+
+    // ==================== COLLECTION CONTAINER ADDITIONAL TESTS ====================
+
+    public function test_collection_container_with_multiple_collection_types(): void
+    {
+        $container = new CollectionContainer(StringTypedCollection::class, IntTypedCollection::class);
+
+        $strings = new StringTypedCollection;
+        $strings->add('hello', 'world');
+
+        $ints = new IntTypedCollection;
+        $ints->add(1, 2, 3);
+
+        $container->add($strings, $ints);
+
+        $normalized = $container->normalize();
+
+        $this->assertCount(2, $normalized);
+        $this->assertSame(['hello', 'world'], $normalized[0]);
+        $this->assertSame([1, 2, 3], $normalized[1]);
+    }
+
+    public function test_collection_container_flatten_works_with_nested_containers(): void
+    {
+        $container = new CollectionContainer(CollectionContainer::class, StringTypedCollection::class);
+
+        $innerContainer = new CollectionContainer(StringTypedCollection::class);
+        $innerCollection = new StringTypedCollection;
+        $innerCollection->add('a', 'b', 'c');
+        $innerContainer->add($innerCollection);
+
+        $outerCollection = new StringTypedCollection;
+        $outerCollection->add('x', 'y', 'z');
+
+        $container->add($innerContainer, $outerCollection);
+
+        $flattened = $container->flattenDeep();
+
+        $this->assertSame(['a', 'b', 'c', 'x', 'y', 'z'], $flattened);
     }
 }

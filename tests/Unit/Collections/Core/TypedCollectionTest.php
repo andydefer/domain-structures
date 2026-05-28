@@ -14,6 +14,7 @@ use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\DataObject;
+use UnitEnum;
 
 /**
  * Unit tests for TypedCollection class.
@@ -21,7 +22,6 @@ use AndyDefer\DomainStructures\Utils\DataObject;
  * This test suite validates the TypedCollection which extends AbstractTypedCollection.
  * Most functionality is already tested in AbstractTypedCollectionTest.
  * This class only tests TypedCollection-specific behavior:
- * - Constructor with no types (accepts all allowed types)
  * - Constructor with specific types
  *
  * The tests follow the AAA pattern (Arrange, Act, Assert).
@@ -29,58 +29,6 @@ use AndyDefer\DomainStructures\Utils\DataObject;
 final class TypedCollectionTest extends TestCase
 {
     // ==================== CONSTRUCTOR TESTS ====================
-
-    /**
-     * Test that TypedCollection with no types accepts all allowed types.
-     */
-    public function test_constructor_with_no_types_accepts_all_allowed_types(): void
-    {
-        // Arrange & Act
-        $collection = new TypedCollection;
-
-        // Assert
-        $allowedTypes = $collection->getAllowedTypes();
-
-        $this->assertContains('int', $allowedTypes);
-        $this->assertContains('string', $allowedTypes);
-        $this->assertContains('float', $allowedTypes);
-        $this->assertContains('bool', $allowedTypes);
-        $this->assertContains('null', $allowedTypes);
-        $this->assertContains(\UnitEnum::class, $allowedTypes);
-        $this->assertContains(AbstractRecord::class, $allowedTypes);
-        $this->assertContains(AbstractValueObject::class, $allowedTypes);
-        $this->assertContains(AbstractData::class, $allowedTypes);
-        $this->assertContains(AbstractTypedCollection::class, $allowedTypes);
-        $this->assertContains(DataObject::class, $allowedTypes);
-    }
-
-    /**
-     * Test that TypedCollection with no types can add any allowed type.
-     */
-    public function test_constructor_with_no_types_can_add_any_allowed_type(): void
-    {
-        // Arrange
-        $collection = new TypedCollection;
-
-        // Act
-        $collection->add(
-            42,                    // int
-            'string',              // string
-            3.14,                  // float
-            true,                  // bool
-            null,                  // null
-            TestUserStatus::ACTIVE, // enum
-            new TestUserRecord(    // record
-                name: 'User',
-                email: TestEmailAddress::from('user@example.com')
-            ),
-            new DataObject(['name' => 'John']),
-            new TypedCollection    // collection
-        );
-
-        // Assert
-        $this->assertCount(9, $collection);
-    }
 
     /**
      * Test that TypedCollection with specific types restricts to those types.
@@ -132,10 +80,21 @@ final class TypedCollectionTest extends TestCase
     public function test_typed_collection_extends_abstract_typed_collection(): void
     {
         // Arrange & Act
-        $collection = new TypedCollection;
+        $collection = new TypedCollection('int');
 
         // Assert
         $this->assertInstanceOf(AbstractTypedCollection::class, $collection);
+    }
+
+    /**
+     * Test that TypedCollection cannot be created without types.
+     */
+    public function test_constructor_throws_exception_when_no_types_provided(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('At least one allowed type must be provided');
+
+        new TypedCollection();
     }
 
     // ==================== INHERITED FUNCTIONALITY TESTS ====================
@@ -152,7 +111,7 @@ final class TypedCollectionTest extends TestCase
         $collection->add(1, 2, 3);
 
         // Act
-        $doubled = $collection->map(fn ($item) => $item * 2);
+        $doubled = $collection->map(fn($item) => $item * 2);
 
         // Assert
         $this->assertInstanceOf(TypedCollection::class, $doubled);
@@ -169,7 +128,7 @@ final class TypedCollectionTest extends TestCase
         $collection->add(1, 2, 3, 4, 5);
 
         // Act
-        $evens = $collection->filter(fn ($item) => $item % 2 === 0);
+        $evens = $collection->filter(fn($item) => $item % 2 === 0);
 
         // Assert
         $this->assertInstanceOf(TypedCollection::class, $evens);
@@ -331,5 +290,57 @@ final class TypedCollectionTest extends TestCase
 
         // Act
         $collection->add('not a data object');
+    }
+
+    /**
+     * Test that TypedCollection can store multiple types.
+     */
+    public function test_typed_collection_can_store_multiple_types(): void
+    {
+        // Arrange
+        $collection = new TypedCollection('int', 'string', 'bool');
+
+        // Act
+        $collection->add(42, 'hello', true);
+
+        // Assert
+        $this->assertCount(3, $collection);
+        $this->assertSame(42, $collection[0]);
+        $this->assertSame('hello', $collection[1]);
+        $this->assertTrue($collection[2]);
+    }
+
+    /**
+     * Test that TypedCollection can store enums.
+     */
+    public function test_typed_collection_can_store_enums(): void
+    {
+        // Arrange
+        $collection = new TypedCollection(TestUserStatus::class);
+
+        // Act
+        $collection->add(TestUserStatus::ACTIVE, TestUserStatus::INACTIVE);
+
+        // Assert
+        $this->assertCount(2, $collection);
+        $this->assertSame(TestUserStatus::ACTIVE, $collection[0]);
+        $this->assertSame(TestUserStatus::INACTIVE, $collection[1]);
+    }
+
+    /**
+     * Test that TypedCollection can store records.
+     */
+    public function test_typed_collection_can_store_records(): void
+    {
+        // Arrange
+        $collection = new TypedCollection(TestUserRecord::class);
+        $record = new TestUserRecord(name: 'John', email: TestEmailAddress::from('john@example.com'));
+
+        // Act
+        $collection->add($record);
+
+        // Assert
+        $this->assertCount(1, $collection);
+        $this->assertSame($record, $collection[0]);
     }
 }

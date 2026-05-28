@@ -83,7 +83,7 @@ final class RecordNormalizerTest extends TestCase
 
         foreach ($values as $value) {
             $result = $this->normalizer->supports($value);
-            $this->assertFalse($result, 'Failed for value type: '.(is_object($value) ? $value::class : gettype($value)));
+            $this->assertFalse($result, 'Failed for value type: ' . (is_object($value) ? $value::class : gettype($value)));
         }
     }
 

@@ -15,7 +15,9 @@ use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 final class DataCollection extends AbstractTypedCollection
 {
     /**
-     * @param class-string<AbstractData> ...$allowedConcreteTypes
+     * Constructeur public avec validation
+     * 
+     * @param  class-string<AbstractData>  ...$allowedConcreteTypes
      */
     public function __construct(string ...$allowedConcreteTypes)
     {
@@ -23,7 +25,6 @@ final class DataCollection extends AbstractTypedCollection
             throw new \InvalidArgumentException('At least one concrete Data class must be provided');
         }
 
-        // Vérifier que tous les types sont bien des sous-classes de AbstractData
         foreach ($allowedConcreteTypes as $type) {
             if (!is_subclass_of($type, AbstractData::class)) {
                 throw new \InvalidArgumentException(sprintf(

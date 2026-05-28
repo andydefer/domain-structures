@@ -8,6 +8,7 @@ use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
+use AndyDefer\DomainStructures\Collections\Core\DataCollection;
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\IntTypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
@@ -1223,9 +1224,8 @@ final class AbstractTypedCollectionTest extends TestCase
             ]
         ];
 
-        $collection = new TypedCollection(TestUserData::class);
+        $collection = new DataCollection(TestUserData::class);
         $result = $collection::from($source);
-        dump($collection);
 
         $this->assertCount(2, $result);
         $this->assertInstanceOf(TestUserData::class, $result[0]);

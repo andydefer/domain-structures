@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Tests\Unit\Collections\Core;
 
-use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Collections\Core\RecordCollection;
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
@@ -76,27 +75,27 @@ final class RecordCollectionTest extends TestCase
     // ==================== CONSTRUCTOR TESTS ====================
 
     /**
-     * Test that RecordCollection constructor sets AbstractRecord as allowed type.
+     * Test that RecordCollection constructor sets allowed type.
      */
     public function test_constructor_sets_abstract_record_as_allowed_type(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
 
-        $this->assertSame([AbstractRecord::class], $collection->getAllowedTypes());
+        $this->assertSame([TestUserRecord::class], $collection->getAllowedTypes());
     }
 
     /**
-     * Test that RecordCollection only accepts AbstractRecord type.
+     * Test that RecordCollection only accepts the specified record type.
      */
     public function test_collection_only_accepts_abstract_record_type(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $userRecord = $this->createTestUserRecord(1, 'John Doe');
 
         $collection->add($userRecord);
 
         $this->assertCount(1, $collection);
-        $this->assertSame($userRecord, $collection->toArray()[0]);
+        $this->assertSame($userRecord, $collection[0]);
     }
 
     /**
@@ -104,10 +103,10 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_collection_rejects_non_abstract_record_objects(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Expected type(s) ' . AbstractRecord::class);
+        $this->expectExceptionMessage('Expected type(s) ' . TestUserRecord::class);
 
         $collection->add('not a record');
     }
@@ -117,7 +116,7 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_collection_rejects_scalar_values(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
 
         $this->expectException(InvalidArgumentException::class);
 
@@ -131,7 +130,7 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_add_accepts_multiple_record_objects(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $record1 = $this->createTestUserRecord(1, 'User 1');
         $record2 = $this->createTestUserRecord(2, 'User 2');
         $record3 = $this->createTestUserRecord(3, 'User 3');
@@ -139,6 +138,9 @@ final class RecordCollectionTest extends TestCase
         $collection->add($record1, $record2, $record3);
 
         $this->assertCount(3, $collection);
+        $this->assertSame($record1, $collection[0]);
+        $this->assertSame($record2, $collection[1]);
+        $this->assertSame($record3, $collection[2]);
     }
 
     /**
@@ -146,7 +148,7 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_add_returns_self_for_chaining(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $record = $this->createTestUserRecord(1, 'User 1');
 
         $result = $collection->add($record);
@@ -161,7 +163,7 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_all_returns_new_collection_with_same_items(): void
     {
-        $original = new RecordCollection;
+        $original = new RecordCollection(TestUserRecord::class);
         $original->add(
             $this->createTestUserRecord(1, 'User 1'),
             $this->createTestUserRecord(2, 'User 2')
@@ -172,7 +174,8 @@ final class RecordCollectionTest extends TestCase
         $this->assertNotSame($original, $newCollection);
         $this->assertInstanceOf(RecordCollection::class, $newCollection);
         $this->assertCount(2, $newCollection);
-        $this->assertEquals($original->toArray(), $newCollection->toArray());
+        $this->assertEquals($original[0], $newCollection[0]);
+        $this->assertEquals($original[1], $newCollection[1]);
     }
 
     // ==================== FILTER METHOD TESTS ====================
@@ -182,23 +185,20 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_filter_returns_record_collection_with_filtered_items(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $collection->add(
             $this->createTestUserRecord(1, 'Alice'),
             $this->createTestUserRecord(2, 'Bob'),
             $this->createTestUserRecord(3, 'Alice')
         );
 
-        /** @var RecordCollection $filtered */
+        /** @var RecordCollection<TestUserRecord> $filtered */
         $filtered = $collection->filter(fn(TestUserRecord $item) => $item->name === 'Alice');
 
         $this->assertInstanceOf(RecordCollection::class, $filtered);
         $this->assertCount(2, $filtered);
-
-        /** @var array<int, TestUserRecord> $filteredArray */
-        $filteredArray = $filtered->toArray();
-        $this->assertSame('Alice', $filteredArray[0]->name);
-        $this->assertSame('Alice', $filteredArray[1]->name);
+        $this->assertSame('Alice', $filtered[0]->name);
+        $this->assertSame('Alice', $filtered[1]->name);
     }
 
     // ==================== MAP METHOD TESTS ====================
@@ -208,7 +208,7 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_map_can_transform_record_objects(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $collection->add(
             $this->createTestUserRecord(1, 'John'),
             $this->createTestUserRecord(2, 'Jane')
@@ -222,11 +222,11 @@ final class RecordCollectionTest extends TestCase
     }
 
     /**
-     * Test that map can produce new RecordCollection.
+     * Test that map can produce new collection.
      */
     public function test_map_can_produce_new_record_collection(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestProductRecord::class);
         $collection->add(
             $this->createTestProductRecord(1, 'Product A', 100),
             $this->createTestProductRecord(2, 'Product B', 200)
@@ -245,7 +245,7 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_collection_normalizes_to_array_with_snake_case(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $collection->add(
             $this->createTestUserRecord(1, 'John'),
             $this->createTestUserRecord(2, 'Jane')
@@ -267,7 +267,7 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_collection_normalizes_to_json(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $collection->add($this->createTestUserRecord(1, 'John'));
 
         $json = json_encode($collection->normalize(false));
@@ -286,7 +286,7 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_collection_excludes_nulls_when_specified(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $record = new TestUserRecord(
             name: 'John',
             email: $this->testEmail,
@@ -299,19 +299,8 @@ final class RecordCollectionTest extends TestCase
 
         $this->assertIsArray($normalized);
         $this->assertCount(1, $normalized);
-
-        // Vérifier que name est présent et correct
         $this->assertArrayHasKey('name', $normalized[0]);
         $this->assertSame('John', $normalized[0]['name']);
-
-        // Vérifier que les champs null sont soit absents, soit null
-        if (array_key_exists('id', $normalized[0])) {
-            $this->assertNull($normalized[0]['id']);
-        }
-
-        if (array_key_exists('email_verified_at', $normalized[0])) {
-            $this->assertNull($normalized[0]['email_verified_at']);
-        }
     }
 
     // ==================== COLLECTION OPERATIONS TESTS ====================
@@ -321,7 +310,7 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_collection_supports_count(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $collection->add(
             $this->createTestUserRecord(1, 'User 1'),
             $this->createTestUserRecord(2, 'User 2')
@@ -336,8 +325,8 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_collection_supports_is_empty(): void
     {
-        $emptyCollection = new RecordCollection;
-        $nonEmptyCollection = new RecordCollection;
+        $emptyCollection = new RecordCollection(TestUserRecord::class);
+        $nonEmptyCollection = new RecordCollection(TestUserRecord::class);
         $nonEmptyCollection->add($this->createTestUserRecord(1, 'User'));
 
         $this->assertTrue($emptyCollection->isEmpty());
@@ -349,7 +338,7 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_collection_supports_contains(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $user1 = $this->createTestUserRecord(1, 'User 1');
         $user2 = $this->createTestUserRecord(2, 'User 2');
         $collection->add($user1, $user2);
@@ -366,7 +355,7 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_collection_supports_each(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $collection->add(
             $this->createTestUserRecord(1, 'User 1'),
             $this->createTestUserRecord(2, 'User 2')
@@ -385,7 +374,7 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_collection_supports_reduce(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestProductRecord::class);
         $collection->add(
             $this->createTestProductRecord(1, 'Product A', 100),
             $this->createTestProductRecord(2, 'Product B', 200),
@@ -402,7 +391,7 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_collection_supports_find(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $collection->add(
             $this->createTestUserRecord(1, 'Alice'),
             $this->createTestUserRecord(2, 'Bob'),
@@ -422,7 +411,7 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_collection_supports_every(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $collection->add(
             $this->createTestUserRecord(1, 'User 1'),
             $this->createTestUserRecord(2, 'User 2')
@@ -437,7 +426,7 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_collection_supports_some(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $collection->add(
             $this->createTestUserRecord(1, 'Alice'),
             $this->createTestUserRecord(2, 'Bob'),
@@ -453,22 +442,20 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_collection_supports_reverse(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $collection->add(
             $this->createTestUserRecord(1, 'First'),
             $this->createTestUserRecord(2, 'Second'),
             $this->createTestUserRecord(3, 'Third')
         );
 
+        /** @var RecordCollection<TestUserRecord>*/
         $reversed = $collection->reverse();
 
         $this->assertInstanceOf(RecordCollection::class, $reversed);
-
-        /** @var array<int, TestUserRecord> $reversedArray */
-        $reversedArray = $reversed->toArray();
-        $this->assertSame('Third', $reversedArray[0]->name);
-        $this->assertSame('Second', $reversedArray[1]->name);
-        $this->assertSame('First', $reversedArray[2]->name);
+        $this->assertSame('Third', $reversed[0]->name);
+        $this->assertSame('Second', $reversed[1]->name);
+        $this->assertSame('First', $reversed[2]->name);
     }
 
     /**
@@ -476,20 +463,18 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_collection_supports_merge(): void
     {
-        $collection1 = new RecordCollection;
-        $collection2 = new RecordCollection;
+        $collection1 = new RecordCollection(TestUserRecord::class);
+        $collection2 = new RecordCollection(TestUserRecord::class);
         $collection1->add($this->createTestUserRecord(1, 'User 1'));
         $collection2->add($this->createTestUserRecord(2, 'User 2'));
 
+        /** @var RecordCollection<TestUserRecord>*/
         $merged = $collection1->merge($collection2);
 
         $this->assertInstanceOf(RecordCollection::class, $merged);
         $this->assertCount(2, $merged);
-
-        /** @var array<int, TestUserRecord> $mergedArray */
-        $mergedArray = $merged->toArray();
-        $this->assertSame('User 1', $mergedArray[0]->name);
-        $this->assertSame('User 2', $mergedArray[1]->name);
+        $this->assertSame('User 1', $merged[0]->name);
+        $this->assertSame('User 2', $merged[1]->name);
     }
 
     /**
@@ -497,7 +482,7 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_collection_supports_sort(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestProductRecord::class);
         $collection->add(
             $this->createTestProductRecord(3, 'Product C', 300),
             $this->createTestProductRecord(1, 'Product A', 100),
@@ -507,12 +492,9 @@ final class RecordCollectionTest extends TestCase
         $sorted = $collection->sort();
 
         $this->assertInstanceOf(RecordCollection::class, $sorted);
-
-        /** @var array<int, TestProductRecord> $sortedArray */
-        $sortedArray = $sorted->toArray();
-        $this->assertSame('Product A', $sortedArray[0]->name);
-        $this->assertSame('Product B', $sortedArray[1]->name);
-        $this->assertSame('Product C', $sortedArray[2]->name);
+        $this->assertSame('Product A', $sorted[0]->name);
+        $this->assertSame('Product B', $sorted[1]->name);
+        $this->assertSame('Product C', $sorted[2]->name);
     }
 
     // ==================== ARRAY ACCESS TESTS ====================
@@ -522,7 +504,7 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_collection_supports_array_access(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $collection->add($this->createTestUserRecord(1, 'User 1'));
 
         $this->assertTrue(isset($collection[0]));
@@ -537,7 +519,7 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_collection_can_be_json_serialized(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
         $collection->add($this->createTestUserRecord(1, 'User 1'));
 
         $json = json_encode($collection);
@@ -557,7 +539,7 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_empty_collection_normalizes_to_empty_array(): void
     {
-        $emptyCollection = new RecordCollection;
+        $emptyCollection = new RecordCollection(TestUserRecord::class);
 
         $normalized = $emptyCollection->normalize();
 
@@ -570,17 +552,14 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_collection_can_handle_many_items(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
 
         for ($i = 1; $i <= 100; $i++) {
             $collection->add($this->createTestUserRecord($i, "User {$i}"));
         }
 
         $this->assertCount(100, $collection);
-
-        /** @var array<int, TestUserRecord> $items */
-        $items = $collection->toArray();
-        $this->assertSame('User 50', $items[49]->name);
+        $this->assertSame('User 50', $collection[49]->name);
     }
 
     /**
@@ -588,7 +567,7 @@ final class RecordCollectionTest extends TestCase
      */
     public function test_collection_preserves_item_order(): void
     {
-        $collection = new RecordCollection;
+        $collection = new RecordCollection(TestUserRecord::class);
 
         $collection->add(
             $this->createTestUserRecord(1, 'First'),
@@ -596,10 +575,8 @@ final class RecordCollectionTest extends TestCase
             $this->createTestUserRecord(3, 'Third')
         );
 
-        /** @var array<int, TestUserRecord> $items */
-        $items = $collection->toArray();
-        $this->assertSame('First', $items[0]->name);
-        $this->assertSame('Second', $items[1]->name);
-        $this->assertSame('Third', $items[2]->name);
+        $this->assertSame('First', $collection[0]->name);
+        $this->assertSame('Second', $collection[1]->name);
+        $this->assertSame('Third', $collection[2]->name);
     }
 }

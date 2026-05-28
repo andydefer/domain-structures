@@ -16,7 +16,7 @@ use InvalidArgumentException;
  *
  * @template TValue of int|float
  *
- * @extends TypedCollection<TValue>
+ * @extends AbstractTypedCollection<TValue>
  */
 abstract class AbstractNumberTypedCollection extends AbstractTypedCollection
 {
@@ -27,7 +27,7 @@ abstract class AbstractNumberTypedCollection extends AbstractTypedCollection
      */
     public function positive(): static
     {
-        return $this->filter(fn ($item): bool => $item > 0);
+        return $this->filter(fn($item): bool => $item > 0);
     }
 
     /**
@@ -37,7 +37,7 @@ abstract class AbstractNumberTypedCollection extends AbstractTypedCollection
      */
     public function negative(): static
     {
-        return $this->filter(fn ($item): bool => $item < 0);
+        return $this->filter(fn($item): bool => $item < 0);
     }
 
     /**
@@ -57,7 +57,7 @@ abstract class AbstractNumberTypedCollection extends AbstractTypedCollection
             );
         }
 
-        return $this->filter(fn ($item): bool => $item >= $min && $item <= $max);
+        return $this->filter(fn($item): bool => $item >= $min && $item <= $max);
     }
 
     /**
@@ -111,7 +111,8 @@ abstract class AbstractNumberTypedCollection extends AbstractTypedCollection
      */
     public static function range(int|float $start, int|float $end, int|float $step = 1): static
     {
-        if ($step === 0.0) {
+        // ✅ Correction: utiliser == au lieu de === pour capturer int 0 et float 0.0
+        if ($step == 0) {
             throw new InvalidArgumentException('Step value cannot be zero');
         }
 

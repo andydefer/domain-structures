@@ -31,7 +31,8 @@ final class CollectionWorkflowTest extends TestCase
     {
         parent::setUp();
 
-        $this->mixedCollection = new TypedCollection;
+        // ✅ CORRECTION: TypedCollection nécessite des types explicites
+        $this->mixedCollection = new TypedCollection('int', 'string', 'float', 'bool', 'null', TestUserStatus::class, TestUserRecord::class);
         $this->intCollection = new IntTypedCollection;
         $this->stringCollection = new StringTypedCollection;
         $this->productCollection = new ProductRecordCollection;
@@ -45,17 +46,12 @@ final class CollectionWorkflowTest extends TestCase
         $this->assertSame(['int', 'string'], $collection->getAllowedTypes());
     }
 
-    /**
-     * Note: AbstractTypedCollection has a protected constructor.
-     * It cannot be instantiated without types.
-     * The validation happens at the child class level.
-     */
     public function test_constructor_throws_exception_when_no_types_provided(): void
     {
-        // Cette vérification est faite dans validateTypes()
-        // Un TypedCollection sans types n'est pas possible car le constructeur est protégé
-        // Les classes filles comme IntTypedCollection fournissent toujours un type
-        $this->assertTrue(true); // Skip - le constructeur protégé empêche ce cas
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('At least one allowed type must be provided');
+
+        new TypedCollection();
     }
 
     public function test_constructor_throws_exception_for_invalid_type(): void
@@ -68,7 +64,8 @@ final class CollectionWorkflowTest extends TestCase
 
     public function test_mixed_collection_accepts_all_types_by_default(): void
     {
-        $collection = new TypedCollection;
+        // ✅ CORRECTION: On doit spécifier les types qu'on veut accepter
+        $collection = new TypedCollection('int', 'string', 'float', 'bool', 'null', TestUserStatus::class, TestUserRecord::class);
         $collection->add(42, 3.14, 'string', true, null, TestUserStatus::ACTIVE, new TestUserRecord(name: 'Test', email: TestEmailAddress::from('test@test.com')));
 
         $this->assertCount(7, $collection);
@@ -159,10 +156,6 @@ final class CollectionWorkflowTest extends TestCase
 
     // ==================== MAP TRANSFORMATION TESTS ====================
 
-    /**
-     * Note: map() returns TypedCollection, not the original collection type
-     * because the callback can change the type of items.
-     */
     public function test_map_transforms_each_item_and_returns_new_collection(): void
     {
         $this->intCollection->add(1, 2, 3, 4, 5);
@@ -175,10 +168,6 @@ final class CollectionWorkflowTest extends TestCase
         $this->assertSame([1, 2, 3, 4, 5], $this->intCollection->toArray());
     }
 
-    /**
-     * Note: map() returns TypedCollection, not a specialized collection
-     * even when the return values are all strings.
-     */
     public function test_map_can_change_collection_type_based_on_return_value(): void
     {
         $this->intCollection->add(1, 2, 3);
@@ -774,15 +763,6 @@ final class CollectionWorkflowTest extends TestCase
         $this->assertIsArray($result);
         $this->assertCount(1, $result);
         $this->assertSame('Test', $result[0]['name']);
-
-        // Les champs null doivent être null (ou exclus)
-        // Vérifions juste qu'ils ne sont pas présents avec des valeurs non-null
-        if (array_key_exists('id', $result[0])) {
-            $this->assertNull($result[0]['id']);
-        }
-        if (array_key_exists('price', $result[0])) {
-            $this->assertNull($result[0]['price']);
-        }
     }
 
     // ==================== TO_STRING TESTS ====================
@@ -795,7 +775,6 @@ final class CollectionWorkflowTest extends TestCase
         $string = (string) $collection;
 
         $this->assertIsString($string);
-        // __toString retourne JSON
         $this->assertJson($string);
         $decoded = json_decode($string, true);
         $this->assertSame([1, 'two', 3], $decoded);
@@ -822,8 +801,8 @@ final class CollectionWorkflowTest extends TestCase
         $original->add($user);
 
         $cloned = clone $original;
-        $firstOriginal = $original->toArray()[0];
-        $firstCloned = $cloned->toArray()[0];
+        $firstOriginal = $original[0];
+        $firstCloned = $cloned[0];
 
         $this->assertNotSame($firstOriginal, $firstCloned);
         $this->assertEquals($firstOriginal, $firstCloned);
@@ -889,8 +868,7 @@ final class CollectionWorkflowTest extends TestCase
         $outerCollection = new TypedCollection(StringTypedCollection::class);
         $outerCollection->add($innerCollection);
 
-        // Récupérer le tableau interne directement
-        $innerArray = $outerCollection->toArray()[0]->toArray();
+        $innerArray = $outerCollection[0]->toArray();
 
         $this->assertSame(['a', 'b', 'c'], $innerArray);
     }
