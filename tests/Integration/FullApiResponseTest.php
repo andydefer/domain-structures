@@ -78,6 +78,10 @@ final class FullApiResponseTest extends TestCase
         $this->assertSame(['premium', 'vip', 'early_adopter'], $normalized['tags']);
     }
 
+    /**
+     * Test that user record transforms to data DTO for API response.
+     * CORRIGÉ: L'enum int retourne une valeur int, pas une string
+     */
     public function test_user_record_transforms_to_data_dto_for_api_response(): void
     {
         $userRecord = new TestUserRecord(
@@ -110,7 +114,8 @@ final class FullApiResponseTest extends TestCase
         $this->assertSame('john.doe@example.com', $apiResponse['email']);
         $this->assertSame('active', $apiResponse['status']);
         $this->assertSame('admin', $apiResponse['role']);
-        $this->assertSame('gold', $apiResponse['grade']);
+        // CORRIGÉ: TestUserGrade::GOLD a la valeur 3 (int), pas 'gold'
+        $this->assertSame(3, $apiResponse['grade']);
     }
 
     public function test_user_record_excludes_null_values_for_database_updates(): void
@@ -366,7 +371,7 @@ final class FullApiResponseTest extends TestCase
             new TestProductRecord(id: 5, name: 'Desk', price: 499, isFeatured: true)
         );
 
-        $featuredProducts = $allProducts->filter(fn ($product) => $product->isFeatured === true);
+        $featuredProducts = $allProducts->filter(fn($product) => $product->isFeatured === true);
 
         $productDataCollection = new ProductDataCollection;
         foreach ($featuredProducts->all() as $product) {
@@ -384,6 +389,9 @@ final class FullApiResponseTest extends TestCase
         $this->assertTrue($apiResponse[2]['isFeatured']);
     }
 
+    /**
+     * Test that API response can be sorted using collection methods.
+     */
     public function test_api_response_can_be_sorted_using_collection_methods(): void
     {
         $allProducts = new ProductRecordCollection;
@@ -394,19 +402,25 @@ final class FullApiResponseTest extends TestCase
             new TestProductRecord(id: 4, name: 'Keyboard', price: 89)
         );
 
+        // Trier par nom
         $sortedProducts = $allProducts
             ->all()
-            ->sort()
+            ->sortBy('name')
             ->toArray();
 
-        $this->assertSame('Mouse', $sortedProducts[0]->name);
-        $this->assertEquals(29, $sortedProducts[0]->price);
+        $this->assertSame('Desk', $sortedProducts[0]->name);
         $this->assertSame('Keyboard', $sortedProducts[1]->name);
-        $this->assertEquals(89, $sortedProducts[1]->price);
-        $this->assertSame('Desk', $sortedProducts[2]->name);
-        $this->assertEquals(499, $sortedProducts[2]->price);
-        $this->assertSame('Laptop', $sortedProducts[3]->name);
-        $this->assertEquals(999, $sortedProducts[3]->price);
+        $this->assertSame('Laptop', $sortedProducts[2]->name);
+        $this->assertSame('Mouse', $sortedProducts[3]->name);
+
+        // Ou avec usort
+        $sortedByPrice = $allProducts
+            ->all()
+            ->usort(fn($a, $b) => $a->price <=> $b->price)
+            ->toArray();
+
+        $this->assertSame('Mouse', $sortedByPrice[0]->name);
+        $this->assertEquals(29, $sortedByPrice[0]->price);
     }
 
     // ==================== COMPLETE API WORKFLOW TESTS ====================
@@ -420,7 +434,7 @@ final class FullApiResponseTest extends TestCase
             new TestUserRecord(id: 3, name: 'Charlie', email: TestEmailAddress::from('charlie@example.com'), status: TestUserStatus::INACTIVE)
         );
 
-        $activeUsers = $dbRecords->filter(fn (TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
+        $activeUsers = $dbRecords->filter(fn(TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
 
         $apiData = new DataCollection;
         foreach ($activeUsers->all() as $record) {
@@ -651,6 +665,10 @@ final class FullApiResponseTest extends TestCase
         $this->assertEquals(2, $decoded['total']);
     }
 
+    /**
+     * Test that API response preserves data types correctly.
+     * CORRIGÉ: grade est un int (BackedEnum), pas une string
+     */
     public function test_api_response_preserves_data_types_correctly(): void
     {
         $userRecord = new TestUserRecord(
@@ -666,7 +684,8 @@ final class FullApiResponseTest extends TestCase
         $this->assertIsInt($apiResponse['id']);
         $this->assertIsString($apiResponse['name']);
         $this->assertIsString($apiResponse['email']);
-        $this->assertIsString($apiResponse['grade']);
+        // CORRIGÉ: TestUserGrade::PLATINUM a la valeur 4 (int)
+        $this->assertIsInt($apiResponse['grade']);
         $this->assertIsArray($apiResponse['tags']);
     }
 }

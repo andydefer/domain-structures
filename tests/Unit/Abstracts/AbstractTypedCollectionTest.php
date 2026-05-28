@@ -417,7 +417,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3, 4, 5);
 
-        $doubled = $collection->map(fn ($item) => $item * 2);
+        $doubled = $collection->map(fn($item) => $item * 2);
 
         $this->assertNotSame($collection, $doubled);
         $this->assertSame([2, 4, 6, 8, 10], $doubled->toArray());
@@ -429,7 +429,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3);
 
-        $stringCollection = $collection->map(fn ($item) => "Number: {$item}");
+        $stringCollection = $collection->map(fn($item) => "Number: {$item}");
 
         $this->assertSame(['string'], $stringCollection->getAllowedTypes());
         $this->assertSame(['Number: 1', 'Number: 2', 'Number: 3'], $stringCollection->toArray());
@@ -438,7 +438,7 @@ final class AbstractTypedCollectionTest extends TestCase
     public function test_map_on_empty_collection_returns_empty_collection(): void
     {
         $emptyCollection = new TypedCollection('int');
-        $result = $emptyCollection->map(fn ($item) => $item * 2);
+        $result = $emptyCollection->map(fn($item) => $item * 2);
 
         $this->assertCount(0, $result);
     }
@@ -450,7 +450,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
-        $evenNumbers = $collection->filter(fn ($item) => $item % 2 === 0);
+        $evenNumbers = $collection->filter(fn($item) => $item % 2 === 0);
 
         $this->assertSame([2, 4, 6, 8, 10], $evenNumbers->toArray());
     }
@@ -460,7 +460,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3);
 
-        $filtered = $collection->filter(fn ($item) => $item > 1);
+        $filtered = $collection->filter(fn($item) => $item > 1);
 
         $this->assertNotSame($collection, $filtered);
         $this->assertSame([1, 2, 3], $collection->toArray());
@@ -470,7 +470,7 @@ final class AbstractTypedCollectionTest extends TestCase
     public function test_filter_on_empty_collection_returns_empty_collection(): void
     {
         $emptyCollection = new TypedCollection('int');
-        $result = $emptyCollection->filter(fn ($item) => $item > 0);
+        $result = $emptyCollection->filter(fn($item) => $item > 0);
 
         $this->assertCount(0, $result);
     }
@@ -482,7 +482,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3, 4, 5);
 
-        $sum = $collection->reduce(fn ($carry, $item) => $carry + $item, 0);
+        $sum = $collection->reduce(fn($carry, $item) => $carry + $item, 0);
 
         $this->assertSame(15, $sum);
     }
@@ -492,7 +492,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('string');
         $collection->add('Hello', ' ', 'World', '!');
 
-        $result = $collection->reduce(fn ($carry, $item) => $carry.$item, '');
+        $result = $collection->reduce(fn($carry, $item) => $carry . $item, '');
 
         $this->assertSame('Hello World!', $result);
     }
@@ -500,7 +500,7 @@ final class AbstractTypedCollectionTest extends TestCase
     public function test_reduce_on_empty_collection_returns_initial_value(): void
     {
         $emptyCollection = new TypedCollection('int');
-        $result = $emptyCollection->reduce(fn ($carry, $item) => $carry + $item, 100);
+        $result = $emptyCollection->reduce(fn($carry, $item) => $carry + $item, 100);
 
         $this->assertSame(100, $result);
     }
@@ -512,7 +512,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 3, 5, 6, 7, 8);
 
-        $firstEven = $collection->find(fn ($item) => $item % 2 === 0);
+        $firstEven = $collection->find(fn($item) => $item % 2 === 0);
 
         $this->assertSame(6, $firstEven);
     }
@@ -522,7 +522,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 3, 5, 7);
 
-        $result = $collection->find(fn ($item) => $item % 2 === 0);
+        $result = $collection->find(fn($item) => $item % 2 === 0);
 
         $this->assertNull($result);
     }
@@ -530,7 +530,7 @@ final class AbstractTypedCollectionTest extends TestCase
     public function test_find_on_empty_collection_returns_null(): void
     {
         $emptyCollection = new TypedCollection('int');
-        $result = $emptyCollection->find(fn ($item) => true);
+        $result = $emptyCollection->find(fn($item) => true);
 
         $this->assertNull($result);
     }
@@ -542,7 +542,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(2, 4, 6, 8, 10);
 
-        $allEven = $collection->every(fn ($item) => $item % 2 === 0);
+        $allEven = $collection->every(fn($item) => $item % 2 === 0);
 
         $this->assertTrue($allEven);
     }
@@ -552,7 +552,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(2, 4, 5, 6, 8);
 
-        $allEven = $collection->every(fn ($item) => $item % 2 === 0);
+        $allEven = $collection->every(fn($item) => $item % 2 === 0);
 
         $this->assertFalse($allEven);
     }
@@ -560,7 +560,7 @@ final class AbstractTypedCollectionTest extends TestCase
     public function test_every_on_empty_collection_returns_true(): void
     {
         $emptyCollection = new TypedCollection('int');
-        $result = $emptyCollection->every(fn ($item) => $item > 100);
+        $result = $emptyCollection->every(fn($item) => $item > 100);
 
         $this->assertTrue($result);
     }
@@ -572,7 +572,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 3, 5, 6, 7, 9);
 
-        $hasEven = $collection->some(fn ($item) => $item % 2 === 0);
+        $hasEven = $collection->some(fn($item) => $item % 2 === 0);
 
         $this->assertTrue($hasEven);
     }
@@ -582,7 +582,7 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 3, 5, 7, 9);
 
-        $hasEven = $collection->some(fn ($item) => $item % 2 === 0);
+        $hasEven = $collection->some(fn($item) => $item % 2 === 0);
 
         $this->assertFalse($hasEven);
     }
@@ -590,7 +590,7 @@ final class AbstractTypedCollectionTest extends TestCase
     public function test_some_on_empty_collection_returns_false(): void
     {
         $emptyCollection = new TypedCollection('int');
-        $result = $emptyCollection->some(fn ($item) => true);
+        $result = $emptyCollection->some(fn($item) => true);
 
         $this->assertFalse($result);
     }
@@ -625,6 +625,267 @@ final class AbstractTypedCollectionTest extends TestCase
         $sorted = $emptyCollection->sort();
 
         $this->assertCount(0, $sorted);
+    }
+
+    // ==================== SORTBY METHOD TESTS ====================
+
+    /**
+     * Test that sortBy sorts by property name in ascending order.
+     */
+    public function test_sort_by_sorts_by_property_name_in_ascending_order(): void
+    {
+        $collection = new TypedCollection(TestUserRecord::class);
+        $collection->add(
+            new TestUserRecord(id: 3, name: 'Charlie', email: $this->testEmail),
+            new TestUserRecord(id: 1, name: 'Alice', email: $this->testEmail),
+            new TestUserRecord(id: 4, name: 'David', email: $this->testEmail),
+            new TestUserRecord(id: 2, name: 'Bob', email: $this->testEmail)
+        );
+
+        $sorted = $collection->sortBy('name');
+
+        $this->assertSame('Alice', $sorted[0]->name);
+        $this->assertSame('Bob', $sorted[1]->name);
+        $this->assertSame('Charlie', $sorted[2]->name);
+        $this->assertSame('David', $sorted[3]->name);
+    }
+
+    /**
+     * Test that sortBy sorts by property name in descending order.
+     */
+    public function test_sort_by_sorts_by_property_name_in_descending_order(): void
+    {
+        $collection = new TypedCollection(TestUserRecord::class);
+        $collection->add(
+            new TestUserRecord(id: 3, name: 'Charlie', email: $this->testEmail),
+            new TestUserRecord(id: 1, name: 'Alice', email: $this->testEmail),
+            new TestUserRecord(id: 4, name: 'David', email: $this->testEmail),
+            new TestUserRecord(id: 2, name: 'Bob', email: $this->testEmail)
+        );
+
+        $sorted = $collection->sortBy('name', SORT_REGULAR, true);
+
+        $this->assertSame('David', $sorted[0]->name);
+        $this->assertSame('Charlie', $sorted[1]->name);
+        $this->assertSame('Bob', $sorted[2]->name);
+        $this->assertSame('Alice', $sorted[3]->name);
+    }
+
+    /**
+     * Test that sortBy sorts by numeric property correctly.
+     */
+    public function test_sort_by_sorts_by_numeric_property(): void
+    {
+        $collection = new TypedCollection(TestUserRecord::class);
+        $collection->add(
+            new TestUserRecord(id: 5, name: 'Eve', email: $this->testEmail),
+            new TestUserRecord(id: 2, name: 'Bob', email: $this->testEmail),
+            new TestUserRecord(id: 4, name: 'David', email: $this->testEmail),
+            new TestUserRecord(id: 1, name: 'Alice', email: $this->testEmail),
+            new TestUserRecord(id: 3, name: 'Charlie', email: $this->testEmail)
+        );
+
+        $sorted = $collection->sortBy('id', SORT_NUMERIC);
+
+        $this->assertEquals(1, $sorted[0]->id);
+        $this->assertEquals(2, $sorted[1]->id);
+        $this->assertEquals(3, $sorted[2]->id);
+        $this->assertEquals(4, $sorted[3]->id);
+        $this->assertEquals(5, $sorted[4]->id);
+    }
+
+    /**
+     * Test that sortBy with closure callback works.
+     */
+    public function test_sort_by_with_closure_callback_works(): void
+    {
+        $collection = new TypedCollection(TestUserRecord::class);
+        $collection->add(
+            new TestUserRecord(id: 3, name: 'Charlie', email: $this->testEmail),
+            new TestUserRecord(id: 1, name: 'Alice', email: $this->testEmail),
+            new TestUserRecord(id: 4, name: 'David', email: $this->testEmail),
+            new TestUserRecord(id: 2, name: 'Bob', email: $this->testEmail)
+        );
+
+        // Trier par longueur du nom
+        $sorted = $collection->sortBy(fn($item) => strlen($item->name));
+
+        $this->assertSame('Bob', $sorted[0]->name);    // 3 caractères
+        $this->assertSame('Alice', $sorted[1]->name);  // 5 caractères
+        $this->assertSame('David', $sorted[2]->name);  // 5 caractères
+        $this->assertSame('Charlie', $sorted[3]->name); // 7 caractères
+    }
+
+    /**
+     * Test that sortBy with numeric flag works correctly.
+     */
+    public function test_sort_by_with_numeric_flag_works(): void
+    {
+        $collection = new TypedCollection('int', 'float');
+        $collection->add(5, 2.5, 8, 1.2, 9, 3.7);
+
+        $sorted = $collection->sortBy(fn($item) => $item, SORT_NUMERIC);
+
+        $this->assertSame([1.2, 2.5, 3.7, 5, 8, 9], $sorted->toArray());
+    }
+
+    /**
+     * Test that sortBy with string flag works correctly.
+     */
+    public function test_sort_by_with_string_flag_works(): void
+    {
+        $collection = new TypedCollection('string');
+        $collection->add('banana', 'Apple', 'cherry', 'date');
+
+        $sorted = $collection->sortBy(fn($item) => $item, SORT_STRING);
+
+        // SORT_STRING trie par ordre ASCII (majuscules avant minuscules)
+        $this->assertSame('Apple', $sorted[0]);
+        $this->assertSame('banana', $sorted[1]);
+        $this->assertSame('cherry', $sorted[2]);
+        $this->assertSame('date', $sorted[3]);
+    }
+
+    /**
+     * Test that sortBy returns new collection instance.
+     */
+    public function test_sort_by_returns_new_collection_instance(): void
+    {
+        $collection = new TypedCollection(TestUserRecord::class);
+        $collection->add(
+            new TestUserRecord(id: 2, name: 'Bob', email: $this->testEmail),
+            new TestUserRecord(id: 1, name: 'Alice', email: $this->testEmail)
+        );
+
+        $sorted = $collection->sortBy('name');
+
+        $this->assertNotSame($collection, $sorted);
+        $this->assertSame([2, 1], array_column($collection->toArray(), 'id'));
+        $this->assertSame([1, 2], array_column($sorted->toArray(), 'id'));
+    }
+
+    /**
+     * Test that sortBy on empty collection returns empty collection.
+     */
+    public function test_sort_by_on_empty_collection_returns_empty_collection(): void
+    {
+        $emptyCollection = new TypedCollection('int');
+        $sorted = $emptyCollection->sortBy(fn($item) => $item);
+
+        $this->assertCount(0, $sorted);
+    }
+
+// ==================== USORT METHOD TESTS ====================
+
+    /**
+     * Test that usort sorts using custom comparison function.
+     */
+    public function test_usort_sorts_using_custom_comparison_function(): void
+    {
+        $collection = new TypedCollection(TestUserRecord::class);
+        $collection->add(
+            new TestUserRecord(id: 3, name: 'Charlie', email: $this->testEmail),
+            new TestUserRecord(id: 1, name: 'Alice', email: $this->testEmail),
+            new TestUserRecord(id: 4, name: 'David', email: $this->testEmail),
+            new TestUserRecord(id: 2, name: 'Bob', email: $this->testEmail)
+        );
+
+        // Trier par nom décroissant
+        $sorted = $collection->usort(fn($a, $b) => strcmp($b->name, $a->name));
+
+        $this->assertSame('David', $sorted[0]->name);
+        $this->assertSame('Charlie', $sorted[1]->name);
+        $this->assertSame('Bob', $sorted[2]->name);
+        $this->assertSame('Alice', $sorted[3]->name);
+    }
+
+    /**
+     * Test that usort sorts numbers correctly.
+     */
+    public function test_usort_sorts_numbers_correctly(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(5, 2, 8, 1, 9, 3, 6, 4, 7);
+
+        $sorted = $collection->usort(fn($a, $b) => $a <=> $b);
+
+        $this->assertSame([1, 2, 3, 4, 5, 6, 7, 8, 9], $sorted->toArray());
+    }
+
+    /**
+     * Test that usort sorts in descending order.
+     */
+    public function test_usort_sorts_in_descending_order(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3, 4, 5);
+
+        $sorted = $collection->usort(fn($a, $b) => $b <=> $a);
+
+        $this->assertSame([5, 4, 3, 2, 1], $sorted->toArray());
+    }
+
+    /**
+     * Test that usort returns new collection instance.
+     */
+    public function test_usort_returns_new_collection_instance(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(3, 1, 2);
+
+        $sorted = $collection->usort(fn($a, $b) => $a <=> $b);
+
+        $this->assertNotSame($collection, $sorted);
+        $this->assertSame([3, 1, 2], $collection->toArray());
+        $this->assertSame([1, 2, 3], $sorted->toArray());
+    }
+
+    /**
+     * Test that usort on empty collection returns empty collection.
+     */
+    public function test_usort_on_empty_collection_returns_empty_collection(): void
+    {
+        $emptyCollection = new TypedCollection('int');
+        $sorted = $emptyCollection->usort(fn($a, $b) => $a <=> $b);
+
+        $this->assertCount(0, $sorted);
+    }
+
+    /**
+     * Test that sortBy and usort produce same result for simple numeric sorting.
+     */
+    public function test_sort_by_and_usort_are_consistent(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(5, 2, 8, 1, 9, 3);
+
+        $sortByResult = $collection->sortBy(fn($item) => $item, SORT_NUMERIC)->toArray();
+        $usortResult = $collection->usort(fn($a, $b) => $a <=> $b)->toArray();
+
+        $this->assertSame($sortByResult, $usortResult);
+        $this->assertSame([1, 2, 3, 5, 8, 9], $sortByResult);
+    }
+
+    /**
+     * Test that sortBy with string property and usort with property comparison are consistent.
+     */
+    public function test_sort_by_property_and_usort_property_are_consistent(): void
+    {
+        $collection = new TypedCollection(TestUserRecord::class);
+        $collection->add(
+            new TestUserRecord(id: 3, name: 'Charlie', email: $this->testEmail),
+            new TestUserRecord(id: 1, name: 'Alice', email: $this->testEmail),
+            new TestUserRecord(id: 4, name: 'David', email: $this->testEmail),
+            new TestUserRecord(id: 2, name: 'Bob', email: $this->testEmail)
+        );
+
+        $sortByResult = $collection->sortBy('name')->toArray();
+        $usortResult = $collection->usort(fn($a, $b) => strcmp($a->name, $b->name))->toArray();
+
+        $this->assertSame('Alice', $sortByResult[0]->name);
+        $this->assertSame('Alice', $usortResult[0]->name);
+        $this->assertSame('Bob', $sortByResult[1]->name);
+        $this->assertSame('Bob', $usortResult[1]->name);
     }
 
     // ==================== REVERSE METHOD TESTS ====================
@@ -986,8 +1247,8 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection->add(5, 2, 8, 1, 9, 3, 6, 4, 7);
 
         $result = $collection
-            ->filter(fn ($n) => $n % 2 === 0)
-            ->map(fn ($n) => $n * 10)
+            ->filter(fn($n) => $n % 2 === 0)
+            ->map(fn($n) => $n * 10)
             ->sort()
             ->reverse();
 
@@ -999,8 +1260,8 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int', 'string', 'float', 'bool', 'null');
 
         $collection->add(42, 'hello', 3.14, true, null);
-        $filtered = $collection->filter(fn ($item) => $item !== null);
-        $mapped = $filtered->map(fn ($item) => is_string($item) ? strtoupper($item) : $item);
+        $filtered = $collection->filter(fn($item) => $item !== null);
+        $mapped = $filtered->map(fn($item) => is_string($item) ? strtoupper($item) : $item);
 
         $this->assertCount(5, $collection);
         $this->assertCount(4, $filtered);

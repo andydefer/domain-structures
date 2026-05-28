@@ -268,6 +268,66 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
         return $result;
     }
 
+    /**
+     * Sort the collection by a specific property or using a custom callback.
+     *
+     * @param  Closure|string  $callback  Either a closure or a property name
+     * @param  int  $flags  Sorting flags (SORT_REGULAR, SORT_NUMERIC, SORT_STRING, etc.)
+     * @param  bool  $descending  Whether to sort in descending order
+     * @return static<TValue> New collection with sorted items
+     *
+     * @throws InvalidArgumentException If the property doesn't exist on the objects
+     */
+    final public function sortBy(Closure|string $callback, int $flags = SORT_REGULAR, bool $descending = false): static
+    {
+        $items = $this->items;
+
+        // Si c'est une string (nom de propriété), créer un closure qui extrait cette propriété
+        if (is_string($callback)) {
+            $property = $callback;
+            $callback = fn($item) => is_object($item) ? ($item->$property ?? null) : null;
+        }
+
+        // Extraire les valeurs à trier
+        $values = array_map($callback, $items);
+
+        // Trier les valeurs avec les flags
+        if ($descending) {
+            arsort($values, $flags);
+        } else {
+            asort($values, $flags);
+        }
+
+        // Réorganiser les items selon l'ordre des valeurs
+        $sortedItems = [];
+        foreach (array_keys($values) as $key) {
+            $sortedItems[] = $items[$key];
+        }
+
+        $result = new static(...$this->allowedTypes);
+        $result->items = $sortedItems;
+
+        return $result;
+    }
+
+    /**
+     * Sort the collection using a custom comparison function.
+     *
+     * @param  Closure  $callback  The comparison function (should return -1, 0, or 1)
+     * @return static<TValue> New collection with sorted items
+     */
+    final public function usort(Closure $callback): static
+    {
+        $items = $this->items;
+        usort($items, $callback);
+
+        $result = new static(...$this->allowedTypes);
+        $result->items = $items;
+
+        return $result;
+    }
+
+
     // ==================== QUERY METHODS ====================
 
     final public function contains(DataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|TypedCollectionInterface|int|string|float|bool|null $value): bool
