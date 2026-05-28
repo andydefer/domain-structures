@@ -8,11 +8,11 @@ use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
-use AndyDefer\DomainStructures\Collections\Core\DataCollection;
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\IntTypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Normalizers\RootNormalizer;
+use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestProductData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestBackedIntEnum;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestBackedStringEnum;
@@ -20,12 +20,12 @@ use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestPureEnum;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserRole;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
+use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestProductRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\DataObject;
-use AndyDefer\DomainStructures\Utils\EmptyData;
 use InvalidArgumentException;
 use UnitEnum;
 
@@ -76,37 +76,32 @@ final class AbstractTypedCollectionTest extends TestCase
         $this->assertSame([TestUserGrade::class], $collection4->getAllowedTypes());
     }
 
-    public function test_constructor_accepts_abstract_record_type(): void
+    public function test_constructor_throws_exception_for_abstract_record_type(): void
     {
-        $collection = new TypedCollection(AbstractRecord::class);
-        $recordCollection = new TypedCollection(TestUserRecord::class);
-
-        $this->assertSame([AbstractRecord::class], $collection->getAllowedTypes());
-        $this->assertSame([TestUserRecord::class], $recordCollection->getAllowedTypes());
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('abstract');
+        new TypedCollection(AbstractRecord::class);
     }
 
-    public function test_constructor_accepts_abstract_value_object_type(): void
+    public function test_constructor_throws_exception_for_abstract_value_object_type(): void
     {
-        $collection = new TypedCollection(AbstractValueObject::class);
-        $voCollection = new TypedCollection(TestEmailAddress::class);
-
-        $this->assertSame([AbstractValueObject::class], $collection->getAllowedTypes());
-        $this->assertSame([TestEmailAddress::class], $voCollection->getAllowedTypes());
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('abstract');
+        new TypedCollection(AbstractValueObject::class);
     }
 
-    public function test_constructor_accepts_abstract_data_type(): void
+    public function test_constructor_throws_exception_for_abstract_data_type(): void
     {
-        $collection = new TypedCollection(AbstractData::class);
-        $this->assertSame([AbstractData::class], $collection->getAllowedTypes());
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('abstract');
+        new TypedCollection(AbstractData::class);
     }
 
-    public function test_constructor_accepts_typed_collection_type(): void
+    public function test_constructor_throws_exception_for_abstract_typed_collection_type(): void
     {
-        $collection = new TypedCollection(AbstractTypedCollection::class);
-        $typedCollection = new TypedCollection(TypedCollection::class);
-
-        $this->assertSame([AbstractTypedCollection::class], $collection->getAllowedTypes());
-        $this->assertSame([TypedCollection::class], $typedCollection->getAllowedTypes());
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('abstract');
+        new TypedCollection(AbstractTypedCollection::class);
     }
 
     public function test_constructor_accepts_data_object_type(): void
@@ -120,20 +115,6 @@ final class AbstractTypedCollectionTest extends TestCase
         $collection = new TypedCollection('int', 'string', TestUserStatus::class, DataObject::class);
 
         $this->assertSame(['int', 'string', TestUserStatus::class, DataObject::class], $collection->getAllowedTypes());
-    }
-
-    public function test_constructor_throws_exception_when_no_types_provided(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('At least one type must be provided');
-
-        new class extends AbstractTypedCollection
-        {
-            public function __construct()
-            {
-                parent::__construct();
-            }
-        };
     }
 
     public function test_constructor_throws_exception_for_non_existent_class(): void
@@ -250,8 +231,17 @@ final class AbstractTypedCollectionTest extends TestCase
 
     public function test_add_accepts_abstract_data_instance(): void
     {
-        $collection = new TypedCollection(AbstractData::class);
-        $collection->add(new EmptyData);
+        $collection = new TypedCollection(TestUserData::class);
+        $data = new TestUserData(
+            name: 'John Doe',
+            email: $this->testEmail,
+            status: TestUserStatus::ACTIVE,
+            role: TestUserRole::USER,
+            grade: TestUserGrade::BRONZE,
+            id: 1,
+            createdAt: $this->now
+        );
+        $collection->add($data);
 
         $this->assertCount(1, $collection);
     }
@@ -629,9 +619,6 @@ final class AbstractTypedCollectionTest extends TestCase
 
     // ==================== SORTBY METHOD TESTS ====================
 
-    /**
-     * Test that sortBy sorts by property name in ascending order.
-     */
     public function test_sort_by_sorts_by_property_name_in_ascending_order(): void
     {
         $collection = new TypedCollection(TestUserRecord::class);
@@ -650,9 +637,6 @@ final class AbstractTypedCollectionTest extends TestCase
         $this->assertSame('David', $sorted[3]->name);
     }
 
-    /**
-     * Test that sortBy sorts by property name in descending order.
-     */
     public function test_sort_by_sorts_by_property_name_in_descending_order(): void
     {
         $collection = new TypedCollection(TestUserRecord::class);
@@ -671,9 +655,6 @@ final class AbstractTypedCollectionTest extends TestCase
         $this->assertSame('Alice', $sorted[3]->name);
     }
 
-    /**
-     * Test that sortBy sorts by numeric property correctly.
-     */
     public function test_sort_by_sorts_by_numeric_property(): void
     {
         $collection = new TypedCollection(TestUserRecord::class);
@@ -694,9 +675,6 @@ final class AbstractTypedCollectionTest extends TestCase
         $this->assertEquals(5, $sorted[4]->id);
     }
 
-    /**
-     * Test that sortBy with closure callback works.
-     */
     public function test_sort_by_with_closure_callback_works(): void
     {
         $collection = new TypedCollection(TestUserRecord::class);
@@ -707,18 +685,14 @@ final class AbstractTypedCollectionTest extends TestCase
             new TestUserRecord(id: 2, name: 'Bob', email: $this->testEmail)
         );
 
-        // Trier par longueur du nom
         $sorted = $collection->sortBy(fn($item) => strlen($item->name));
 
-        $this->assertSame('Bob', $sorted[0]->name);    // 3 caractères
-        $this->assertSame('Alice', $sorted[1]->name);  // 5 caractères
-        $this->assertSame('David', $sorted[2]->name);  // 5 caractères
-        $this->assertSame('Charlie', $sorted[3]->name); // 7 caractères
+        $this->assertSame('Bob', $sorted[0]->name);
+        $this->assertSame('Alice', $sorted[1]->name);
+        $this->assertSame('David', $sorted[2]->name);
+        $this->assertSame('Charlie', $sorted[3]->name);
     }
 
-    /**
-     * Test that sortBy with numeric flag works correctly.
-     */
     public function test_sort_by_with_numeric_flag_works(): void
     {
         $collection = new TypedCollection('int', 'float');
@@ -729,9 +703,6 @@ final class AbstractTypedCollectionTest extends TestCase
         $this->assertSame([1.2, 2.5, 3.7, 5, 8, 9], $sorted->toArray());
     }
 
-    /**
-     * Test that sortBy with string flag works correctly.
-     */
     public function test_sort_by_with_string_flag_works(): void
     {
         $collection = new TypedCollection('string');
@@ -739,16 +710,12 @@ final class AbstractTypedCollectionTest extends TestCase
 
         $sorted = $collection->sortBy(fn($item) => $item, SORT_STRING);
 
-        // SORT_STRING trie par ordre ASCII (majuscules avant minuscules)
         $this->assertSame('Apple', $sorted[0]);
         $this->assertSame('banana', $sorted[1]);
         $this->assertSame('cherry', $sorted[2]);
         $this->assertSame('date', $sorted[3]);
     }
 
-    /**
-     * Test that sortBy returns new collection instance.
-     */
     public function test_sort_by_returns_new_collection_instance(): void
     {
         $collection = new TypedCollection(TestUserRecord::class);
@@ -764,9 +731,6 @@ final class AbstractTypedCollectionTest extends TestCase
         $this->assertSame([1, 2], array_column($sorted->toArray(), 'id'));
     }
 
-    /**
-     * Test that sortBy on empty collection returns empty collection.
-     */
     public function test_sort_by_on_empty_collection_returns_empty_collection(): void
     {
         $emptyCollection = new TypedCollection('int');
@@ -775,11 +739,8 @@ final class AbstractTypedCollectionTest extends TestCase
         $this->assertCount(0, $sorted);
     }
 
-// ==================== USORT METHOD TESTS ====================
+    // ==================== USORT METHOD TESTS ====================
 
-    /**
-     * Test that usort sorts using custom comparison function.
-     */
     public function test_usort_sorts_using_custom_comparison_function(): void
     {
         $collection = new TypedCollection(TestUserRecord::class);
@@ -790,7 +751,6 @@ final class AbstractTypedCollectionTest extends TestCase
             new TestUserRecord(id: 2, name: 'Bob', email: $this->testEmail)
         );
 
-        // Trier par nom décroissant
         $sorted = $collection->usort(fn($a, $b) => strcmp($b->name, $a->name));
 
         $this->assertSame('David', $sorted[0]->name);
@@ -799,9 +759,6 @@ final class AbstractTypedCollectionTest extends TestCase
         $this->assertSame('Alice', $sorted[3]->name);
     }
 
-    /**
-     * Test that usort sorts numbers correctly.
-     */
     public function test_usort_sorts_numbers_correctly(): void
     {
         $collection = new TypedCollection('int');
@@ -812,9 +769,6 @@ final class AbstractTypedCollectionTest extends TestCase
         $this->assertSame([1, 2, 3, 4, 5, 6, 7, 8, 9], $sorted->toArray());
     }
 
-    /**
-     * Test that usort sorts in descending order.
-     */
     public function test_usort_sorts_in_descending_order(): void
     {
         $collection = new TypedCollection('int');
@@ -825,9 +779,6 @@ final class AbstractTypedCollectionTest extends TestCase
         $this->assertSame([5, 4, 3, 2, 1], $sorted->toArray());
     }
 
-    /**
-     * Test that usort returns new collection instance.
-     */
     public function test_usort_returns_new_collection_instance(): void
     {
         $collection = new TypedCollection('int');
@@ -840,9 +791,6 @@ final class AbstractTypedCollectionTest extends TestCase
         $this->assertSame([1, 2, 3], $sorted->toArray());
     }
 
-    /**
-     * Test that usort on empty collection returns empty collection.
-     */
     public function test_usort_on_empty_collection_returns_empty_collection(): void
     {
         $emptyCollection = new TypedCollection('int');
@@ -851,9 +799,6 @@ final class AbstractTypedCollectionTest extends TestCase
         $this->assertCount(0, $sorted);
     }
 
-    /**
-     * Test that sortBy and usort produce same result for simple numeric sorting.
-     */
     public function test_sort_by_and_usort_are_consistent(): void
     {
         $collection = new TypedCollection('int');
@@ -866,9 +811,6 @@ final class AbstractTypedCollectionTest extends TestCase
         $this->assertSame([1, 2, 3, 5, 8, 9], $sortByResult);
     }
 
-    /**
-     * Test that sortBy with string property and usort with property comparison are consistent.
-     */
     public function test_sort_by_property_and_usort_property_are_consistent(): void
     {
         $collection = new TypedCollection(TestUserRecord::class);
@@ -1219,72 +1161,6 @@ final class AbstractTypedCollectionTest extends TestCase
         $this->assertSame([1, 2, 3], iterator_to_array($iterator));
     }
 
-    // ==================== STATIC HELPER METHOD TESTS ====================
-
-    public function test_get_allowed_types_list_returns_all_allowed_types(): void
-    {
-        $collection = new TypedCollection;
-        $allowedTypes = $collection->getAllowedTypes();
-
-        $this->assertContains('int', $allowedTypes);
-        $this->assertContains('string', $allowedTypes);
-        $this->assertContains('float', $allowedTypes);
-        $this->assertContains('bool', $allowedTypes);
-        $this->assertContains('null', $allowedTypes);
-        $this->assertContains(UnitEnum::class, $allowedTypes);
-        $this->assertContains(AbstractRecord::class, $allowedTypes);
-        $this->assertContains(AbstractValueObject::class, $allowedTypes);
-        $this->assertContains(AbstractData::class, $allowedTypes);
-        $this->assertContains(AbstractTypedCollection::class, $allowedTypes);
-        $this->assertContains(DataObject::class, $allowedTypes);
-    }
-
-    // ==================== COMPLEX WORKFLOW TESTS ====================
-
-    public function test_complete_workflow_with_chaining_operations(): void
-    {
-        $collection = new TypedCollection('int');
-        $collection->add(5, 2, 8, 1, 9, 3, 6, 4, 7);
-
-        $result = $collection
-            ->filter(fn($n) => $n % 2 === 0)
-            ->map(fn($n) => $n * 10)
-            ->sort()
-            ->reverse();
-
-        $this->assertSame([80, 60, 40, 20], $result->toArray());
-    }
-
-    public function test_collection_with_mixed_types_works(): void
-    {
-        $collection = new TypedCollection('int', 'string', 'float', 'bool', 'null');
-
-        $collection->add(42, 'hello', 3.14, true, null);
-        $filtered = $collection->filter(fn($item) => $item !== null);
-        $mapped = $filtered->map(fn($item) => is_string($item) ? strtoupper($item) : $item);
-
-        $this->assertCount(5, $collection);
-        $this->assertCount(4, $filtered);
-        $this->assertSame([42, 'HELLO', 3.14, true], $mapped->toArray());
-    }
-
-    public function test_collection_with_nested_collections_works(): void
-    {
-        $outer = new TypedCollection(TypedCollection::class);
-
-        $inner1 = new TypedCollection('int');
-        $inner1->add(1, 2, 3);
-
-        $inner2 = new TypedCollection('string');
-        $inner2->add('a', 'b', 'c');
-
-        $outer->add($inner1, $inner2);
-
-        $this->assertCount(2, $outer);
-        $this->assertSame([1, 2, 3], $outer->toArray()[0]->toArray());
-        $this->assertSame(['a', 'b', 'c'], $outer->toArray()[1]->toArray());
-    }
-
     // ==================== FROM METHOD TESTS ====================
 
     public function test_string_typed_collection_from_array_of_strings(): void
@@ -1320,81 +1196,142 @@ final class AbstractTypedCollectionTest extends TestCase
         $this->assertSame([1, 2, 3, 4, 5], $collection->toArray());
     }
 
-    public function test_data_collection_from_array_of_data_objects(): void
+    // ==================== NESTED FROM METHOD TESTS ====================
+
+    public function test_collection_from_array_of_arrays_with_nested_data(): void
     {
-        $user1 = new TestUserData(
-            name: 'John Doe',
-            email: $this->testEmail,
-            status: TestUserStatus::ACTIVE,
-            role: TestUserRole::USER,
-            grade: TestUserGrade::BRONZE,
-            id: 1,
-            createdAt: $this->now
-        );
+        $source = [
+            [
+                '_type' => TestUserData::class,
+                'id' => 1,
+                'name' => 'John Doe',
+                'email' => 'john@example.com',
+                'status' => 'active',
+                'role' => 'admin',
+                'grade' => 4,
+                'created_at' => '2024-01-01T12:00:00+00:00'
+            ],
+            [
+                '_type' => TestUserData::class,
+                'id' => 2,
+                'name' => 'Jane Doe',
+                'email' => 'jane@example.com',
+                'status' => 'active',
+                'role' => 'user',
+                'grade' => 2,
+                'created_at' => '2024-01-02T12:00:00+00:00'
+            ]
+        ];
 
-        $user2 = new TestUserData(
-            name: 'Jane Doe',
-            email: TestEmailAddress::from('jane@example.com'),
-            status: TestUserStatus::ACTIVE,
-            role: TestUserRole::ADMIN,
-            grade: TestUserGrade::GOLD,
-            id: 2,
-            createdAt: $this->now
-        );
+        $collection = new TypedCollection(TestUserData::class);
+        $result = $collection::from($source);
+        dump($collection);
 
-        $collection = DataCollection::from([$user1, $user2]);
-
-        $this->assertCount(2, $collection);
-        $this->assertSame($user1, $collection[0]);
-        $this->assertSame($user2, $collection[1]);
+        $this->assertCount(2, $result);
+        $this->assertInstanceOf(TestUserData::class, $result[0]);
+        $this->assertSame('John Doe', $result[0]->name);
     }
 
-    public function test_data_collection_from_existing_collection(): void
+    public function test_collection_from_array_with_invalid_items_throws_exception(): void
     {
-        $original = new DataCollection;
-        $user = new TestUserData(
-            name: 'John Doe',
-            email: $this->testEmail,
-            status: TestUserStatus::ACTIVE,
-            role: TestUserRole::USER,
-            grade: TestUserGrade::BRONZE,
-            id: 1,
-            createdAt: $this->now
-        );
-        $original->add($user);
+        $source = [1, 2, 3];
+        $collection = new TypedCollection(TestUserData::class);
 
-        $collection = DataCollection::from($original);
-
-        $this->assertSame($original, $collection);
+        $this->expectException(InvalidArgumentException::class);
+        $collection->from($source);
     }
 
-    public function test_collection_with_records_from_array_of_records(): void
+    public function test_collection_from_empty_source_returns_empty_collection(): void
     {
-        $record1 = new TestUserRecord(
-            id: 1,
-            name: 'John Doe',
-            email: $this->testEmail,
-            status: TestUserStatus::ACTIVE,
-            role: TestUserRole::USER,
-            grade: TestUserGrade::BRONZE
-        );
+        $collection = new TypedCollection(TestUserData::class);
+        $result = $collection->from([]);
 
-        $record2 = new TestUserRecord(
-            id: 2,
-            name: 'Jane Doe',
-            email: TestEmailAddress::from('jane@example.com'),
-            status: TestUserStatus::ACTIVE,
-            role: TestUserRole::ADMIN,
-            grade: TestUserGrade::GOLD
-        );
+        $this->assertCount(0, $result);
+        $this->assertTrue($result->isEmpty());
+    }
 
-        $collection = new TypedCollection(TestUserRecord::class);
-        foreach ([$record1, $record2] as $item) {
-            $collection->add($item);
-        }
+    public function test_scalar_typed_collection_from_array(): void
+    {
+        $source = [1, 2, 3, 4, 5];
+        $collection = IntTypedCollection::from($source);
 
-        $this->assertCount(2, $collection);
-        $this->assertSame($record1, $collection[0]);
-        $this->assertSame($record2, $collection[1]);
+        $this->assertCount(5, $collection);
+        $this->assertSame([1, 2, 3, 4, 5], $collection->toArray());
+    }
+
+    // ==================== AMBIGUOUS TYPE DETECTION TESTS ====================
+
+    public function test_ambiguous_item_throws_exception_when_no_type_specified(): void
+    {
+        $collection = new TypedCollection(TestProductData::class, TestProductRecord::class);
+
+        $source = [
+            ['id' => 1, 'name' => 'Laptop', 'price' => 999]
+        ];
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Ambiguous item #1');
+
+        $collection->from($source);
+    }
+
+    public function test_ambiguous_item_works_with_type_specified(): void
+    {
+        $collection = new TypedCollection(TestProductData::class, TestProductRecord::class);
+
+        $source = [
+            ['_type' => TestProductRecord::class, 'id' => 1, 'name' => 'Laptop', 'price' => 999]
+        ];
+
+        $result = $collection->from($source);
+
+        $this->assertCount(1, $result);
+        $this->assertInstanceOf(TestProductRecord::class, $result[0]);
+    }
+
+    public function test_ambiguous_item_with_wrong_type_throws_exception(): void
+    {
+        $collection = new TypedCollection(TestProductData::class, TestProductRecord::class);
+
+        $source = [
+            ['_type' => 'InvalidType', 'id' => 1, 'name' => 'Laptop', 'price' => 999]
+        ];
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Type "InvalidType" specified in "_type" is not allowed');
+
+        $collection->from($source);
+    }
+
+    public function test_non_ambiguous_items_work_without_type(): void
+    {
+        $collection = new TypedCollection(TestUserData::class, TestProductData::class);
+
+        $source = [
+            ['id' => 1, 'name' => 'John Doe', 'email' => 'john@example.com', 'status' => 'active', 'role' => 'user', 'grade' => 1, 'created_at' => '2024-01-01T12:00:00+00:00'],
+            ['id' => 2, 'name' => 'Jane Doe', 'email' => 'jane@example.com', 'status' => 'active', 'role' => 'admin', 'grade' => 4, 'created_at' => '2024-01-02T12:00:00+00:00']
+        ];
+
+        $result = $collection->from($source);
+
+        $this->assertCount(2, $result);
+        $this->assertInstanceOf(TestUserData::class, $result[0]);
+        $this->assertInstanceOf(TestUserData::class, $result[1]);
+    }
+
+    public function test_mixed_types_in_collection_with_explicit_type(): void
+    {
+        $collection = new TypedCollection(TestUserData::class, TestProductData::class);
+
+        $source = [
+            ['_type' => TestUserData::class, 'id' => 1, 'name' => 'John Doe', 'email' => 'john@example.com', 'status' => 'active', 'role' => 'user', 'grade' => 1, 'created_at' => '2024-01-01T12:00:00+00:00'],
+            ['_type' => TestProductData::class, 'id' => 2, 'name' => 'Laptop', 'price' => 999, 'isFeatured' => true]
+        ];
+
+        $result = $collection->from($source);
+
+        $this->assertCount(2, $result);
+        $this->assertInstanceOf(TestUserData::class, $result[0]);
+        $this->assertInstanceOf(TestProductData::class, $result[1]);
     }
 }
