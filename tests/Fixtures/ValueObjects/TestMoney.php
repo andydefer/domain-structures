@@ -7,11 +7,14 @@ namespace AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects;
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestCurrency;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestMoneyRecord;
+use AndyDefer\DomainStructures\Traits\HasPropertiesAccess;
 use AndyDefer\DomainStructures\Utils\DataObject;
 use InvalidArgumentException;
 
 final class TestMoney extends AbstractValueObject
 {
+    use HasPropertiesAccess;
+
     private function __construct(
         private readonly float $amount,
         private readonly TestCurrency $currency,
@@ -67,6 +70,6 @@ final class TestMoney extends AbstractValueObject
 
     public function format(): string
     {
-        return $this->currency->getSymbol().number_format($this->amount, 2);
+        return $this->currency->getSymbol() . number_format($this->amount, 2);
     }
 }
