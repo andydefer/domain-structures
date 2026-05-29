@@ -168,7 +168,7 @@ final class TypeValidationErrorsTest extends TestCase
         $collection = new TypedCollection(TestUserRecord::class);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Expected type(s) '.TestUserRecord::class);
+        $this->expectExceptionMessage('Expected type(s) ' . TestUserRecord::class);
 
         $collection->add('not a record');
     }
@@ -182,7 +182,7 @@ final class TypeValidationErrorsTest extends TestCase
         $collection = new TypedCollection(TestEmailAddress::class);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Expected type(s) '.TestEmailAddress::class);
+        $this->expectExceptionMessage('Expected type(s) ' . TestEmailAddress::class);
 
         $collection->add('not a value object');
     }
@@ -213,7 +213,7 @@ final class TypeValidationErrorsTest extends TestCase
         $collection = new TypedCollection(IntTypedCollection::class);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Expected type(s) '.IntTypedCollection::class);
+        $this->expectExceptionMessage('Expected type(s) ' . IntTypedCollection::class);
 
         $collection->add('not a collection');
     }
@@ -361,7 +361,7 @@ final class TypeValidationErrorsTest extends TestCase
         $collection = new RecordCollection(TestUserRecord::class);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Expected type(s) '.TestUserRecord::class);
+        $this->expectExceptionMessage('Expected type(s) ' . TestUserRecord::class);
 
         $collection->add('not a record');
     }
@@ -430,7 +430,7 @@ final class TypeValidationErrorsTest extends TestCase
     {
         $source = DataObject::from(['email' => 'test@example.com']);
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Missing required parameter "$name"');
 
         TestRequiredUserRecord::from($source);
@@ -443,12 +443,11 @@ final class TypeValidationErrorsTest extends TestCase
     {
         $source = DataObject::from(['name' => 'John Doe']);
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Missing required parameter "$email"');
 
         TestRequiredUserRecord::from($source);
     }
-
     /**
      * Test that hydration works when all required properties are present.
      */
@@ -469,11 +468,6 @@ final class TypeValidationErrorsTest extends TestCase
     }
 
     // ==================== HYDRATION TYPE ERROR TESTS ====================
-
-    /**
-     * Test that hydration throws exception for type mismatch.
-     * ✅ CORRECTION: L'exception vient de TestEmailAddress qui lance InvalidArgumentException
-     */
     public function test_hydration_throws_exception_for_type_mismatch(): void
     {
         $source = DataObject::from([
@@ -482,7 +476,7 @@ final class TypeValidationErrorsTest extends TestCase
         ]);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Email must be a string');
+        $this->expectExceptionMessageMatches('/Invalid email: 12345/');
 
         TestUserRecord::from($source);
     }
@@ -498,7 +492,7 @@ final class TypeValidationErrorsTest extends TestCase
             'status' => 'invalid_status_value',
         ]);
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid value "invalid_status_value" for enum');
 
         TestUserRecord::from($source);
@@ -515,8 +509,8 @@ final class TypeValidationErrorsTest extends TestCase
             'status' => 'admin',
         ]);
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Invalid value "admin" for enum');
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid value "admin" for enum AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus');
 
         TestUserRecord::from($source);
     }
@@ -559,7 +553,7 @@ final class TypeValidationErrorsTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3);
 
-        $result = $collection->map(fn ($item) => $item * 2);
+        $result = $collection->map(fn($item) => $item * 2);
 
         $this->assertCount(3, $result);
     }
@@ -572,7 +566,7 @@ final class TypeValidationErrorsTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3);
 
-        $result = $collection->map(fn ($item) => (string) $item);
+        $result = $collection->map(fn($item) => (string) $item);
 
         $this->expectException(InvalidArgumentException::class);
 

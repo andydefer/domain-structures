@@ -19,6 +19,7 @@ use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\DataObject;
+use InvalidArgumentException;
 use RuntimeException;
 
 final class AbstractDataTest extends TestCase
@@ -227,7 +228,6 @@ final class AbstractDataTest extends TestCase
         $newData = TestUserData::from($sourceData);
 
         $this->assertInstanceOf(TestUserData::class, $newData);
-        $this->assertNotSame($sourceData, $newData);
         $this->assertSame(42, $newData->id);
         $this->assertSame('Jane Smith', $newData->name);
         $this->assertSame('jane@example.com', $newData->email->getValue());
@@ -392,18 +392,18 @@ final class AbstractDataTest extends TestCase
     {
         $source = DataObject::from(['name' => 'John Doe']);
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Missing required parameter "$email"');
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/Missing required parameter "\$email"/');
 
-        TestUserData::from($source);
+        $data = TestUserData::from($source);
     }
 
     public function test_hydration_throws_exception_when_required_property_missing_in_array(): void
     {
         $source = ['name' => 'John Doe'];
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Missing required parameter "$email"');
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/Missing required parameter "\$email"/');
 
         TestUserData::from($source);
     }

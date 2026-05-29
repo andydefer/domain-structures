@@ -4,30 +4,27 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Traits;
 
+use AndyDefer\DomainStructures\Hydration\Hydrator;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
-use AndyDefer\DomainStructures\Utils\DataObject;
-use AndyDefer\DomainStructures\Enums\PhpType;
-use AndyDefer\DomainStructures\Interfaces\Transformable;
 use InvalidArgumentException;
-use ReflectionClass;
-use ReflectionNamedType;
-use ReflectionProperty;
-use RuntimeException;
 
 /**
  * Trait for Value Objects that want to expose properties via magic __get().
  * 
- * Uses reflection to properly reconstruct properties (scalars, enums, Transformable objects).
+ * Uses Hydrator to properly reconstruct objects from flattened data.
  * 
  * @example
  * final class Money extends AbstractValueObject
  * {
  *     use HasPropertiesAccess;
  *     
- *     private function __construct(Amount $amount, Currency $currency)
- *     {
- *         $this->amount = $amount;
- *         $this->currency = $currency;
+ *     public function __construct(
+ *         private readonly Amount $amount,
+ *         private readonly Currency $currency
+ *     ) {
+ *         if ($amount->isNegative()) {
+ *             throw new InvalidArgumentException("Amount cannot be negative");
+ *         }
  *     }
  * }
  * 
@@ -40,7 +37,7 @@ trait HasPropertiesAccess
 {
     /**
      * Magic getter for accessing properties.
-     * Reconstructs the original object from flattened data.
+     * Uses Hydrator to reconstruct the property from flattened data.
      * 
      * @param string $name Property name
      * @return mixed
@@ -67,7 +64,19 @@ trait HasPropertiesAccess
             return $rawValue;
         }
 
-        return $this->reconstructValue($rawValue, $property, $name);
+        $typeName = $property->getName();
+
+        // Si la valeur est déjà du bon type
+        if ($rawValue instanceof $typeName) {
+            return $rawValue;
+        }
+
+        // Utiliser Hydrator pour reconstruire l'objet
+        if (class_exists($typeName) && method_exists($typeName, 'from')) {
+            return Hydrator::hydrate($typeName, $rawValue);
+        }
+
+        return $rawValue;
     }
 
     /**
@@ -86,10 +95,10 @@ trait HasPropertiesAccess
     /**
      * Get property type using reflection.
      */
-    private function getPropertyType(string $propertyName): ?ReflectionNamedType
+    private function getPropertyType(string $propertyName): ?\ReflectionNamedType
     {
         try {
-            $reflection = new ReflectionClass($this);
+            $reflection = new \ReflectionClass($this);
 
             if (!$reflection->hasProperty($propertyName)) {
                 return null;
@@ -98,49 +107,13 @@ trait HasPropertiesAccess
             $property = $reflection->getProperty($propertyName);
             $type = $property->getType();
 
-            if ($type instanceof ReflectionNamedType) {
+            if ($type instanceof \ReflectionNamedType) {
                 return $type;
             }
 
             return null;
-        } catch (RuntimeException) {
+        } catch (\RuntimeException) {
             return null;
         }
-    }
-
-    /**
-     * Reconstruct value based on its type.
-     */
-    private function reconstructValue(mixed $rawValue, ReflectionNamedType $type, string $propertyName): mixed
-    {
-        $typeName = $type->getName();
-
-        // If value is already of the correct type
-        if ($rawValue instanceof $typeName) {
-            return $rawValue;
-        }
-
-        // Scalar types - return as is
-        if (PhpType::fromTypeString($typeName)->isScalar()) {
-            return $rawValue;
-        }
-
-        // Enum - use ::from()
-        if (PhpType::fromTypeString($typeName)->isEnum()) {
-            if (method_exists($typeName, 'from')) {
-                return $typeName::from($rawValue);
-            }
-            throw new InvalidArgumentException(
-                sprintf('Cannot convert value to enum %s for property $%s', $typeName, $propertyName)
-            );
-        }
-
-        // Transformable - call ::from()
-        if (is_subclass_of($typeName, Transformable::class)) {
-            return $typeName::from($rawValue);
-        }
-
-        // Unknown type - return raw value
-        return $rawValue;
     }
 }

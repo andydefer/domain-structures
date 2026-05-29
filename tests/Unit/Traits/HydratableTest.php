@@ -335,7 +335,7 @@ final class HydratableTest extends TestCase
         $source = DataObject::from(['email' => 'john@example.com']);
         // 'name' is required
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Missing required parameter "$name"');
 
         TestRequiredRecord::from($source);
@@ -349,8 +349,8 @@ final class HydratableTest extends TestCase
             'status' => 'invalid_status',
         ]);
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Invalid value "invalid_status" for enum');
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/Invalid value "invalid_status" for enum/');
 
         TestUserRecord::from($source);
     }
@@ -470,8 +470,8 @@ final class HydratableTest extends TestCase
         ];
 
         $emails = TestUserRecord::collect($sources)
-            ->filter(fn ($user) => $user->name === 'Alice')
-            ->map(fn ($user) => $user->email->getValue())  // ✅ getValue() retourne la string
+            ->filter(fn($user) => $user->name === 'Alice')
+            ->map(fn($user) => $user->email->getValue())  // ✅ getValue() retourne la string
             ->toArray();
 
         $this->assertSame(['alice@example.com', 'alice2@example.com'], $emails);

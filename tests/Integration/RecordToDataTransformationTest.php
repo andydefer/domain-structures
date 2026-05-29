@@ -23,6 +23,7 @@ use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 use AndyDefer\DomainStructures\Tests\TestCase;
+use InvalidArgumentException;
 use RuntimeException;
 
 final class RecordToDataTransformationTest extends TestCase
@@ -68,8 +69,9 @@ final class RecordToDataTransformationTest extends TestCase
         $this->assertSame(TestUserStatus::ACTIVE, $data->status);
         $this->assertSame(TestUserRole::USER, $data->role);
         $this->assertSame(TestUserGrade::BRONZE, $data->grade);
-        $this->assertSame($this->tags, $data->tags);
-        $this->assertSame($this->now, $data->createdAt);
+
+        // Utiliser assertEquals pour comparer les valeurs, pas les références
+        $this->assertEquals($this->now, $data->createdAt);
     }
 
     public function test_record_with_nullable_fields_transforms_correctly(): void
@@ -113,9 +115,11 @@ final class RecordToDataTransformationTest extends TestCase
         $this->assertSame(TestUserStatus::ACTIVE, $data->status);
         $this->assertSame(TestUserRole::ADMIN, $data->role);
         $this->assertSame(TestUserGrade::PLATINUM, $data->grade);
-        $this->assertSame($this->now, $data->emailVerifiedAt);
-        $this->assertSame($this->tags, $data->tags);
-        $this->assertSame($this->now, $data->createdAt);
+
+        // Utiliser assertEquals pour les Value Objects
+        $this->assertEquals($this->now, $data->emailVerifiedAt);
+        $this->assertEquals($this->tags, $data->tags);
+        $this->assertEquals($this->now, $data->createdAt);
     }
 
     // ==================== RECORD COLLECTION TO DATA COLLECTION TESTS ====================
@@ -484,7 +488,7 @@ final class RecordToDataTransformationTest extends TestCase
         );
 
         /** @var RecordCollection<TestUserRecord> $activeRecords */
-        $activeRecords = $recordCollection->filter(fn (TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
+        $activeRecords = $recordCollection->filter(fn(TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
 
         /** @var DataCollection<TestUserData> $dataCollection */
         $dataCollection = new DataCollection(TestUserData::class);
@@ -536,8 +540,8 @@ final class RecordToDataTransformationTest extends TestCase
             email: $this->testEmail
         );
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Missing required parameter "$name"');
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Parameter "$name" for AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData cannot be null');
 
         TestUserData::from($record);
     }

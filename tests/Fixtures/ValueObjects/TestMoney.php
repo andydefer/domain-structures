@@ -8,47 +8,41 @@ use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestCurrency;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestMoneyRecord;
 use AndyDefer\DomainStructures\Traits\HasPropertiesAccess;
-use AndyDefer\DomainStructures\Utils\DataObject;
 use InvalidArgumentException;
 
+/**
+ * Value Object representing money with amount, currency, and optional email.
+ * 
+ * @example
+ * $money = TestMoney::from(['amount' => 99.99, 'currency' => 'EUR']);
+ * echo $money->amount; // 99.99
+ * echo $money->currency->getSymbol(); // €
+ * echo $money->format(); // €99.99
+ * 
+ * @example
+ * // With optional email
+ * $money = TestMoney::from([
+ *     'amount' => 100.00,
+ *     'currency' => 'USD',
+ *     'emailAddress' => 'user@example.com'
+ * ]);
+ * 
+ * @example
+ * // Operations
+ * $total = $money->add(TestMoney::from(['amount' => 50, 'currency' => 'EUR']));
+ */
 final class TestMoney extends AbstractValueObject
 {
     use HasPropertiesAccess;
 
-    private function __construct(
+    public function __construct(
         private readonly float $amount,
         private readonly TestCurrency $currency,
-    ) {}
-
-    public static function from(mixed $source): static
-    {
-        // Si c'est déjà un TestMoney
-        if ($source instanceof self) {
-            return $source;
+        private readonly ?TestEmailAddress $emailAddress = null,
+    ) {
+        if ($amount <= 0) {
+            throw new InvalidArgumentException("Amount must be positive: {$amount}");
         }
-
-        // Normalisation : toute source devient DataObject
-        $data = DataObject::from($source);
-
-        $amount = $data->amount ?? null;
-        $currency = $data->currency ?? null;
-
-        if ($amount === null) {
-            throw new InvalidArgumentException('Missing required property "amount"');
-        }
-
-        if ($currency === null) {
-            throw new InvalidArgumentException('Missing required property "currency"');
-        }
-
-        $amountFloat = (float) $amount;
-        $currencyEnum = TestCurrency::from($currency);
-
-        if ($amountFloat <= 0) {
-            throw new InvalidArgumentException("Amount must be positive: {$amountFloat}");
-        }
-
-        return new self($amountFloat, $currencyEnum);
     }
 
     public function getValue(): TestMoneyRecord
@@ -65,7 +59,7 @@ final class TestMoney extends AbstractValueObject
             throw new InvalidArgumentException('Cannot add different currencies');
         }
 
-        return new self($this->amount + $other->amount, $this->currency);
+        return new self($this->amount + $other->amount, $this->currency, $this->emailAddress);
     }
 
     public function format(): string

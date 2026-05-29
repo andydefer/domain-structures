@@ -14,7 +14,8 @@ final class HasPropertiesAccessTest extends TestCase
     {
         $money = TestMoney::from([
             'amount' => 99.99,
-            'currency' => 'EUR'
+            'currency' => 'EUR',
+            'emailAddress' => 'andykanidimbu@gmail.com'
         ]);
 
         $this->assertSame(99.99, $money->amount);

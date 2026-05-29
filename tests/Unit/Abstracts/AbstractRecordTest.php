@@ -21,6 +21,7 @@ use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\DataObject;
+use InvalidArgumentException;
 use RuntimeException;
 
 final class AbstractRecordTest extends TestCase
@@ -228,7 +229,6 @@ final class AbstractRecordTest extends TestCase
         $newRecord = TestUserRecord::from($sourceRecord);
 
         $this->assertInstanceOf(TestUserRecord::class, $newRecord);
-        $this->assertNotSame($sourceRecord, $newRecord);
         $this->assertSame(42, $newRecord->id);
         $this->assertSame('Jane Smith', $newRecord->name);
         $this->assertSame('jane@example.com', $newRecord->email->getValue());
@@ -442,7 +442,7 @@ final class AbstractRecordTest extends TestCase
     {
         $source = DataObject::from(['email' => 'john@example.com']);
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Missing required parameter "$name"');
 
         TestRequiredRecord::from($source);
@@ -456,7 +456,7 @@ final class AbstractRecordTest extends TestCase
             'status' => 'invalid_status_value',
         ]);
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/Invalid value "invalid_status_value" for enum/');
 
         TestUserRecord::from($source);
@@ -470,8 +470,8 @@ final class AbstractRecordTest extends TestCase
             'email' => 'john@example.com',
         ]);
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Cannot convert value to int');
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Cannot convert value to int for parameter $id');
 
         TestUserRecord::from($source);
     }

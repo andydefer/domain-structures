@@ -10,15 +10,40 @@ use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestUserRoleCollection
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserProfileRecord;
-use AndyDefer\DomainStructures\Utils\DataObject;
 use InvalidArgumentException;
 
 /**
  * Value Object representing a user profile.
+ * 
+ * @example
+ * $profile = TestUserProfile::from([
+ *     'id' => 1,
+ *     'name' => 'John Doe',
+ *     'email' => 'john@example.com',
+ *     'status' => 'active',
+ *     'roles' => ['admin', 'editor'],
+ *     'grade' => 'gold',
+ *     'tags' => ['vip', 'premium'],
+ *     'createdAt' => '2024-01-15T14:30:00+01:00',
+ *     'emailVerifiedAt' => '2024-01-16T10:00:00+01:00'
+ * ]);
+ * 
+ * @example
+ * // Without optional fields
+ * $profile = TestUserProfile::from([
+ *     'id' => 2,
+ *     'name' => 'Jane Doe',
+ *     'email' => 'jane@example.com',
+ *     'status' => 'pending',
+ *     'roles' => ['user'],
+ *     'grade' => 'silver',
+ *     'tags' => ['new'],
+ *     'createdAt' => '2024-01-15T14:30:00+01:00'
+ * ]);
  */
 final class TestUserProfile extends AbstractValueObject
 {
-    private function __construct(
+    public function __construct(
         public readonly int $id,
         public readonly string $name,
         public readonly TestEmailAddress $email,
@@ -28,33 +53,18 @@ final class TestUserProfile extends AbstractValueObject
         public readonly ?TestIso8601DateTime $emailVerifiedAt,
         public readonly StringTypedCollection $tags,
         public readonly TestIso8601DateTime $createdAt,
-    ) {}
-
-    public static function from(mixed $source): static
-    {
-        if ($source instanceof self) {
-            return $source;
+    ) {
+        if ($id <= 0) {
+            throw new InvalidArgumentException("User ID must be positive: {$id}");
         }
 
-        $data = DataObject::from($source);
-
-        // Gérer emailVerifiedAt qui peut être null
-        $emailVerifiedAt = null;
-        if (property_exists($data, 'emailVerifiedAt') && $data->emailVerifiedAt !== null) {
-            $emailVerifiedAt = TestIso8601DateTime::from($data->emailVerifiedAt);
+        if (empty($name)) {
+            throw new InvalidArgumentException('User name cannot be empty');
         }
 
-        return new self(
-            id: $data->id ?? throw new InvalidArgumentException('Missing id'),
-            name: $data->name ?? throw new InvalidArgumentException('Missing name'),
-            email: TestEmailAddress::from($data->email ?? throw new InvalidArgumentException('Missing email')),
-            status: TestUserStatus::from($data->status ?? throw new InvalidArgumentException('Missing status')),
-            roles: TestUserRoleCollection::from($data->roles ?? throw new InvalidArgumentException('Missing roles')),
-            grade: TestUserGrade::from($data->grade ?? throw new InvalidArgumentException('Missing grade')),
-            emailVerifiedAt: $emailVerifiedAt,
-            tags: StringTypedCollection::from($data->tags ?? throw new InvalidArgumentException('Missing tags')),
-            createdAt: TestIso8601DateTime::from($data->createdAt ?? throw new InvalidArgumentException('Missing createdAt')),
-        );
+        if (strlen($name) < 2) {
+            throw new InvalidArgumentException('User name must be at least 2 characters');
+        }
     }
 
     public function getValue(): TestUserProfileRecord

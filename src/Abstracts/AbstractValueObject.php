@@ -4,82 +4,49 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Abstracts;
 
-use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Interfaces\Transformable;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
-use AndyDefer\DomainStructures\Utils\DataObject;
+use AndyDefer\DomainStructures\Traits\Hydratable;
 use InvalidArgumentException;
 use UnitEnum;
 
+/**
+ * Abstract Value Object with automatic hydration via Hydratable trait.
+ * 
+ * Children only need to:
+ * 1. Define a public constructor with typed properties (validation inside constructor)
+ * 2. Implement getValue()
+ * 
+ * @example
+ * final class EmailAddress extends AbstractValueObject
+ * {
+ *     public function __construct(public readonly string $value) 
+ *     {
+ *         if (!filter_var($this->value, FILTER_VALIDATE_EMAIL)) {
+ *             throw new InvalidArgumentException("Invalid email");
+ *         }
+ *     }
+ *     
+ *     public function getValue(): string { return $this->value; }
+ * }
+ * 
+ * // Usage - all provided by Hydratable trait
+ * $email = EmailAddress::from('user@example.com');
+ * $email = EmailAddress::fromJson('"user@example.com"');
+ * $collection = EmailAddress::collect(['a@b.com', 'c@d.com']);
+ */
 abstract class AbstractValueObject implements Transformable
 {
-    protected function __construct() {}
+    use Hydratable;
 
     /**
      * Returns the raw value of the Value Object.
      * Can return scalar, enum, record, data, collection, or DataObject.
      */
-    abstract public function getValue(): int|string|float|bool|null|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|AbstractTypedCollection|DataObject;
-
-    /**
-     * Force children to define from() logic for their specific construction.
-     */
-    abstract public static function from(mixed $source): static;
-
-    /**
-     * Creates an instance from a JSON string.
-     *
-     * @param  string  $json  JSON string representation of the value object
-     *
-     * @throws InvalidArgumentException If the JSON is invalid
-     */
-    final public static function fromJson(string $json): static
-    {
-        $data = json_decode($json, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new InvalidArgumentException(sprintf(
-                'Invalid JSON: %s',
-                json_last_error_msg()
-            ));
-        }
-
-        return static::from($data);
-    }
-
-    /**
-     * Hydrates a collection of sources into a typed collection.
-     *
-     * @template TCollection of AbstractTypedCollection
-     *
-     * @param  iterable<mixed>  $sources
-     * @param  class-string<TCollection>  $collectionClass
-     * @return TCollection
-     */
-    public static function collect(iterable $sources, string $collectionClass = TypedCollection::class): AbstractTypedCollection
-    {
-        if (! is_subclass_of($collectionClass, AbstractTypedCollection::class)) {
-            throw new InvalidArgumentException(sprintf(
-                'Collection class "%s" must extend %s',
-                $collectionClass,
-                AbstractTypedCollection::class
-            ));
-        }
-
-        $collection = new $collectionClass(static::class);
-
-        foreach ($sources as $source) {
-            $collection->add(static::from($source));
-        }
-
-        return $collection;
-    }
+    abstract public function getValue(): int|string|float|bool|null|UnitEnum|Transformable;
 
     /**
      * Checks if this value object is equal to another.
-     *
-     * @param  self  $other  The other value object to compare
-     * @return bool True if the value objects are equal, false otherwise
      */
     public function equals(self $other): bool
     {

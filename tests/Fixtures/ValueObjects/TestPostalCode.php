@@ -7,21 +7,26 @@ namespace AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects;
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 use InvalidArgumentException;
 
+/**
+ * Value Object representing a postal code (French format: 5 digits).
+ * 
+ * @example
+ * $postalCode = TestPostalCode::from('75001');
+ * echo $postalCode->value; // "75001"
+ * echo $postalCode->getCityCode(); // "75"
+ * 
+ * @example
+ * // Invalid postal code
+ * $postalCode = TestPostalCode::from('1234'); // ❌ Exception
+ * $postalCode = TestPostalCode::from('ABCDE'); // ❌ Exception
+ */
 final class TestPostalCode extends AbstractValueObject
 {
-    private function __construct(public readonly string $value) {}
-
-    public static function from(mixed $source): static
+    public function __construct(public readonly string $value)
     {
-        if (! is_string($source)) {
-            throw new InvalidArgumentException('Postal code must be a string');
+        if (!preg_match('/^[0-9]{5}$/', $this->value)) {
+            throw new InvalidArgumentException("Invalid postal code: {$this->value}");
         }
-
-        if (! preg_match('/^[0-9]{5}$/', $source)) {
-            throw new InvalidArgumentException("Invalid postal code: {$source}");
-        }
-
-        return new self($source);
     }
 
     public function getValue(): string

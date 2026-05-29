@@ -28,17 +28,29 @@ final class RootNormalizer implements NormalizerInterface
         }
 
         // Créer tous les normaliseurs
-        $null = new NullNormalizer;
-        $scalar = new ScalarNormalizer;
-        $enum = new EnumNormalizer;
-        $record = new RecordNormalizer;
-        $vo = new ValueObjectNormalizer;
-        $data = new DataNormalizer;
-        $collection = new TypedCollectionNormalizer;
-        $dataObject = new DataObjectNormalizer;
-        $array = new ArrayNormalizer;
+        $null = new NullNormalizer();
+        $scalar = new ScalarNormalizer();
+        $enum = new EnumNormalizer();
+        $dateTime = new DateTimeNormalizer();  // ← AJOUTER ICI
+        $record = new RecordNormalizer();
+        $vo = new ValueObjectNormalizer();
+        $data = new DataNormalizer();
+        $collection = new TypedCollectionNormalizer();
+        $dataObject = new DataObjectNormalizer();
+        $array = new ArrayNormalizer();
 
-        $normalizers = [$null, $scalar, $enum, $record, $vo, $data, $collection, $dataObject, $array];
+        $normalizers = [
+            $null,
+            $scalar,
+            $enum,
+            $dateTime,  // ← PLACER ICI (après enum, avant record)
+            $record,
+            $vo,
+            $data,
+            $collection,
+            $dataObject,
+            $array
+        ];
 
         // Configurer le normaliseur récursif pour chacun
         foreach ($normalizers as $normalizer) {
