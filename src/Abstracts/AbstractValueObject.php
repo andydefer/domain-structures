@@ -6,6 +6,7 @@ namespace AndyDefer\DomainStructures\Abstracts;
 
 use AndyDefer\DomainStructures\Interfaces\Transformable;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
+use AndyDefer\DomainStructures\Traits\HasPropertiesAccess;
 use AndyDefer\DomainStructures\Traits\Hydratable;
 use InvalidArgumentException;
 use UnitEnum;
@@ -37,7 +38,7 @@ use UnitEnum;
  */
 abstract class AbstractValueObject implements Transformable
 {
-    use Hydratable;
+    use Hydratable, HasPropertiesAccess;
 
     /**
      * Returns the raw value of the Value Object.
