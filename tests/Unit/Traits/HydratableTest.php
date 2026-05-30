@@ -470,8 +470,8 @@ final class HydratableTest extends TestCase
         ];
 
         $emails = TestUserRecord::collect($sources)
-            ->filter(fn($user) => $user->name === 'Alice')
-            ->map(fn($user) => $user->email->getValue())  // ✅ getValue() retourne la string
+            ->filter(fn ($user) => $user->name === 'Alice')
+            ->map(fn ($user) => $user->email->getValue())  // ✅ getValue() retourne la string
             ->toArray();
 
         $this->assertSame(['alice@example.com', 'alice2@example.com'], $emails);

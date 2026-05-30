@@ -20,7 +20,6 @@ use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\DataObject;
 use InvalidArgumentException;
-use RuntimeException;
 
 final class AbstractDataTest extends TestCase
 {
@@ -568,7 +567,7 @@ final class AbstractDataTest extends TestCase
         );
 
         $expectedJson = json_encode($data->toArray(), JSON_THROW_ON_ERROR);
-        $actualString = (string)$data;
+        $actualString = (string) $data;
 
         $this->assertSame($expectedJson, $actualString);
     }

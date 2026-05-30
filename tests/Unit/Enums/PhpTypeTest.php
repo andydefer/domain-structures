@@ -10,7 +10,6 @@ use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Enums\PhpType;
-use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestBackedIntEnum;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestBackedStringEnum;
@@ -23,9 +22,7 @@ use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\DataObject;
-use Carbon\Carbon;
 use DateTime;
-use DateTimeInterface;
 use UnitEnum;
 
 /**

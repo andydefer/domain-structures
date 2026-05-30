@@ -14,22 +14,22 @@ use RuntimeException;
  * Trait for automatic hydration of objects.
  *
  * Provides from(), fromJson(), and collect() methods that use the Hydrator.
- * 
+ *
  * @example
  * final class EmailAddress extends AbstractValueObject
  * {
  *     use Hydratable;
- *     
- *     public function __construct(public readonly string $value) 
+ *
+ *     public function __construct(public readonly string $value)
  *     {
  *         if (!filter_var($this->value, FILTER_VALIDATE_EMAIL)) {
  *             throw new InvalidArgumentException("Invalid email");
  *         }
  *     }
- *     
+ *
  *     public function getValue(): string { return $this->value; }
  * }
- * 
+ *
  * // Usage
  * $email = EmailAddress::from('user@example.com');
  * $email = EmailAddress::fromJson('"user@example.com"');
@@ -40,8 +40,8 @@ trait Hydratable
     /**
      * Creates an instance from a source.
      *
-     * @param mixed $source The source data (string, array, object, DataObject, or JSON)
-     * @return static
+     * @param  mixed  $source  The source data (string, array, object, DataObject, or JSON)
+     *
      * @throws RuntimeException|InvalidArgumentException
      */
     public static function from(mixed $source): static
@@ -52,8 +52,8 @@ trait Hydratable
     /**
      * Creates an instance from a JSON string.
      *
-     * @param string $json JSON string
-     * @return static
+     * @param  string  $json  JSON string
+     *
      * @throws RuntimeException If JSON is invalid
      */
     public static function fromJson(string $json): static
@@ -75,15 +75,15 @@ trait Hydratable
      *
      * @template TCollection of AbstractTypedCollection
      *
-     * @param iterable<mixed> $sources
-     * @param class-string<TCollection> $collectionClass
+     * @param  iterable<mixed>  $sources
+     * @param  class-string<TCollection>  $collectionClass
      * @return TCollection
      *
      * @throws InvalidArgumentException
      */
     public static function collect(iterable $sources, string $collectionClass = TypedCollection::class): AbstractTypedCollection
     {
-        if (!is_subclass_of($collectionClass, AbstractTypedCollection::class)) {
+        if (! is_subclass_of($collectionClass, AbstractTypedCollection::class)) {
             throw new InvalidArgumentException(sprintf(
                 'Collection class "%s" must extend %s',
                 $collectionClass,

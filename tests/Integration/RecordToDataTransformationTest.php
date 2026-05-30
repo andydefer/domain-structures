@@ -24,7 +24,6 @@ use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use InvalidArgumentException;
-use RuntimeException;
 
 final class RecordToDataTransformationTest extends TestCase
 {
@@ -488,7 +487,7 @@ final class RecordToDataTransformationTest extends TestCase
         );
 
         /** @var RecordCollection<TestUserRecord> $activeRecords */
-        $activeRecords = $recordCollection->filter(fn(TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
+        $activeRecords = $recordCollection->filter(fn (TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
 
         /** @var DataCollection<TestUserData> $dataCollection */
         $dataCollection = new DataCollection(TestUserData::class);

@@ -22,7 +22,6 @@ use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\DataObject;
 use InvalidArgumentException;
-use RuntimeException;
 use UnitEnum;
 
 /**
@@ -168,7 +167,7 @@ final class TypeValidationErrorsTest extends TestCase
         $collection = new TypedCollection(TestUserRecord::class);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Expected type(s) ' . TestUserRecord::class);
+        $this->expectExceptionMessage('Expected type(s) '.TestUserRecord::class);
 
         $collection->add('not a record');
     }
@@ -182,7 +181,7 @@ final class TypeValidationErrorsTest extends TestCase
         $collection = new TypedCollection(TestEmailAddress::class);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Expected type(s) ' . TestEmailAddress::class);
+        $this->expectExceptionMessage('Expected type(s) '.TestEmailAddress::class);
 
         $collection->add('not a value object');
     }
@@ -213,7 +212,7 @@ final class TypeValidationErrorsTest extends TestCase
         $collection = new TypedCollection(IntTypedCollection::class);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Expected type(s) ' . IntTypedCollection::class);
+        $this->expectExceptionMessage('Expected type(s) '.IntTypedCollection::class);
 
         $collection->add('not a collection');
     }
@@ -361,7 +360,7 @@ final class TypeValidationErrorsTest extends TestCase
         $collection = new RecordCollection(TestUserRecord::class);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Expected type(s) ' . TestUserRecord::class);
+        $this->expectExceptionMessage('Expected type(s) '.TestUserRecord::class);
 
         $collection->add('not a record');
     }
@@ -448,6 +447,7 @@ final class TypeValidationErrorsTest extends TestCase
 
         TestRequiredUserRecord::from($source);
     }
+
     /**
      * Test that hydration works when all required properties are present.
      */
@@ -553,7 +553,7 @@ final class TypeValidationErrorsTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3);
 
-        $result = $collection->map(fn($item) => $item * 2);
+        $result = $collection->map(fn ($item) => $item * 2);
 
         $this->assertCount(3, $result);
     }
@@ -566,7 +566,7 @@ final class TypeValidationErrorsTest extends TestCase
         $collection = new TypedCollection('int');
         $collection->add(1, 2, 3);
 
-        $result = $collection->map(fn($item) => (string) $item);
+        $result = $collection->map(fn ($item) => (string) $item);
 
         $this->expectException(InvalidArgumentException::class);
 

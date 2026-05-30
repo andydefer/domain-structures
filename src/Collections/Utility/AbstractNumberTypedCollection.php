@@ -27,7 +27,7 @@ abstract class AbstractNumberTypedCollection extends AbstractTypedCollection
      */
     public function positive(): static
     {
-        return $this->filter(fn($item): bool => $item > 0);
+        return $this->filter(fn ($item): bool => $item > 0);
     }
 
     /**
@@ -37,7 +37,7 @@ abstract class AbstractNumberTypedCollection extends AbstractTypedCollection
      */
     public function negative(): static
     {
-        return $this->filter(fn($item): bool => $item < 0);
+        return $this->filter(fn ($item): bool => $item < 0);
     }
 
     /**
@@ -57,7 +57,7 @@ abstract class AbstractNumberTypedCollection extends AbstractTypedCollection
             );
         }
 
-        return $this->filter(fn($item): bool => $item >= $min && $item <= $max);
+        return $this->filter(fn ($item): bool => $item >= $min && $item <= $max);
     }
 
     /**

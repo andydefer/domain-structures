@@ -22,7 +22,6 @@ use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\DataObject;
 use InvalidArgumentException;
-use RuntimeException;
 
 final class AbstractRecordTest extends TestCase
 {

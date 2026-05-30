@@ -9,9 +9,9 @@ use DateTimeInterface;
 
 /**
  * Normalizer for DateTimeInterface objects.
- * 
+ *
  * Converts DateTime objects to ISO 8601 string format.
- * 
+ *
  * @example
  * $date = new DateTime('2024-01-15 14:30:00');
  * $normalizer = new DateTimeNormalizer();
@@ -30,7 +30,7 @@ final class DateTimeNormalizer implements NormalizerInterface
 
     public function normalize(mixed $value): string
     {
-        if (!$value instanceof DateTimeInterface) {
+        if (! $value instanceof DateTimeInterface) {
             throw new \InvalidArgumentException('Expected DateTimeInterface instance');
         }
 

@@ -166,7 +166,7 @@ class DataObject implements \ArrayAccess, Transformable
                 return new static($value);
             }
 
-            return array_map(fn($item) => $this->convertValue($item), $value);
+            return array_map(fn ($item) => $this->convertValue($item), $value);
         }
 
         return $value;

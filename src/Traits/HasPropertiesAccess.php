@@ -11,14 +11,14 @@ use InvalidArgumentException;
 
 /**
  * Trait for Value Objects that want to expose properties via magic __get().
- * 
+ *
  * Uses Hydrator to properly reconstruct objects from flattened data.
- * 
+ *
  * @example
  * final class Money extends AbstractValueObject
  * {
  *     use HasPropertiesAccess;
- *     
+ *
  *     public function __construct(
  *         private readonly Amount $amount,
  *         private readonly Currency $currency
@@ -28,7 +28,7 @@ use InvalidArgumentException;
  *         }
  *     }
  * }
- * 
+ *
  * // Usage
  * $money = Money::from(['amount' => 100, 'currency' => 'EUR']);
  * echo $money->amount->getValue(); // "100.00"
@@ -39,9 +39,9 @@ trait HasPropertiesAccess
     /**
      * Magic getter for accessing properties.
      * Uses Hydrator to reconstruct the property from flattened data.
-     * 
-     * @param string $name Property name
-     * @return mixed
+     *
+     * @param  string  $name  Property name
+     *
      * @throws InvalidArgumentException
      */
     public function __get(string $name): mixed
@@ -50,9 +50,8 @@ trait HasPropertiesAccess
         $flatData = NormalizerChain::get()->normalize($this);
         $dataObject = DataObject::from($flatData);
 
-
         // Check if property exists in flattened data
-        if (!isset($dataObject[$name])) {
+        if (! isset($dataObject[$name])) {
             throw new InvalidArgumentException(
                 sprintf('Property "%s" does not exist in %s', $name, static::class)
             );
@@ -84,15 +83,11 @@ trait HasPropertiesAccess
 
     /**
      * Check if a property exists.
-     * 
-     * @param string $name
-     * @return bool
      */
     public function __isset(string $name): bool
     {
         $flatData = NormalizerChain::get()->normalize($this);
         $dataObject = DataObject::from($flatData);
-
 
         return isset($dataObject[$name]);
     }
@@ -105,7 +100,7 @@ trait HasPropertiesAccess
         try {
             $reflection = new \ReflectionClass($this);
 
-            if (!$reflection->hasProperty($propertyName)) {
+            if (! $reflection->hasProperty($propertyName)) {
                 return null;
             }
 

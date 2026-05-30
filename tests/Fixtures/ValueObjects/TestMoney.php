@@ -12,13 +12,12 @@ use InvalidArgumentException;
 
 /**
  * Value Object representing money with amount, currency, and optional email.
- * 
+ *
  * @example
  * $money = TestMoney::from(['amount' => 99.99, 'currency' => 'EUR']);
  * echo $money->amount; // 99.99
  * echo $money->currency->getSymbol(); // €
  * echo $money->format(); // €99.99
- * 
  * @example
  * // With optional email
  * $money = TestMoney::from([
@@ -26,7 +25,6 @@ use InvalidArgumentException;
  *     'currency' => 'USD',
  *     'emailAddress' => 'user@example.com'
  * ]);
- * 
  * @example
  * // Operations
  * $total = $money->add(TestMoney::from(['amount' => 50, 'currency' => 'EUR']));
@@ -64,6 +62,6 @@ final class TestMoney extends AbstractValueObject
 
     public function format(): string
     {
-        return $this->currency->getSymbol() . number_format($this->amount, 2);
+        return $this->currency->getSymbol().number_format($this->amount, 2);
     }
 }

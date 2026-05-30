@@ -15,7 +15,7 @@ final class HasPropertiesAccessTest extends TestCase
         $money = TestMoney::from([
             'amount' => 99.99,
             'currency' => 'EUR',
-            'emailAddress' => 'andykanidimbu@gmail.com'
+            'emailAddress' => 'andykanidimbu@gmail.com',
         ]);
 
         $this->assertSame(99.99, $money->amount);
@@ -26,7 +26,7 @@ final class HasPropertiesAccessTest extends TestCase
     {
         $money = TestMoney::from([
             'amount' => 100.00,
-            'currency' => 'USD'
+            'currency' => 'USD',
         ]);
 
         $this->assertTrue(isset($money->amount));
@@ -37,7 +37,7 @@ final class HasPropertiesAccessTest extends TestCase
     {
         $money = TestMoney::from([
             'amount' => 100.00,
-            'currency' => 'USD'
+            'currency' => 'USD',
         ]);
 
         $this->assertFalse(isset($money->nonExistent));
@@ -50,7 +50,7 @@ final class HasPropertiesAccessTest extends TestCase
 
         $money = TestMoney::from([
             'amount' => 100.00,
-            'currency' => 'USD'
+            'currency' => 'USD',
         ]);
 
         $value = $money->nonExistent;
@@ -60,12 +60,12 @@ final class HasPropertiesAccessTest extends TestCase
     {
         $money1 = TestMoney::from([
             'amount' => 50.00,
-            'currency' => 'EUR'
+            'currency' => 'EUR',
         ]);
 
         $money2 = TestMoney::from([
             'amount' => 30.00,
-            'currency' => 'EUR'
+            'currency' => 'EUR',
         ]);
 
         $total = $money1->add($money2);
@@ -78,7 +78,7 @@ final class HasPropertiesAccessTest extends TestCase
     {
         $money = TestMoney::from([
             'amount' => 99.99,
-            'currency' => 'EUR'
+            'currency' => 'EUR',
         ]);
 
         $formatted = $money->format();
@@ -90,7 +90,7 @@ final class HasPropertiesAccessTest extends TestCase
     {
         $money = TestMoney::from([
             'amount' => 100.00,
-            'currency' => 'USD'
+            'currency' => 'USD',
         ]);
 
         // Les propriétés doivent être accessibles mais non modifiables

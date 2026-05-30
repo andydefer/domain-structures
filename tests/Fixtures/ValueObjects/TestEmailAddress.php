@@ -9,7 +9,7 @@ use InvalidArgumentException;
 
 /**
  * Value Object representing an email address.
- * 
+ *
  * @example
  * $email = TestEmailAddress::from('user@example.com');
  * echo $email->value; // "user@example.com"
@@ -20,7 +20,7 @@ final class TestEmailAddress extends AbstractValueObject
 {
     public function __construct(public readonly string $value)
     {
-        if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
+        if (! filter_var($value, FILTER_VALIDATE_EMAIL)) {
             throw new InvalidArgumentException("Invalid email: {$value}");
         }
     }

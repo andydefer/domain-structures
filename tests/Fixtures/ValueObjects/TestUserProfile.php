@@ -14,7 +14,7 @@ use InvalidArgumentException;
 
 /**
  * Value Object representing a user profile.
- * 
+ *
  * @example
  * $profile = TestUserProfile::from([
  *     'id' => 1,
@@ -27,7 +27,6 @@ use InvalidArgumentException;
  *     'createdAt' => '2024-01-15T14:30:00+01:00',
  *     'emailVerifiedAt' => '2024-01-16T10:00:00+01:00'
  * ]);
- * 
  * @example
  * // Without optional fields
  * $profile = TestUserProfile::from([

@@ -56,7 +56,7 @@ final class EnumableTest extends TestCase
         $roleValues = TestUserRole::values();
         $gradeValues = TestUserGrade::values();
 
-        $this->assertSame(['active', 'inactive', 'suspended'], $statusValues);
+        $this->assertSame(['active', 'inactive', 'pending', 'suspended'], $statusValues);
         $this->assertSame(['admin', 'user', 'guest'], $roleValues);
         $this->assertSame([1, 2, 3, 4], $gradeValues);
     }
@@ -91,7 +91,7 @@ final class EnumableTest extends TestCase
     {
         $statusNames = TestUserStatus::names();
 
-        $this->assertSame(['ACTIVE', 'INACTIVE', 'SUSPENDED'], $statusNames);
+        $this->assertSame(['ACTIVE', 'INACTIVE', 'PENDING', 'SUSPENDED'], $statusNames);
     }
 
     // ==================== TYPES_IN_ORDER METHOD TESTS ====================
@@ -100,10 +100,11 @@ final class EnumableTest extends TestCase
     {
         $cases = TestUserStatus::typesInOrder();
 
-        $this->assertCount(3, $cases);
+        $this->assertCount(4, $cases);
         $this->assertSame(TestUserStatus::ACTIVE, $cases[0]);
         $this->assertSame(TestUserStatus::INACTIVE, $cases[1]);
-        $this->assertSame(TestUserStatus::SUSPENDED, $cases[2]);
+        $this->assertSame(TestUserStatus::PENDING, $cases[2]);
+        $this->assertSame(TestUserStatus::SUSPENDED, $cases[3]);
     }
 
     public function test_types_in_order_returns_same_as_cases_method(): void

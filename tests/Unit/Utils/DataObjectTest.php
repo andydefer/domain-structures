@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Tests\Unit\Utils;
 
-use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserNullableRecord;
-use AndyDefer\DomainStructures\Tests\Fixtures\UserRecord;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\DataObject;
 use InvalidArgumentException;

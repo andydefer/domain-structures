@@ -10,7 +10,7 @@ use InvalidArgumentException;
 
 /**
  * Value Object representing an ISO 8601 datetime.
- * 
+ *
  * @example
  * $date = TestIso8601DateTime::from('2024-01-15T14:30:00+01:00');
  * echo $date->value; // "2024-01-15T14:30:00+01:00"
@@ -24,7 +24,7 @@ final class TestIso8601DateTime extends AbstractValueObject
     {
         $date = DateTime::createFromFormat(self::FORMAT, $this->value);
 
-        if (!$date || $date->format(self::FORMAT) !== $this->value) {
+        if (! $date || $date->format(self::FORMAT) !== $this->value) {
             throw new InvalidArgumentException("Invalid ISO 8601 datetime: {$this->value}");
         }
     }

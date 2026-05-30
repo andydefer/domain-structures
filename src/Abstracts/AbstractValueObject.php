@@ -13,24 +13,24 @@ use UnitEnum;
 
 /**
  * Abstract Value Object with automatic hydration via Hydratable trait.
- * 
+ *
  * Children only need to:
  * 1. Define a public constructor with typed properties (validation inside constructor)
  * 2. Implement getValue()
- * 
+ *
  * @example
  * final class EmailAddress extends AbstractValueObject
  * {
- *     public function __construct(public readonly string $value) 
+ *     public function __construct(public readonly string $value)
  *     {
  *         if (!filter_var($this->value, FILTER_VALIDATE_EMAIL)) {
  *             throw new InvalidArgumentException("Invalid email");
  *         }
  *     }
- *     
+ *
  *     public function getValue(): string { return $this->value; }
  * }
- * 
+ *
  * // Usage - all provided by Hydratable trait
  * $email = EmailAddress::from('user@example.com');
  * $email = EmailAddress::fromJson('"user@example.com"');
@@ -38,7 +38,7 @@ use UnitEnum;
  */
 abstract class AbstractValueObject implements Transformable
 {
-    use Hydratable, HasPropertiesAccess;
+    use HasPropertiesAccess, Hydratable;
 
     /**
      * Returns the raw value of the Value Object.
