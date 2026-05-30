@@ -6,6 +6,7 @@ namespace AndyDefer\DomainStructures\Traits;
 
 use AndyDefer\DomainStructures\Hydration\Hydrator;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
+use AndyDefer\DomainStructures\Utils\DataObject;
 use InvalidArgumentException;
 
 /**
@@ -47,15 +48,17 @@ trait HasPropertiesAccess
     {
         // Get flattened data
         $flatData = NormalizerChain::get()->normalize($this);
+        $dataObject = DataObject::from($flatData);
+
 
         // Check if property exists in flattened data
-        if (!isset($flatData[$name])) {
+        if (!isset($dataObject[$name])) {
             throw new InvalidArgumentException(
                 sprintf('Property "%s" does not exist in %s', $name, static::class)
             );
         }
 
-        $rawValue = $flatData[$name];
+        $rawValue = $dataObject[$name];
 
         // Get property type via reflection
         $property = $this->getPropertyType($name);
@@ -88,8 +91,10 @@ trait HasPropertiesAccess
     public function __isset(string $name): bool
     {
         $flatData = NormalizerChain::get()->normalize($this);
+        $dataObject = DataObject::from($flatData);
 
-        return isset($flatData[$name]);
+
+        return isset($dataObject[$name]);
     }
 
     /**
