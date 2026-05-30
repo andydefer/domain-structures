@@ -34,11 +34,34 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
         $param = $reflection->getConstructor()->getParameters()[0];
         $paramType = $param->getType();
 
+        // Si la source est un tableau associatif de taille 1, extraire la valeur
+        if ($this->isSingleValueArray($source)) {
+            $source = reset($source);
+        }
+
         if ($paramType instanceof ReflectionUnionType) {
             return $this->handleUnionType($className, $source, $paramType, $param);
         }
 
         return $this->handleNamedType($className, $source, $paramType, $param);
+    }
+
+    /**
+     * Vérifie si la source est un tableau associatif de taille 1.
+     */
+    private function isSingleValueArray(mixed $source): bool
+    {
+        if (!is_array($source)) {
+            return false;
+        }
+
+        if (count($source) !== 1) {
+            return false;
+        }
+
+        // Vérifie que c'est un tableau associatif (pas une liste indexée)
+        $keys = array_keys($source);
+        return !is_int($keys[0]);
     }
 
     private function handleUnionType(string $className, mixed $source, ReflectionUnionType $unionType, $param): object
