@@ -12,8 +12,13 @@ abstract class AbstractData implements Transformable
 {
     use Hydratable;
 
+    public function toArray(): array
+    {
+        return NormalizerChain::get()->normalize($this);
+    }
+
     public function __toString(): string
     {
-        return json_encode(NormalizerChain::get()->normalize($this), JSON_THROW_ON_ERROR);
+        return json_encode($this->toArray(), JSON_THROW_ON_ERROR);
     }
 }

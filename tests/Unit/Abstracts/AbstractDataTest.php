@@ -407,4 +407,169 @@ final class AbstractDataTest extends TestCase
 
         TestUserData::from($source);
     }
+
+    // ==================== TO ARRAY METHOD TESTS ====================
+
+    public function test_to_array_returns_normalized_array(): void
+    {
+        $data = new TestUserData(
+            id: 1,
+            name: 'John Doe',
+            email: $this->testEmail,
+            status: TestUserStatus::ACTIVE,
+            role: TestUserRole::USER,
+            grade: TestUserGrade::BRONZE,
+            emailVerifiedAt: $this->now,
+            tags: new StringTypedCollection,
+            createdAt: $this->now
+        );
+
+        $array = $data->toArray();
+
+        $this->assertIsArray($array);
+        $this->assertSame(1, $array['id']);
+        $this->assertSame('John Doe', $array['name']);
+        $this->assertSame('john.doe@example.com', $array['email']);
+        $this->assertSame('active', $array['status']);
+        $this->assertSame('user', $array['role']);
+        $this->assertSame(1, $array['grade']);
+        $this->assertArrayHasKey('emailVerifiedAt', $array);
+        $this->assertArrayHasKey('createdAt', $array);
+    }
+
+    public function test_to_array_preserves_camel_case_keys(): void
+    {
+        $data = new TestUserData(
+            id: 1,
+            name: 'John Doe',
+            email: $this->testEmail,
+            status: TestUserStatus::ACTIVE,
+            role: TestUserRole::USER,
+            grade: TestUserGrade::BRONZE,
+            emailVerifiedAt: $this->now,
+            tags: new StringTypedCollection,
+            createdAt: $this->now
+        );
+
+        $array = $data->toArray();
+
+        $this->assertArrayHasKey('id', $array);
+        $this->assertArrayHasKey('name', $array);
+        $this->assertArrayHasKey('email', $array);
+        $this->assertArrayHasKey('status', $array);
+        $this->assertArrayHasKey('role', $array);
+        $this->assertArrayHasKey('grade', $array);
+        $this->assertArrayHasKey('emailVerifiedAt', $array);
+        $this->assertArrayHasKey('tags', $array);
+        $this->assertArrayHasKey('createdAt', $array);
+
+        // Vérifier qu'il n'y a pas de clés snake_case
+        $this->assertArrayNotHasKey('email_verified_at', $array);
+        $this->assertArrayNotHasKey('created_at', $array);
+    }
+
+    public function test_to_array_returns_same_as_normalizer_chain(): void
+    {
+        $data = new TestUserData(
+            id: 1,
+            name: 'John Doe',
+            email: $this->testEmail,
+            status: TestUserStatus::ACTIVE,
+            role: TestUserRole::USER,
+            grade: TestUserGrade::BRONZE,
+            emailVerifiedAt: $this->now,
+            tags: new StringTypedCollection,
+            createdAt: $this->now
+        );
+
+        $expected = NormalizerChain::get()->normalize($data);
+        $actual = $data->toArray();
+
+        $this->assertSame($expected, $actual);
+    }
+
+    public function test_to_array_on_data_with_null_values(): void
+    {
+        $data = new TestUserData(
+            id: null,
+            name: 'John Doe',
+            email: $this->testEmail,
+            status: TestUserStatus::ACTIVE,
+            role: TestUserRole::USER,
+            grade: TestUserGrade::BRONZE,
+            emailVerifiedAt: null,
+            tags: new StringTypedCollection,
+            createdAt: $this->now
+        );
+
+        $array = $data->toArray();
+
+        $this->assertNull($array['id']);
+        $this->assertNull($array['emailVerifiedAt']);
+        $this->assertSame('John Doe', $array['name']);
+    }
+
+    public function test_to_array_on_data_with_empty_collection(): void
+    {
+        $data = new TestUserData(
+            id: 1,
+            name: 'John Doe',
+            email: $this->testEmail,
+            status: TestUserStatus::ACTIVE,
+            role: TestUserRole::USER,
+            grade: TestUserGrade::BRONZE,
+            emailVerifiedAt: $this->now,
+            tags: new StringTypedCollection,
+            createdAt: $this->now
+        );
+
+        $array = $data->toArray();
+
+        $this->assertIsArray($array['tags']);
+        $this->assertEmpty($array['tags']);
+    }
+
+    public function test_to_array_on_data_with_nested_data_objects(): void
+    {
+        $tags = new StringTypedCollection;
+        $tags->add('premium', 'vip');
+
+        $data = new TestUserData(
+            id: 1,
+            name: 'John Doe',
+            email: $this->testEmail,
+            status: TestUserStatus::ACTIVE,
+            role: TestUserRole::USER,
+            grade: TestUserGrade::BRONZE,
+            emailVerifiedAt: $this->now,
+            tags: $tags,
+            createdAt: $this->now
+        );
+
+        $array = $data->toArray();
+
+        $this->assertIsArray($array['tags']);
+        $this->assertCount(2, $array['tags']);
+        $this->assertSame(['premium', 'vip'], $array['tags']);
+    }
+
+    public function test_to_string_uses_to_array_internally(): void
+    {
+        $data = new TestUserData(
+            id: 1,
+            name: 'John Doe',
+            email: $this->testEmail,
+            status: TestUserStatus::ACTIVE,
+            role: TestUserRole::USER,
+            grade: TestUserGrade::BRONZE,
+            emailVerifiedAt: $this->now,
+            tags: new StringTypedCollection,
+            createdAt: $this->now
+        );
+
+        $expectedJson = json_encode($data->toArray(), JSON_THROW_ON_ERROR);
+        $actualString = (string)$data;
+
+        $this->assertSame($expectedJson, $actualString);
+    }
 }
