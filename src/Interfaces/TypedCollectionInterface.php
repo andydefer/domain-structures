@@ -84,6 +84,25 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
     public function map(Closure $callback): TypedCollectionInterface;
 
     /**
+     * Maps items and preserves the same collection type.
+     * 
+     * @template TReturn of TValue
+     * @param Closure(TValue): TReturn $callback
+     * @return static
+     */
+    public function mapPreserveType(Closure $callback): static;
+
+    /**
+     * Maps items to a specific target type.
+     * 
+     * @template TReturn
+     * @param Closure(TValue): TReturn $callback
+     * @param class-string $targetType
+     * @return TypedCollection<TReturn>
+     */
+    public function mapToType(Closure $callback, string $targetCollectionClass, mixed ...$args): TypedCollectionInterface;
+
+    /**
      * Filters items using a callback and returns a new collection.
      *
      * @param  Closure(TValue): bool  $callback

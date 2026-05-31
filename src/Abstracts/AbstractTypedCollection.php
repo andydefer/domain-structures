@@ -215,7 +215,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
      * @param  Closure(TValue): TReturn  $callback
      * @return TypedCollection<TReturn>
      */
-    public function map(Closure $callback): TypedCollectionInterface
+    final public function map(Closure $callback): TypedCollectionInterface
     {
         if (empty($this->items)) {
             return new TypedCollection(...$this->allowedTypes);
@@ -236,6 +236,72 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
         $uniqueTypes = array_values($uniqueTypes);
 
         $result = new TypedCollection(...$uniqueTypes);
+
+        foreach ($mappedItems as $item) {
+            $result->add($item);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Maps items and preserves the same collection type.
+     *
+     * This method attempts to keep the same collection class.
+     * An exception is thrown if mapped items are not compatible
+     * with the original collection's allowed types.
+     *
+     * @template TReturn of TValue
+     * @param Closure(TValue): TReturn $callback
+     * @return static
+     * @throws InvalidArgumentException If mapped items are incompatible
+     */
+    final public function mapPreserveType(Closure $callback): static
+    {
+        if (empty($this->items)) {
+            $result = new static(...$this->allowedTypes);
+            $result->items = [];
+            return $result;
+        }
+
+        /** @var array<TReturn> $mappedItems */
+        $mappedItems = array_map($callback, $this->items);
+
+        $result = new static(...$this->allowedTypes);
+
+        /** @var TReturn $item */
+        foreach ($mappedItems as $item) {
+            /** @var mixed $item  */
+            $result->add($item);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Maps items to a specific target collection type.
+     *
+     * This method creates a new collection of the specified type
+     * with the mapped items. The target collection must extend
+     * AbstractTypedCollection.
+     *
+     * @template TReturn
+     * @template TCollection of AbstractTypedCollection
+     * @param Closure(TValue): TReturn $callback
+     * @param class-string<TCollection> $targetCollectionClass
+     * @param mixed ...$args Constructor arguments for the target collection
+     * @return TCollection
+     */
+    final public function mapToType(Closure $callback, string $targetCollectionClass, mixed ...$args): TypedCollectionInterface
+    {
+        if (empty($this->items)) {
+            return new $targetCollectionClass(...$args);
+        }
+
+        /** @var array<TReturn> $mappedItems */
+        $mappedItems = array_map($callback, $this->items);
+
+        $result = new $targetCollectionClass(...$args);
 
         foreach ($mappedItems as $item) {
             $result->add($item);
