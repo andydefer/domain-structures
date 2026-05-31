@@ -1,3 +1,7 @@
+Voici le document mis à jour avec les nouvelles méthodes `mapPreserveType` et `mapToType`, la correction du test d'exception, et la version corrigée du test `ScalarTypedCollectionTest` :
+
+---
+
 # TypedCollection - Documentation du Package
 
 ## Table des matières
@@ -13,7 +17,7 @@
 9. [Méthodes de calcul](#9-méthodes-de-calcul)
 10. [Méthodes de filtrage](#10-méthodes-de-filtrage)
 11. [Méthodes de recherche et manipulation avancées](#11-méthodes-de-recherche-et-manipulation-avancées)
-12. [Méthodes de validation et assertions](#12-méthodes-de-validation-et-assertions)
+12. [Les trois méthodes Map](#12-les-trois-méthodes-map)
 13. [Créer une collection spécialisée](#13-créer-une-collection-spécialisée)
 14. [Hydratation et normalisation](#14-hydratation-et-normalisation)
 15. [Exemples complets](#15-exemples-complets)
@@ -234,20 +238,6 @@ function processData(TypedCollection $items): TypedCollection
 | **Dans une Data pour l'API** | ✅ TOUJOURS collection spécialisée |
 | **Dans un Record métier** | ✅ TOUJOURS collection spécialisée |
 
-### 5.3. Exemple concret : Source externe
-
-```php
-// API externe qui retourne des données non typées
-$externalApiResponse = $httpClient->get('https://api.external.com/data');
-$externalData = json_decode($externalApiResponse, true);
-
-// ✅ Acceptable - On ne maîtrise pas la structure des données externes
-$rawCollection = new TypedCollection(DataObject::class);
-foreach ($externalData as $item) {
-    $rawCollection->add(DataObject::from($item));
-}
-```
-
 ---
 
 ## 6. Les collections utilitaires prédéfinies
@@ -275,6 +265,7 @@ use AndyDefer\DomainStructures\Collections\Utility\IntTypedCollection;
 $numbers = new IntTypedCollection();
 $numbers->add(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 ```
+
 ### 6.3. FloatTypedCollection
 
 Collection spécialisée pour les nombres décimaux.
@@ -285,6 +276,7 @@ use AndyDefer\DomainStructures\Collections\Utility\FloatTypedCollection;
 $floats = new FloatTypedCollection();
 $floats->add(1.234, 2.567, 3.891);
 ```
+
 ### 6.4. BoolTypedCollection
 
 Collection spécialisée pour les booléens.
@@ -307,7 +299,18 @@ $numbers = new NumberTypedCollection();
 $numbers->add(1, 2.5, 3, 4.7, 5);
 ```
 
-### 6.6. Génération de séquences avec `range()`
+### 6.6. ScalarTypedCollection
+
+Collection pour les types scalaires mixtes (string, int, bool, null).
+
+```php
+use AndyDefer\DomainStructures\Collections\Utility\ScalarTypedCollection;
+
+$scalars = new ScalarTypedCollection();
+$scalars->add('hello', 42, true, null, 'world', 100, false);
+```
+
+### 6.7. Génération de séquences avec `range()`
 
 Toutes les collections numériques disposent de la méthode statique `range()` :
 
@@ -369,35 +372,20 @@ $mixed = new TypedCollection('int', 'string', UserRecord::class);
 | `all(): static` | Retourne une nouvelle copie | `$tags->all()` |
 | `getAllowedTypes(): array` | Types autorisés | `$tags->getAllowedTypes()` |
 
-### 7.3. Méthodes d'accès aux éléments
-
-| Méthode | Description | Exemple |
-|---------|-------------|---------|
-| `firstItem(): mixed` | Premier élément | `$tags->firstItem()` |
-| `first(int $limit): static` | N premiers éléments | `$tags->first(3)` |
-| `lastItem(): mixed` | Dernier élément | `$tags->lastItem()` |
-| `last(int $limit): static` | N derniers éléments | `$tags->last(3)` |
-
 ---
 
 ## 8. Méthodes de transformation
 
-### 8.1. Map, Filter, Reduce
-
 | Méthode | Description | Exemple |
 |---------|-------------|---------|
-| `map(Closure $callback): static` | Transforme chaque élément | `$tags->map(fn($tag) => strtoupper($tag))` |
+| `map(Closure $callback): TypedCollection` | Transforme chaque élément, détection auto des types | `$tags->map(fn($tag) => strtoupper($tag))` |
 | `filter(Closure $callback): static` | Filtre les éléments | `$tags->filter(fn($tag) => strlen($tag) > 3)` |
 | `each(Closure $callback): static` | Exécute une action (sans modification) | `$collection->each(fn($item) => $sum += $item)` |
-
-### 8.2. Tri et ordre
-
-| Méthode | Description | Exemple |
-|---------|-------------|---------|
 | `sort(int $flags = SORT_REGULAR): static` | Trie les éléments | `$numbers->sort()` |
 | `sortBy(Closure\|string $callback, bool $descending = false): static` | Trie par clé ou fonction | `$products->sortBy('price')` |
 | `reverse(): static` | Inverse l'ordre | `$collection->reverse()` |
 
+---
 
 ## 9. Méthodes de calcul sur les collections numériques
 
@@ -424,17 +412,18 @@ $max = $orders->max(fn($order) => $order->total);     // 250
 
 ---
 
-## 10. Méthodes de recherche et manipulation avancées
-
-### 10.1. Recherche
+## 10. Méthodes de recherche
 
 | Méthode | Description | Exemple |
 |---------|-------------|---------|
 | `contains(mixed $value): bool` | Vérifie si un élément existe | `$tags->contains('laravel')` |
 | `every(Closure $callback): bool` | Tous les éléments satisfont le prédicat | `$numbers->every(fn($n) => $n > 0)` |
 | `some(Closure $callback): bool` | Au moins un élément satisfait | `$numbers->some(fn($n) => $n > 100)` |
+| `find(Closure $callback): mixed` | Trouve le premier élément satisfaisant le prédicat | `$users->find(fn($u) => $u->id === 42)` |
 
-### 10.2. Manipulation
+---
+
+## 11. Méthodes de manipulation
 
 | Méthode | Description | Exemple |
 |---------|-------------|---------|
@@ -443,9 +432,74 @@ $max = $orders->max(fn($order) => $order->total);     // 250
 
 ---
 
-## 11. Créer une collection spécialisée
+## 12. Les trois méthodes Map
 
-### 11.1. Pour les Records
+Le package propose trois méthodes de transformation avec des comportements différents.
+
+### 12.1. `map()` - Auto-détection des types
+
+Détecte automatiquement les types des éléments transformés et retourne une `TypedCollection` générique.
+
+```php
+$collection = new IntTypedCollection();
+$collection->add(1, 2, 3, 4, 5);
+
+// Retourne une TypedCollection générique avec le type auto-détecté 'string'
+$stringCollection = $collection->map(fn($item) => "Number: {$item}");
+
+// $stringCollection est de type TypedCollection, pas IntTypedCollection
+```
+
+### 12.2. `mapPreserveType()` - Préserve le type de collection
+
+Garde la même classe de collection. Une exception est levée si les éléments transformés ne sont pas compatibles.
+
+```php
+$collection = new IntTypedCollection();
+$collection->add(1, 2, 3, 4, 5);
+
+// Retourne une IntTypedCollection (même type)
+$doubled = $collection->mapPreserveType(fn($item) => $item * 2);
+
+// ❌ Lance une exception - 'string' n'est pas compatible avec IntTypedCollection
+$collection->mapPreserveType(fn($item) => "Number: {$item}");
+```
+
+### 12.3. `mapToType()` - Change vers un type de collection spécifique
+
+Transforme la collection vers une classe de collection cible. Accepte des arguments supplémentaires pour le constructeur.
+
+```php
+$collection = new IntTypedCollection();
+$collection->add(1, 2, 3, 4, 5);
+
+// Retourne une StringTypedCollection
+$stringCollection = $collection->mapToType(
+    fn($item) => "Number: {$item}",
+    StringTypedCollection::class
+);
+
+// Avec des arguments de constructeur pour la collection cible
+$enumCollection = $collection->mapToType(
+    fn($item) => $item->status,
+    TypedCollection::class,
+    TestUserStatus::class  // ← argument du constructeur de TypedCollection
+);
+```
+
+### 12.4. Tableau comparatif
+
+| Méthode | Retour | Quand l'utiliser |
+|---------|--------|------------------|
+| `map()` | `TypedCollection` (auto-détection) | Transformation simple, type générique acceptable |
+| `mapPreserveType()` | `static` (même classe) | Garder le même type de collection (ex: `IntTypedCollection` → `IntTypedCollection`) |
+| `mapToType()` | `TypedCollectionInterface` (classe spécifique) | Changer vers une collection spécifique (ex: `IntTypedCollection` → `StringTypedCollection`) |
+
+---
+
+## 13. Créer une collection spécialisée
+
+### 13.1. Pour les Records
 
 ```php
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
@@ -474,7 +528,7 @@ final class UserRecordCollection extends TypedCollection
 }
 ```
 
-### 11.2. Pour les Data
+### 13.2. Pour les Data
 
 ```php
 use AndyDefer\DomainStructures\Collections\Core\DataCollection;
@@ -499,7 +553,7 @@ final class ProductDataCollection extends DataCollection
 }
 ```
 
-### 11.3. Utilisation
+### 13.3. Utilisation
 
 ```php
 $users = new UserRecordCollection();
@@ -512,11 +566,12 @@ $users->add(
 $admins = $users->getAdmins();  // UserRecordCollection avec John et Bob
 $activeUsers = $users->getActive();  // UserRecordCollection filtré
 ```
+
 ---
 
-## 12. Hydratation et normalisation
+## 14. Hydratation et normalisation
 
-### 12.1. Hydratation depuis une source
+### 14.1. Hydratation depuis une source
 
 ```php
 // Depuis un tableau
@@ -524,3 +579,77 @@ $collection = TypedCollection::from([
     ['id' => 1, 'name' => 'Product 1', 'price' => 100],
     ['id' => 2, 'name' => 'Product 2', 'price' => 200],
 ]);
+
+// Depuis un JSON
+$collection = TypedCollection::fromJson('[{"id":1,"name":"Product 1"},{"id":2,"name":"Product 2"}]');
+
+// Depuis une collection existante
+$newCollection = TypedCollection::from($existingCollection);
+```
+
+### 14.2. Normalisation
+
+```php
+// Normalisation pour les réponses JSON
+$normalized = NormalizerChain::get()->normalize($collection);
+```
+
+---
+
+## 15. Exemples complets
+
+### 15.1. Collection de UserRecord avec méthodes métier
+
+```php
+final class UserRecordCollection extends TypedCollection
+{
+    public function __construct()
+    {
+        parent::__construct(UserRecord::class);
+    }
+    
+    public function getAdmins(): self
+    {
+        return $this->filter(fn(UserRecord $user) => $user->role === UserRole::ADMIN);
+    }
+    
+    public function getEmails(): StringTypedCollection
+    {
+        $emails = new StringTypedCollection();
+        foreach ($this->items as $user) {
+            $emails->add($user->email->value);
+        }
+        return $emails;
+    }
+}
+```
+
+### 15.2. Transformation avec mapToType
+
+```php
+$users = new UserRecordCollection();
+$users->add(
+    new UserRecord(id: 1, name: 'John', role: UserRole::ADMIN),
+    new UserRecord(id: 2, name: 'Jane', role: UserRole::USER),
+);
+
+// Transformation vers une StringTypedCollection
+$names = $users->mapToType(
+    fn(UserRecord $user) => $user->name,
+    StringTypedCollection::class
+);
+```
+
+---
+
+## 16. Récapitulatif des contraintes
+
+| Règle | Explication |
+|-------|-------------|
+| **❌ Interdiction des tableaux bruts** | Les `array` sont interdits dans les Records, ValueObjects et Data |
+| **✅ Utilisation de TypedCollection** | Toute collection doit être typée avec `TypedCollection` |
+| **✅ Collections spécialisées** | Privilégier les collections spécialisées (ex: `UserRecordCollection`) |
+| **✅ Transformable** | Tout objet dans une collection doit implémenter `Transformable` |
+| **⚠️ map() générique** | `map()` retourne une `TypedCollection` générique (perte du type spécifique) |
+| **✅ mapPreserveType()** | Pour garder le même type de collection |
+| **✅ mapToType()** | Pour changer vers un type de collection spécifique |
