@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Hydration\Strategy;
 
+use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 use AndyDefer\DomainStructures\Enums\PhpType;
 use AndyDefer\DomainStructures\Hydration\Converter\TypeConverterInterface;
 use AndyDefer\DomainStructures\Interfaces\Transformable;
@@ -34,7 +35,6 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
         $param = $reflection->getConstructor()->getParameters()[0];
         $paramType = $param->getType();
 
-        // Si la source est un tableau associatif de taille 1, extraire la valeur
         if ($this->isSingleValueArray($source)) {
             $source = reset($source);
         }
@@ -46,9 +46,6 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
         return $this->handleNamedType($className, $source, $paramType, $param);
     }
 
-    /**
-     * Vérifie si la source est un tableau associatif de taille 1.
-     */
     private function isSingleValueArray(mixed $source): bool
     {
         if (!is_array($source)) {
@@ -59,7 +56,6 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
             return false;
         }
 
-        // Vérifie que c'est un tableau associatif (pas une liste indexée)
         $keys = array_keys($source);
         return !is_int($keys[0]);
     }
@@ -91,6 +87,21 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
     private function convertValue(mixed $source, ReflectionNamedType $type, string $paramName): mixed
     {
         $typeName = $type->getName();
+
+        // Cas : la source est un tableau
+        if (is_array($source)) {
+            foreach ($this->converters as $converter) {
+                if ($converter->supports($typeName)) {
+                    return $converter->convert($source, $typeName, $paramName);
+                }
+            }
+
+            if (empty($source) && is_subclass_of($typeName, AbstractTypedCollection::class)) {
+                return new $typeName();
+            }
+
+            return $source;
+        }
 
         if (is_object($source)) {
             $normalized = NormalizerChain::get()->normalize($source);
