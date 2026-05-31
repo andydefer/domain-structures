@@ -6,7 +6,6 @@ namespace AndyDefer\DomainStructures\Interfaces;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
-use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Utils\DataObject;
@@ -15,112 +14,126 @@ use Countable;
 use IteratorAggregate;
 use JsonSerializable;
 use Stringable;
-use Traversable;
+use ArrayAccess;
 use UnitEnum;
 
 /**
- * Type-safe collection for records, value objects, data DTOs, enums, and scalar values.
+ * Interface for type-safe collections.
  *
  * @template TValue of object|string|int|float|bool
+ *
+ * @extends Countable
+ * @extends IteratorAggregate<array-key, TValue>
+ * @extends JsonSerializable
+ * @extends Stringable
+ * @extends ArrayAccess<array-key, TValue>
+ * @extends Transformable<static>
  */
-interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSerializable, Stringable
+interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSerializable, Stringable, ArrayAccess, Transformable
 {
     /**
-     * Add one or multiple items.
+     * Adds one or more items to the collection.
      *
-     * @param  TValue  ...$items
-     * @return static<TValue>
+     * @return static
      */
-    public function add(int|string|float|bool|null|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|AbstractTypedCollection|DataObject ...$items): static;
+    public function add(DataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|TypedCollectionInterface|int|string|float|bool|null ...$items): static;
 
     /**
-     * Get all items as a new collection.
+     * Returns a shallow copy of the entire collection.
      *
-     * @return static<TValue>
+     * @return static
      */
     public function all(): static;
 
     /**
-     * Convert the collection to a plain array.
+     * Returns the underlying array of items.
      *
      * @return array<TValue>
      */
     public function toArray(): array;
 
     /**
-     * Get the allowed types.
+     * Returns the allowed types for this collection.
      *
      * @return array<string>
      */
     public function getAllowedTypes(): array;
 
     /**
-     * Get the number of items.
-     */
-    public function count(): int;
-
-    /**
-     * Check if empty.
+     * Checks if the collection is empty.
+     *
+     * @return bool
      */
     public function isEmpty(): bool;
 
     /**
-     * Check if not empty.
+     * Checks if the collection is not empty.
+     *
+     * @return bool
      */
     public function isNotEmpty(): bool;
 
     /**
-     * Transform each item.
+     * Applies a callback to each item and returns a new collection.
      *
      * @template TReturn
      *
      * @param  Closure(TValue): TReturn  $callback
-     * @return static<TReturn>
+     * @return TypedCollection<TReturn>
      */
-    public function map(Closure $callback): TypedCollection;
+    public function map(Closure $callback): TypedCollectionInterface;
 
     /**
-     * Filter items.
+     * Filters items using a callback and returns a new collection.
      *
      * @param  Closure(TValue): bool  $callback
-     * @return static<TValue>
+     * @return static
      */
     public function filter(Closure $callback): static;
 
     /**
-     * Check if the collection contains a specific value.
+     * Sorts the collection by values.
+     *
+     * @param  int  $flags  PHP sort flags (SORT_REGULAR, SORT_NUMERIC, SORT_STRING, etc.)
+     * @return static
      */
-    public function contains(int|string|float|bool|null|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|AbstractTypedCollection|DataObject $value): bool;
+    public function sort(int $flags = SORT_REGULAR): static;
 
     /**
-     * Execute callback on each item (for side effects).
+     * Reverses the order of items in the collection.
      *
-     * @param  Closure(TValue): void  $callback
-     * @return static<TValue>
+     * @return static
      */
-    public function each(Closure $callback): static;
+    public function reverse(): static;
 
     /**
-     * Merge with another collection.
+     * Sorts the collection by a callback or property.
      *
-     * @param  static<TValue>  $collection
-     * @return static<TValue>
+     * @param  Closure(TValue): mixed|string  $callback  Closure or property name
+     * @param  int  $flags  PHP sort flags
+     * @param  bool  $descending  Sort in descending order
+     * @return static
      */
-    public function merge(AbstractTypedCollection $collection): static;
+    public function sortBy(Closure|string $callback, int $flags = SORT_REGULAR, bool $descending = false): static;
 
     /**
-     * Reduce the collection to a single value.
+     * Sorts the collection using a custom comparison function.
      *
-     * @template TReturn
-     *
-     * @param  Closure(TReturn, TValue): TReturn  $callback
-     * @param  TReturn  $initial
-     * @return TReturn
+     * @param  Closure(TValue, TValue): int  $callback
+     * @return static
      */
-    public function reduce(Closure $callback, mixed $initial = null): mixed;
+    public function usort(Closure $callback): static;
 
     /**
-     * Find the first item satisfying the predicate.
+     * Checks if the collection contains a specific value.
+     *
+     * @param  DataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|self|int|string|float|bool|null  $value
+     * @return bool
+     */
+    public function contains(DataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|self|int|string|float|bool|null $value): bool;
+
+    /**
+     * Finds the first item that satisfies the callback.
      *
      * @param  Closure(TValue): bool  $callback
      * @return TValue|null
@@ -128,30 +141,43 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
     public function find(Closure $callback): mixed;
 
     /**
-     * Check if all items satisfy the predicate.
+     * Checks if all items satisfy the callback.
      *
      * @param  Closure(TValue): bool  $callback
+     * @return bool
      */
     public function every(Closure $callback): bool;
 
     /**
-     * Check if at least one item satisfies the predicate.
+     * Checks if at least one item satisfies the callback.
      *
      * @param  Closure(TValue): bool  $callback
+     * @return bool
      */
     public function some(Closure $callback): bool;
 
     /**
-     * Reverse the order.
+     * Reduces the collection to a single value using a callback.
      *
-     * @return static<TValue>
+     * @param  Closure(mixed, TValue): mixed  $callback
+     * @param  mixed  $initial
+     * @return mixed
      */
-    public function reverse(): static;
+    public function reduce(Closure $callback, mixed $initial = null): mixed;
 
     /**
-     * Get an iterator for the collection.
+     * Executes a callback for each item without modifying the collection.
      *
-     * @return Traversable<TValue>
+     * @param  Closure(TValue): void  $callback
+     * @return static
      */
-    public function getIterator(): Traversable;
+    public function each(Closure $callback): static;
+
+    /**
+     * Merges another collection into this one.
+     *
+     * @param  self<TValue>  $collection
+     * @return static
+     */
+    public function merge(self $collection): static;
 }

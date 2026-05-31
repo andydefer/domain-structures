@@ -24,7 +24,7 @@ use UnitEnum;
  * @implements TypedCollectionInterface<TValue>
  * @implements Transformable<static>
  */
-abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializable, Transformable, TypedCollectionInterface
+abstract class AbstractTypedCollection implements TypedCollectionInterface
 {
     /** @var array<TValue> */
     protected array $items = [];
@@ -74,7 +74,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
             return $types;
         } catch (\ArgumentCountError $e) {
             throw new InvalidArgumentException(sprintf(
-                'Cannot determine allowed types for %s. '.
+                'Cannot determine allowed types for %s. ' .
                     'Please create an instance first before calling from(): new %s(...)',
                 $class,
                 $class
@@ -164,7 +164,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
 
     // ==================== CORE COLLECTION METHODS ====================
 
-    final public function add(DataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|self|int|string|float|bool|null ...$items): static
+    public function add(DataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|TypedCollectionInterface|int|string|float|bool|null ...$items): static
     {
         foreach ($items as $item) {
             $this->validateItem($item);
@@ -215,7 +215,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
      * @param  Closure(TValue): TReturn  $callback
      * @return TypedCollection<TReturn>
      */
-    final public function map(Closure $callback): TypedCollection
+    public function map(Closure $callback): TypedCollectionInterface
     {
         if (empty($this->items)) {
             return new TypedCollection(...$this->allowedTypes);
@@ -277,7 +277,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
 
         if (is_string($callback)) {
             $property = $callback;
-            $callback = fn ($item) => is_object($item) ? ($item->$property ?? null) : null;
+            $callback = fn($item) => is_object($item) ? ($item->$property ?? null) : null;
         }
 
         $values = array_map($callback, $items);
@@ -426,7 +426,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
     final public function __clone()
     {
         $this->items = array_map(
-            fn ($item) => is_object($item) ? clone $item : $item,
+            fn($item) => is_object($item) ? clone $item : $item,
             $this->items
         );
     }
@@ -501,7 +501,7 @@ abstract class AbstractTypedCollection implements \ArrayAccess, \JsonSerializabl
 
         if (count($matchedTypes) > 1) {
             throw new InvalidArgumentException(sprintf(
-                'Ambiguous %sdata can be hydrated by multiple types [%s]. '.
+                'Ambiguous %sdata can be hydrated by multiple types [%s]. ' .
                     'Please specify the type using a "_type" key in the source data.',
                 $prefix,
                 implode('|', $matchedTypes)
