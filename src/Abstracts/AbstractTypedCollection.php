@@ -116,7 +116,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
                 return true;
             }
 
-            if ($allowedType === DataObject::class && $value instanceof DataObject) {
+            if ($allowedType === AbstractDataObject::class && $value instanceof AbstractDataObject) {
                 return true;
             }
 
@@ -149,7 +149,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
         if (! $this->matchesAllowedType($item)) {
             if ($itemType->isObject() && ! $this->isAllowedObjectType($itemType)) {
                 throw new InvalidArgumentException(sprintf(
-                    'Object of type "%s" is not allowed. Only DataObject, UnitEnum, AbstractRecord, AbstractValueObject, AbstractData, and TypedCollection are allowed.',
+                    'Object of type "%s" is not allowed. Only AbstractDataObject, UnitEnum, AbstractRecord, AbstractValueObject, AbstractData, and TypedCollection are allowed.',
                     $item::class
                 ));
             }

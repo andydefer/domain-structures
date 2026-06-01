@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Tests\Unit\Enums;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractData;
+use AndyDefer\DomainStructures\Abstracts\AbstractDataObject;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
+use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Enums\PhpType;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
@@ -22,6 +24,7 @@ use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\DataObject;
+use AndyDefer\DomainStructures\Utils\StrictDataObject;
 use DateTime;
 use UnitEnum;
 
@@ -144,12 +147,12 @@ final class PhpTypeTest extends TestCase
         PhpType::fromValue([]);
     }
 
-    public function test_from_value_returns_data_object_for_data_object(): void
+    public function test_from_value_returns_abstract_data_object_for_data_object(): void
     {
         $value = new DataObject(['name' => 'John']);
         $type = PhpType::fromValue($value);
 
-        $this->assertSame(PhpType::DATA_OBJECT, $type);
+        $this->assertSame(PhpType::ABSTRACT_DATA_OBJECT, $type);
         $this->assertTrue($type->isDataObject());
         $this->assertTrue($type->isObject());
         $this->assertFalse($type->isEnum());
@@ -297,7 +300,7 @@ final class PhpTypeTest extends TestCase
         $value = new DataObject;
         $typeName = PhpType::getNormalizedTypeName($value);
 
-        $this->assertSame(DataObject::class, $typeName);
+        $this->assertSame(AbstractDataObject::class, $typeName);
     }
 
     public function test_get_normalized_type_name_returns_unit_enum_class_for_enum(): void
@@ -341,7 +344,7 @@ final class PhpTypeTest extends TestCase
         $this->assertSame(AbstractValueObject::class, PhpType::ABSTRACT_VALUE_OBJECT->getNormalizedName());
         $this->assertSame(AbstractData::class, PhpType::ABSTRACT_DATA->getNormalizedName());
         $this->assertSame(AbstractTypedCollection::class, PhpType::ABSTRACT_TYPED_COLLECTION->getNormalizedName());
-        $this->assertSame(DataObject::class, PhpType::DATA_OBJECT->getNormalizedName());
+        $this->assertSame(AbstractDataObject::class, PhpType::ABSTRACT_DATA_OBJECT->getNormalizedName());
     }
 
     // ==================== GET_CLASS_STRING TESTS ====================
@@ -353,7 +356,7 @@ final class PhpTypeTest extends TestCase
         $this->assertSame(AbstractValueObject::class, PhpType::ABSTRACT_VALUE_OBJECT->getClassString());
         $this->assertSame(AbstractData::class, PhpType::ABSTRACT_DATA->getClassString());
         $this->assertSame(AbstractTypedCollection::class, PhpType::ABSTRACT_TYPED_COLLECTION->getClassString());
-        $this->assertSame(DataObject::class, PhpType::DATA_OBJECT->getClassString());
+        $this->assertSame(AbstractDataObject::class, PhpType::ABSTRACT_DATA_OBJECT->getClassString());
         $this->assertSame('int', PhpType::INTEGER->getClassString());
         $this->assertSame('string', PhpType::STRING->getClassString());
     }
@@ -424,7 +427,7 @@ final class PhpTypeTest extends TestCase
         $this->assertTrue(PhpType::ABSTRACT_VALUE_OBJECT->isObject());
         $this->assertTrue(PhpType::ABSTRACT_DATA->isObject());
         $this->assertTrue(PhpType::ABSTRACT_TYPED_COLLECTION->isObject());
-        $this->assertTrue(PhpType::DATA_OBJECT->isObject());
+        $this->assertTrue(PhpType::ABSTRACT_DATA_OBJECT->isObject());
 
         $this->assertFalse(PhpType::INTEGER->isObject());
         $this->assertFalse(PhpType::STRING->isObject());
@@ -470,9 +473,9 @@ final class PhpTypeTest extends TestCase
 
     public function test_is_data_object_returns_correct_values(): void
     {
-        $this->assertTrue(PhpType::DATA_OBJECT->isDataObject());
+        $this->assertTrue(PhpType::ABSTRACT_DATA_OBJECT->isDataObject());
         $this->assertFalse(PhpType::INTEGER->isDataObject());
-        $this->assertFalse(PhpType::DATA_OBJECT->isEnum());
+        $this->assertFalse(PhpType::ABSTRACT_DATA_OBJECT->isEnum());
     }
 
     public function test_is_domain_abstract_type_returns_correct_values(): void
@@ -484,7 +487,7 @@ final class PhpTypeTest extends TestCase
 
         $this->assertFalse(PhpType::INTEGER->isDomainAbstractType());
         $this->assertFalse(PhpType::UNIT_ENUM->isDomainAbstractType());
-        $this->assertFalse(PhpType::DATA_OBJECT->isDomainAbstractType());
+        $this->assertFalse(PhpType::ABSTRACT_DATA_OBJECT->isDomainAbstractType());
     }
 
     // ==================== GET_SCALAR_TYPES TESTS ====================
@@ -539,7 +542,7 @@ final class PhpTypeTest extends TestCase
         $this->assertContains(AbstractValueObject::class, $allowedTypes);
         $this->assertContains(AbstractData::class, $allowedTypes);
         $this->assertContains(AbstractTypedCollection::class, $allowedTypes);
-        $this->assertContains(DataObject::class, $allowedTypes);
+        $this->assertContains(AbstractDataObject::class, $allowedTypes);
     }
 
     // ==================== IS_VALID_TYPE TESTS ====================
@@ -552,15 +555,25 @@ final class PhpTypeTest extends TestCase
         $this->assertTrue(PhpType::isValidType('bool'));
         $this->assertTrue(PhpType::isValidType('null'));
     }
-
-    public function test_is_valid_type_returns_true_for_valid_domain_abstract_types(): void
+    public function test_is_valid_type_returns_false_for_abstract_types(): void
     {
-        $this->assertTrue(PhpType::isValidType(UnitEnum::class));
-        $this->assertTrue(PhpType::isValidType(AbstractRecord::class));
-        $this->assertTrue(PhpType::isValidType(AbstractValueObject::class));
-        $this->assertTrue(PhpType::isValidType(AbstractData::class));
-        $this->assertTrue(PhpType::isValidType(AbstractTypedCollection::class));
-        $this->assertTrue(PhpType::isValidType(DataObject::class));
+        $this->assertFalse(PhpType::isValidType(UnitEnum::class));           // interface
+        $this->assertFalse(PhpType::isValidType(AbstractRecord::class));     // abstraite
+        $this->assertFalse(PhpType::isValidType(AbstractValueObject::class)); // abstraite
+        $this->assertFalse(PhpType::isValidType(AbstractData::class));       // abstraite
+        $this->assertFalse(PhpType::isValidType(AbstractTypedCollection::class)); // abstraite
+        $this->assertFalse(PhpType::isValidType(AbstractDataObject::class)); // abstraite
+    }
+
+    public function test_is_valid_type_returns_true_for_concrete_types(): void
+    {
+        $this->assertTrue(PhpType::isValidType(TestUserStatus::class));      // enum concret
+        $this->assertTrue(PhpType::isValidType(TestUserRecord::class));      // record concret
+        $this->assertTrue(PhpType::isValidType(TestEmailAddress::class));    // value object concret
+        $this->assertTrue(PhpType::isValidType(TestUserData::class));        // data concret
+        $this->assertTrue(PhpType::isValidType(TypedCollection::class));     // collection concrète
+        $this->assertTrue(PhpType::isValidType(DataObject::class));          // data object concret
+        $this->assertTrue(PhpType::isValidType(StrictDataObject::class));    // strict data object concret
     }
 
     public function test_is_valid_type_returns_true_for_enum_subclasses(): void
@@ -607,7 +620,7 @@ final class PhpTypeTest extends TestCase
         $this->assertSame(PhpType::ABSTRACT_VALUE_OBJECT, PhpType::fromTypeString(AbstractValueObject::class));
         $this->assertSame(PhpType::ABSTRACT_DATA, PhpType::fromTypeString(AbstractData::class));
         $this->assertSame(PhpType::ABSTRACT_TYPED_COLLECTION, PhpType::fromTypeString(AbstractTypedCollection::class));
-        $this->assertSame(PhpType::DATA_OBJECT, PhpType::fromTypeString(DataObject::class));
+        $this->assertSame(PhpType::ABSTRACT_DATA_OBJECT, PhpType::fromTypeString(AbstractDataObject::class));
     }
 
     public function test_from_type_string_returns_correct_type_for_enum_subclasses(): void

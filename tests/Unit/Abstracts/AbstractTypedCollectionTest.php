@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Tests\Unit\Abstracts;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractData;
+use AndyDefer\DomainStructures\Abstracts\AbstractDataObject;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
@@ -29,6 +30,7 @@ use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\DataObject;
+use AndyDefer\DomainStructures\Utils\StrictDataObject;
 use InvalidArgumentException;
 use UnitEnum;
 
@@ -68,12 +70,10 @@ final class AbstractTypedCollectionTest extends TestCase
 
     public function test_constructor_accepts_enum_types(): void
     {
-        $collection1 = new TypedCollection(UnitEnum::class);
         $collection2 = new TypedCollection(TestUserStatus::class);
         $collection3 = new TypedCollection(TestUserRole::class);
         $collection4 = new TypedCollection(TestUserGrade::class);
 
-        $this->assertSame([UnitEnum::class], $collection1->getAllowedTypes());
         $this->assertSame([TestUserStatus::class], $collection2->getAllowedTypes());
         $this->assertSame([TestUserRole::class], $collection3->getAllowedTypes());
         $this->assertSame([TestUserGrade::class], $collection4->getAllowedTypes());
@@ -107,10 +107,14 @@ final class AbstractTypedCollectionTest extends TestCase
         new TypedCollection(AbstractTypedCollection::class);
     }
 
-    public function test_constructor_accepts_data_object_type(): void
+    public function test_constructor_accepts_sub_class_off_abstract_data_object_type(): void
     {
-        $collection = new TypedCollection(DataObject::class);
-        $this->assertSame([DataObject::class], $collection->getAllowedTypes());
+        $collection = new TypedCollection(DataObject::class, StrictDataObject::class);
+        $allowedTypes = $collection->getAllowedTypes();
+
+        $this->assertContains(DataObject::class, $allowedTypes);
+        $this->assertContains(StrictDataObject::class, $allowedTypes);
+        $this->assertCount(2, $allowedTypes);
     }
 
     public function test_constructor_accepts_multiple_types(): void

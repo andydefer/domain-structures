@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Enums;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractData;
+use AndyDefer\DomainStructures\Abstracts\AbstractDataObject;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
@@ -26,13 +27,13 @@ enum PhpType: string
     case BOOLEAN = 'boolean';
     case NULL = 'NULL';
 
-    // Domain-specific abstract types
+        // Domain-specific abstract types
     case UNIT_ENUM = UnitEnum::class;
     case ABSTRACT_VALUE_OBJECT = AbstractValueObject::class;
     case ABSTRACT_TYPED_COLLECTION = AbstractTypedCollection::class;
     case ABSTRACT_DATA = AbstractData::class;
     case ABSTRACT_RECORD = AbstractRecord::class;
-    case DATA_OBJECT = DataObject::class;
+    case ABSTRACT_DATA_OBJECT = AbstractDataObject::class;
 
     /**
      * Get the normalized short name for the PHP type.
@@ -50,7 +51,7 @@ enum PhpType: string
             self::ABSTRACT_VALUE_OBJECT => AbstractValueObject::class,
             self::ABSTRACT_DATA => AbstractData::class,
             self::ABSTRACT_TYPED_COLLECTION => AbstractTypedCollection::class,
-            self::DATA_OBJECT => DataObject::class,
+            self::ABSTRACT_DATA_OBJECT => AbstractDataObject::class,
         };
     }
 
@@ -140,7 +141,7 @@ enum PhpType: string
             self::ABSTRACT_VALUE_OBJECT,
             self::ABSTRACT_DATA,
             self::ABSTRACT_TYPED_COLLECTION,
-            self::DATA_OBJECT,
+            self::ABSTRACT_DATA_OBJECT,
         ]);
     }
 
@@ -171,7 +172,7 @@ enum PhpType: string
 
     public function isDataObject(): bool
     {
-        return $this === self::DATA_OBJECT;
+        return $this === self::ABSTRACT_DATA_OBJECT;
     }
 
     public function isDomainAbstractType(): bool
@@ -211,7 +212,7 @@ enum PhpType: string
         }
 
         if ($value instanceof DataObject) {
-            return self::DATA_OBJECT;
+            return self::ABSTRACT_DATA_OBJECT;
         }
 
         // Scalar types
@@ -265,7 +266,7 @@ enum PhpType: string
      */
     public static function getScalarTypeNames(): array
     {
-        return array_map(fn ($type) => $type->getNormalizedName(), self::getScalarTypes());
+        return array_map(fn($type) => $type->getNormalizedName(), self::getScalarTypes());
     }
 
     /**
@@ -281,7 +282,7 @@ enum PhpType: string
             AbstractValueObject::class,
             AbstractData::class,
             AbstractTypedCollection::class,
-            DataObject::class,
+            AbstractDataObject::class,
         ];
     }
 
@@ -311,13 +312,10 @@ enum PhpType: string
             self::ABSTRACT_VALUE_OBJECT->getClassString(),
             self::ABSTRACT_DATA->getClassString(),
             self::ABSTRACT_TYPED_COLLECTION->getClassString(),
-            self::DATA_OBJECT->getClassString(),
+            self::ABSTRACT_DATA_OBJECT->getClassString(),
         ];
     }
 
-    /**
-     * Check if a given type string or class name is valid.
-     */
     public static function isValidType(string $type): bool
     {
         // Check scalar types
@@ -325,19 +323,23 @@ enum PhpType: string
             return true;
         }
 
-        // Check abstract types exactly
-        if (in_array($type, self::getAbstractTypes(), true)) {
-            return true;
+        // Vérifier que la classe existe
+        if (!class_exists($type)) {
+            return false;
         }
 
-        // Check subclasses
-        if (class_exists($type)) {
-            return is_subclass_of($type, UnitEnum::class) ||
-                is_subclass_of($type, AbstractRecord::class) ||
-                is_subclass_of($type, AbstractValueObject::class) ||
-                is_subclass_of($type, AbstractData::class) ||
-                is_subclass_of($type, AbstractTypedCollection::class);
+        // REFUSER les classes abstraites
+        if ((new \ReflectionClass($type))->isAbstract()) {
+            return false;
         }
+
+        // Check subclasses valides (concrètes uniquement)
+        return is_subclass_of($type, UnitEnum::class) ||
+            is_subclass_of($type, AbstractRecord::class) ||
+            is_subclass_of($type, AbstractValueObject::class) ||
+            is_subclass_of($type, AbstractData::class) ||
+            is_subclass_of($type, AbstractTypedCollection::class) ||
+            is_subclass_of($type, AbstractDataObject::class);
 
         return false;
     }
@@ -369,7 +371,7 @@ enum PhpType: string
             AbstractValueObject::class => self::ABSTRACT_VALUE_OBJECT,
             AbstractData::class => self::ABSTRACT_DATA,
             AbstractTypedCollection::class => self::ABSTRACT_TYPED_COLLECTION,
-            DataObject::class => self::DATA_OBJECT,
+            AbstractDataObject::class => self::ABSTRACT_DATA_OBJECT,
         ];
 
         if (isset($classMapping[$type])) {
