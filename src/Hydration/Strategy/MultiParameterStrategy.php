@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Hydration\Strategy;
 
+use AndyDefer\DomainStructures\Abstracts\AbstractDataObject;
 use AndyDefer\DomainStructures\Hydration\Converter\TypeConverterInterface;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Utils\DataObject;
+use AndyDefer\DomainStructures\Utils\StrictDataObject;
 use InvalidArgumentException;
 use ReflectionClass;
 
@@ -81,9 +83,9 @@ final class MultiParameterStrategy implements HydrationStrategyInterface
         return new $className(...$parameters);
     }
 
-    private function normalizeToDataObject(mixed $source): DataObject
+    private function normalizeToDataObject(mixed $source): AbstractDataObject
     {
-        if ($source instanceof DataObject) {
+        if ($source instanceof AbstractDataObject) {
             return $source;
         }
 

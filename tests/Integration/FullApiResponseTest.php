@@ -374,7 +374,7 @@ final class FullApiResponseTest extends TestCase
             new TestProductRecord(id: 5, name: 'Desk', price: 499, isFeatured: true)
         );
 
-        $featuredProducts = $allProducts->filter(fn ($product) => $product->isFeatured === true);
+        $featuredProducts = $allProducts->filter(fn($product) => $product->isFeatured === true);
 
         $productDataCollection = new TestProductDataCollection;
         foreach ($featuredProducts->all() as $product) {
@@ -419,7 +419,7 @@ final class FullApiResponseTest extends TestCase
         // Ou avec usort
         $sortedByPrice = $allProducts
             ->all()
-            ->usort(fn ($a, $b) => $a->price <=> $b->price)
+            ->usort(fn($a, $b) => $a->price <=> $b->price)
             ->toArray();
 
         $this->assertSame('Mouse', $sortedByPrice[0]->name);
@@ -437,7 +437,7 @@ final class FullApiResponseTest extends TestCase
             new TestUserRecord(id: 3, name: 'Charlie', email: TestEmailAddress::from('charlie@example.com'), status: TestUserStatus::INACTIVE)
         );
 
-        $activeUsers = $dbRecords->filter(fn (TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
+        $activeUsers = $dbRecords->filter(fn(TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
 
         $apiData = new DataCollection(TestUserData::class);
         foreach ($activeUsers->all() as $record) {

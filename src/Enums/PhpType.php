@@ -211,7 +211,7 @@ enum PhpType: string
             return self::ABSTRACT_TYPED_COLLECTION;
         }
 
-        if ($value instanceof DataObject) {
+        if ($value instanceof AbstractDataObject) {
             return self::ABSTRACT_DATA_OBJECT;
         }
 
@@ -291,7 +291,7 @@ enum PhpType: string
      */
     public static function getAllowedTypeDescription(): string
     {
-        return 'scalar (int, string, float, bool, null), Enum, Record, ValueObject, Data, TypedCollection, or DataObject';
+        return 'scalar (int, string, float, bool, null) or concrete class extending UnitEnum, AbstractRecord, AbstractValueObject, AbstractData, AbstractTypedCollection, or AbstractDataObject';
     }
 
     /**
