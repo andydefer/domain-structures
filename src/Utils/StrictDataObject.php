@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Utils;
 
+use AndyDefer\DomainStructures\Abstracts\AbstractDataObject;
+
 /**
  * StrictDataObject - Préserve la casse originale des clés.
  * 
  * Contrairement à DataObject qui normalise en camelCase,
  * cette classe garde les clés exactement comme fournies.
  */
-class StrictDataObject extends DataObject
+class StrictDataObject extends AbstractDataObject
 {
     /**
      * Normalise une clé en la laissant inchangée.

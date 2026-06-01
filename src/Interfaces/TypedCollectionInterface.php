@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Interfaces;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractData;
+use AndyDefer\DomainStructures\Abstracts\AbstractDataObject;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
-use AndyDefer\DomainStructures\Utils\DataObject;
 use Closure;
 use Countable;
 use IteratorAggregate;
@@ -36,7 +36,7 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
      *
      * @return static
      */
-    public function add(DataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|TypedCollectionInterface|int|string|float|bool|null ...$items): static;
+    public function add(AbstractDataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|TypedCollectionInterface|int|string|float|bool|null ...$items): static;
 
     /**
      * Returns a shallow copy of the entire collection.
@@ -160,10 +160,10 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
     /**
      * Checks if the collection contains a specific value.
      *
-     * @param  DataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|self|int|string|float|bool|null  $value
+     * @param  AbstractDataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|self|int|string|float|bool|null  $value
      * @return bool
      */
-    public function contains(DataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|self|int|string|float|bool|null $value): bool;
+    public function contains(AbstractDataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|self|int|string|float|bool|null $value): bool;
 
     /**
      * Finds the first item that satisfies the callback.

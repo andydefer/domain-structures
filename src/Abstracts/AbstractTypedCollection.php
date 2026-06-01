@@ -164,7 +164,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
 
     // ==================== CORE COLLECTION METHODS ====================
 
-    public function add(DataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|TypedCollectionInterface|int|string|float|bool|null ...$items): static
+    public function add(AbstractDataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|TypedCollectionInterface|int|string|float|bool|null ...$items): static
     {
         foreach ($items as $item) {
             $this->validateItem($item);
@@ -378,7 +378,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
 
     // ==================== QUERY METHODS ====================
 
-    final public function contains(DataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|TypedCollectionInterface|int|string|float|bool|null $value): bool
+    final public function contains(AbstractDataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|TypedCollectionInterface|int|string|float|bool|null $value): bool
     {
         return in_array($value, $this->items, true);
     }
