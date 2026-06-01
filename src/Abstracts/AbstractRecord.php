@@ -13,18 +13,32 @@ abstract class AbstractRecord implements Transformable
     use Hydratable;
 
     /**
+     * Converts the record to a normalized array.
+     *
+     * This method uses the NormalizerChain to recursively normalize the entire
+     * record structure, including nested records, value objects, and collections.
+     *
+     * @return array<string, mixed> The normalized array representation
+     */
+    public function toArray(): array
+    {
+        return NormalizerChain::get()->normalize($this);
+    }
+
+    /**
      * Returns the normalized array without null values.
      * Useful for database inserts/updates and API responses.
      *
-     * @param  bool  $recursive  Whether to remove nulls recursively (default: true)
+     * @param bool $recursive Whether to remove nulls recursively (default: true)
+     *
      * @return array<string, mixed>
      */
     public function toArrayWithoutNulls(bool $recursive = true): array
     {
-        $normalized = NormalizerChain::get()->normalize($this);
+        $normalized = $this->toArray();
 
-        if (! $recursive) {
-            return array_filter($normalized, fn ($value) => $value !== null);
+        if (!$recursive) {
+            return array_filter($normalized, fn($value) => $value !== null);
         }
 
         return $this->removeNullsRecursively($normalized);
@@ -34,7 +48,8 @@ abstract class AbstractRecord implements Transformable
      * Removes null values from an array recursively.
      * Preserves empty arrays (they represent empty collections).
      *
-     * @param  array<mixed>  $data
+     * @param array<mixed> $data
+     *
      * @return array<mixed>
      */
     private function removeNullsRecursively(array $data): array
@@ -42,21 +57,16 @@ abstract class AbstractRecord implements Transformable
         $result = [];
 
         foreach ($data as $key => $value) {
-            // Si c'est un tableau, le traiter récursivement
             if (is_array($value)) {
-                // Toujours ajouter le tableau, même s'il est vide
-                // (une collection vide a du sens)
+                // Always add the array, even if empty (empty collection has meaning)
                 $result[$key] = $this->removeNullsRecursively($value);
-
                 continue;
             }
 
-            // Ignorer les valeurs null
             if ($value === null) {
                 continue;
             }
 
-            // Garder toutes les autres valeurs
             $result[$key] = $value;
         }
 
@@ -65,6 +75,6 @@ abstract class AbstractRecord implements Transformable
 
     public function __toString(): string
     {
-        return json_encode(NormalizerChain::get()->normalize($this), JSON_THROW_ON_ERROR);
+        return json_encode($this->toArray(), JSON_THROW_ON_ERROR);
     }
 }

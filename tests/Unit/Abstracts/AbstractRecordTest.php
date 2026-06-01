@@ -26,9 +26,7 @@ use InvalidArgumentException;
 final class AbstractRecordTest extends TestCase
 {
     private TestIso8601DateTime $now;
-
     private TestEmailAddress $testEmail;
-
     private TypedCollection $tags;
 
     protected function setUp(): void
@@ -41,9 +39,9 @@ final class AbstractRecordTest extends TestCase
         $this->tags->add('premium', 'vip');
     }
 
-    // ==================== NORMALIZATION TO ARRAY TESTS ====================
+    // ==================== TO ARRAY TESTS ====================
 
-    public function test_record_normalizes_to_array_with_snake_case_keys(): void
+    public function test_to_array_returns_normalized_array_with_snake_case_keys(): void
     {
         $record = new TestUserRecord(
             id: 1,
@@ -57,7 +55,7 @@ final class AbstractRecordTest extends TestCase
             createdAt: $this->now
         );
 
-        $normalized = NormalizerChain::get()->normalize($record);
+        $normalized = $record->toArray();
 
         $this->assertIsArray($normalized);
         $this->assertArrayHasKey('id', $normalized);
@@ -80,7 +78,7 @@ final class AbstractRecordTest extends TestCase
         $this->assertEquals(1, $normalized['grade']);
     }
 
-    public function test_record_normalizes_nested_objects_recursively(): void
+    public function test_to_array_normalizes_nested_objects_recursively(): void
     {
         $record = new TestUserRecord(
             id: 1,
@@ -94,7 +92,7 @@ final class AbstractRecordTest extends TestCase
             createdAt: $this->now
         );
 
-        $normalized = NormalizerChain::get()->normalize($record);
+        $normalized = $record->toArray();
 
         $this->assertIsString($normalized['email']);
         $this->assertIsString($normalized['status']);
@@ -105,7 +103,7 @@ final class AbstractRecordTest extends TestCase
         $this->assertIsString($normalized['created_at']);
     }
 
-    public function test_record_normalizes_with_null_values_included(): void
+    public function test_to_array_includes_null_values(): void
     {
         $record = new TestUserRecord(
             name: 'John Doe',
@@ -116,51 +114,26 @@ final class AbstractRecordTest extends TestCase
             grade: null
         );
 
-        $normalized = NormalizerChain::get()->normalize($record);
+        $normalized = $record->toArray();
 
-        // Tous les champs sont inclus, même les null
         $this->assertArrayHasKey('id', $normalized);
         $this->assertArrayHasKey('email_verified_at', $normalized);
         $this->assertArrayHasKey('featured_product', $normalized);
         $this->assertArrayHasKey('grade', $normalized);
-        $this->assertArrayHasKey('name', $normalized);
-        $this->assertArrayHasKey('email', $normalized);
-        $this->assertArrayHasKey('status', $normalized);
-        $this->assertArrayHasKey('role', $normalized);
-        $this->assertArrayHasKey('tags', $normalized);
-        $this->assertArrayHasKey('products', $normalized);
-
         $this->assertNull($normalized['id']);
         $this->assertNull($normalized['email_verified_at']);
         $this->assertNull($normalized['featured_product']);
         $this->assertNull($normalized['grade']);
     }
 
-    public function test_record_includes_null_values_by_default(): void
-    {
-        $record = new TestUserRecord(
-            name: 'John Doe',
-            email: $this->testEmail,
-            id: null,
-            emailVerifiedAt: null
-        );
-
-        $normalized = NormalizerChain::get()->normalize($record);
-
-        $this->assertArrayHasKey('id', $normalized);
-        $this->assertArrayHasKey('email_verified_at', $normalized);
-        $this->assertNull($normalized['id']);
-        $this->assertNull($normalized['email_verified_at']);
-    }
-
-    public function test_record_converts_camel_case_to_snake_case(): void
+    public function test_to_array_converts_camel_case_to_snake_case(): void
     {
         $record = new TestUserRecord(
             emailVerifiedAt: $this->now,
             createdAt: $this->now
         );
 
-        $normalized = NormalizerChain::get()->normalize($record);
+        $normalized = $record->toArray();
 
         $this->assertArrayHasKey('email_verified_at', $normalized);
         $this->assertArrayNotHasKey('emailVerifiedAt', $normalized);
@@ -168,7 +141,260 @@ final class AbstractRecordTest extends TestCase
         $this->assertArrayNotHasKey('createdAt', $normalized);
     }
 
-    // ==================== MAGIC TO_STRING TESTS ====================
+    // ==================== TO ARRAY WITHOUT NULLS TESTS ====================
+
+    public function test_to_array_without_nulls_removes_null_values(): void
+    {
+        $record = new TestUserRecord(
+            id: 1,
+            name: 'John Doe',
+            email: $this->testEmail,
+            status: null,
+            role: null,
+            grade: null,
+            emailVerifiedAt: null,
+            featuredProduct: null,
+            createdAt: $this->now
+        );
+
+        $result = $record->toArrayWithoutNulls();
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('id', $result);
+        $this->assertArrayHasKey('name', $result);
+        $this->assertArrayHasKey('email', $result);
+        $this->assertArrayHasKey('created_at', $result);
+        $this->assertArrayNotHasKey('status', $result);
+        $this->assertArrayNotHasKey('role', $result);
+        $this->assertArrayNotHasKey('grade', $result);
+        $this->assertArrayNotHasKey('email_verified_at', $result);
+        $this->assertArrayNotHasKey('featured_product', $result);
+        $this->assertSame(1, $result['id']);
+        $this->assertSame('John Doe', $result['name']);
+        $this->assertSame('john.doe@example.com', $result['email']);
+    }
+
+    public function test_to_array_without_nulls_removes_nested_null_values(): void
+    {
+        $tags = new TypedCollection('string', 'null');
+        $tags->add('premium', null, 'vip', null);
+
+        $record = new TestUserRecord(
+            id: 1,
+            name: 'John Doe',
+            email: $this->testEmail,
+            tags: $tags,
+            createdAt: $this->now
+        );
+
+        $result = $record->toArrayWithoutNulls();
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('tags', $result);
+        $this->assertIsArray($result['tags']);
+        $this->assertCount(2, $result['tags']);
+        $this->assertNotContains(null, $result['tags']);
+    }
+
+    public function test_to_array_without_nulls_with_non_recursive_mode(): void
+    {
+        $tags = new TypedCollection('string', 'null');
+        $tags->add('premium', null, 'vip');
+
+        $record = new TestUserRecord(
+            id: 1,
+            name: 'John Doe',
+            email: $this->testEmail,
+            status: null,
+            tags: $tags,
+            createdAt: $this->now
+        );
+
+        $result = $record->toArrayWithoutNulls(false);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('id', $result);
+        $this->assertArrayHasKey('name', $result);
+        $this->assertArrayHasKey('email', $result);
+        $this->assertArrayHasKey('tags', $result);
+        $this->assertArrayHasKey('created_at', $result);
+        $this->assertArrayNotHasKey('status', $result);
+        $this->assertContains(null, $result['tags']);
+    }
+
+    public function test_to_array_without_nulls_preserves_empty_arrays(): void
+    {
+        $emptyCollection = new StringTypedCollection();
+
+        $record = new TestUserRecord(
+            id: 1,
+            name: 'John Doe',
+            email: $this->testEmail,
+            tags: $emptyCollection,
+            createdAt: $this->now
+        );
+
+        $result = $record->toArrayWithoutNulls();
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('tags', $result);
+        $this->assertIsArray($result['tags']);
+        $this->assertEmpty($result['tags']);
+    }
+
+    public function test_to_array_without_nulls_preserves_false_and_zero_values(): void
+    {
+        $record = new TestUserRecord(
+            id: 0,
+            name: '',
+            email: $this->testEmail,
+            status: null,
+            grade: TestUserGrade::BRONZE
+        );
+
+        $result = $record->toArrayWithoutNulls();
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('id', $result);
+        $this->assertSame(0, $result['id']);
+        $this->assertArrayHasKey('name', $result);
+        $this->assertSame('', $result['name']);
+        $this->assertArrayHasKey('email', $result);
+        $this->assertArrayHasKey('grade', $result);
+        $this->assertSame(1, $result['grade']);
+        $this->assertArrayNotHasKey('status', $result);
+    }
+
+    public function test_to_array_without_nulls_does_not_modify_original_record(): void
+    {
+        $original = new TestUserRecord(
+            id: 1,
+            name: 'John Doe',
+            email: $this->testEmail,
+            status: null,
+            role: null,
+            grade: null
+        );
+
+        $result = $original->toArrayWithoutNulls();
+
+        $originalNormalized = $original->toArray();
+        $this->assertArrayHasKey('status', $originalNormalized);
+        $this->assertNull($originalNormalized['status']);
+        $this->assertArrayHasKey('role', $originalNormalized);
+        $this->assertNull($originalNormalized['role']);
+        $this->assertArrayHasKey('grade', $originalNormalized);
+        $this->assertNull($originalNormalized['grade']);
+
+        $this->assertArrayNotHasKey('status', $result);
+        $this->assertArrayNotHasKey('role', $result);
+        $this->assertArrayNotHasKey('grade', $result);
+        $this->assertArrayHasKey('id', $result);
+        $this->assertArrayHasKey('name', $result);
+        $this->assertArrayHasKey('email', $result);
+    }
+
+    public function test_to_array_without_nulls_handles_update_record(): void
+    {
+        $updateRecord = new TestUserUpdateRecord(
+            name: 'Updated Name',
+            email: null,
+            lifeStage: null
+        );
+
+        $result = $updateRecord->toArrayWithoutNulls();
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('name', $result);
+        $this->assertArrayNotHasKey('email', $result);
+        $this->assertArrayNotHasKey('life_stage', $result);
+        $this->assertSame('Updated Name', $result['name']);
+        $this->assertCount(1, $result);
+    }
+
+    public function test_to_array_without_nulls_works_with_collection_of_records(): void
+    {
+        $record1 = new TestUserRecord(
+            id: 1,
+            name: 'User 1',
+            email: TestEmailAddress::from('user1@example.com'),
+            status: null,
+            role: TestUserRole::USER
+        );
+
+        $record2 = new TestUserRecord(
+            id: 2,
+            name: 'User 2',
+            email: TestEmailAddress::from('user2@example.com'),
+            status: TestUserStatus::ACTIVE,
+            role: null
+        );
+
+        $collection = new RecordCollection(TestUserRecord::class);
+        $collection->add($record1, $record2);
+
+        $result = [];
+        foreach ($collection as $record) {
+            $result[] = $record->toArrayWithoutNulls();
+        }
+
+        $this->assertCount(2, $result);
+        $this->assertArrayNotHasKey('status', $result[0]);
+        $this->assertArrayHasKey('role', $result[0]);
+        $this->assertArrayHasKey('status', $result[1]);
+        $this->assertArrayNotHasKey('role', $result[1]);
+        $this->assertSame('User 1', $result[0]['name']);
+        $this->assertSame('User 2', $result[1]['name']);
+    }
+
+    public function test_to_array_without_nulls_with_deeply_nested_structure(): void
+    {
+        $tags = new TypedCollection('string', 'null');
+        $tags->add('premium', null, 'vip', null, 'gold');
+
+        $product = new TestProductRecord(
+            id: 1,
+            name: 'Test Product',
+            price: 99.99,
+            isFeatured: true
+        );
+
+        $products = new TestProductRecordCollection();
+        $products->add($product);
+
+        $record = new TestUserRecord(
+            id: 1,
+            name: 'John Doe',
+            email: $this->testEmail,
+            tags: $tags,
+            products: $products,
+            featuredProduct: $product,
+            createdAt: $this->now
+        );
+
+        $result = $record->toArrayWithoutNulls();
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('tags', $result);
+        $this->assertCount(3, $result['tags']);
+        $this->assertNotContains(null, $result['tags']);
+
+        $this->assertArrayHasKey('products', $result);
+        $this->assertCount(1, $result['products']);
+        $this->assertArrayHasKey('name', $result['products'][0]);
+        $this->assertSame('Test Product', $result['products'][0]['name']);
+
+        $this->assertArrayHasKey('featured_product', $result);
+        $this->assertArrayHasKey('name', $result['featured_product']);
+        $this->assertSame('Test Product', $result['featured_product']['name']);
+
+        $this->assertArrayHasKey('created_at', $result);
+        $this->assertArrayHasKey('name', $result);
+        $this->assertArrayHasKey('email', $result);
+        $this->assertArrayHasKey('id', $result);
+    }
+
+    // ==================== MAGIC TO STRING TESTS ====================
 
     public function test_magic_to_string_returns_json_representation(): void
     {
@@ -188,7 +414,7 @@ final class AbstractRecordTest extends TestCase
         $this->assertSame('John Doe', $decoded['name']);
     }
 
-    // ==================== HYDRATION FROM SOURCE TESTS ====================
+    // ==================== HYDRATION TESTS ====================
 
     public function test_record_hydrates_from_data_object(): void
     {
@@ -317,7 +543,7 @@ final class AbstractRecordTest extends TestCase
 
     public function test_record_with_nested_product_collection_normalizes_correctly(): void
     {
-        $products = new TestProductRecordCollection;
+        $products = new TestProductRecordCollection();
         $products->add(
             new TestProductRecord(id: 1, name: 'Laptop', price: 999, isFeatured: true),
             new TestProductRecord(id: 2, name: 'Mouse', price: 29, isFeatured: false)
@@ -330,7 +556,7 @@ final class AbstractRecordTest extends TestCase
             products: $products
         );
 
-        $normalized = NormalizerChain::get()->normalize($record);
+        $normalized = $record->toArray();
 
         $this->assertIsArray($normalized['products']);
         $this->assertCount(2, $normalized['products']);
@@ -340,25 +566,6 @@ final class AbstractRecordTest extends TestCase
         $this->assertSame('Mouse', $normalized['products'][1]['name']);
         $this->assertEquals(29, $normalized['products'][1]['price']);
         $this->assertFalse($normalized['products'][1]['is_featured']);
-    }
-
-    public function test_record_with_nested_collection_normalizes_recursively(): void
-    {
-        $tags = new StringTypedCollection;
-        $tags->add('tag1', 'tag2', 'tag3');
-
-        $record = new TestUserRecord(
-            id: 1,
-            name: 'John Doe',
-            email: $this->testEmail,
-            tags: $tags
-        );
-
-        $normalized = NormalizerChain::get()->normalize($record);
-
-        $this->assertIsArray($normalized['tags']);
-        $this->assertCount(3, $normalized['tags']);
-        $this->assertSame(['tag1', 'tag2', 'tag3'], $normalized['tags']);
     }
 
     // ==================== TYPE CONVERSION TESTS ====================
@@ -413,7 +620,7 @@ final class AbstractRecordTest extends TestCase
             createdAt: null
         );
 
-        $normalized = NormalizerChain::get()->normalize($record);
+        $normalized = $record->toArray();
 
         $this->assertArrayHasKey('tags', $normalized);
         $this->assertArrayHasKey('products', $normalized);
@@ -429,8 +636,8 @@ final class AbstractRecordTest extends TestCase
             email: $this->testEmail
         );
 
-        $first = NormalizerChain::get()->normalize($record);
-        $second = NormalizerChain::get()->normalize($record);
+        $first = $record->toArray();
+        $second = $record->toArray();
 
         $this->assertSame($first, $second);
     }
@@ -475,22 +682,7 @@ final class AbstractRecordTest extends TestCase
         TestUserRecord::from($source);
     }
 
-    // ==================== PRIVATE METHOD TESTS ====================
-
-    public function test_camel_case_to_snake_case_conversion_works_correctly(): void
-    {
-        $record = new TestUserRecord(
-            emailVerifiedAt: $this->now,
-            createdAt: $this->now
-        );
-
-        $normalized = NormalizerChain::get()->normalize($record);
-
-        $this->assertArrayHasKey('email_verified_at', $normalized);
-        $this->assertArrayHasKey('created_at', $normalized);
-        $this->assertArrayNotHasKey('emailVerifiedAt', $normalized);
-        $this->assertArrayNotHasKey('createdAt', $normalized);
-    }
+    // ==================== CONVERSION TESTS ====================
 
     public function test_conversion_handles_multiple_uppercase_letters(): void
     {
@@ -498,307 +690,8 @@ final class AbstractRecordTest extends TestCase
             emailVerifiedAt: $this->now
         );
 
-        $normalized = NormalizerChain::get()->normalize($record);
+        $normalized = $record->toArray();
 
         $this->assertArrayHasKey('email_verified_at', $normalized);
-    }
-
-    // ==================== WITHOUT NULLS METHOD TESTS ====================
-
-    public function test_to_array_without_nulls_removes_null_values(): void
-    {
-        $record = new TestUserRecord(
-            id: 1,
-            name: 'John Doe',
-            email: $this->testEmail,
-            status: null,
-            role: null,
-            grade: null,
-            emailVerifiedAt: null,
-            featuredProduct: null,
-            createdAt: $this->now
-        );
-
-        $result = $record->toArrayWithoutNulls();
-
-        $this->assertIsArray($result);
-        $this->assertArrayHasKey('id', $result);
-        $this->assertArrayHasKey('name', $result);
-        $this->assertArrayHasKey('email', $result);
-        $this->assertArrayHasKey('created_at', $result);
-        $this->assertArrayNotHasKey('status', $result);
-        $this->assertArrayNotHasKey('role', $result);
-        $this->assertArrayNotHasKey('grade', $result);
-        $this->assertArrayNotHasKey('email_verified_at', $result);
-        $this->assertArrayNotHasKey('featured_product', $result);
-        $this->assertSame(1, $result['id']);
-        $this->assertSame('John Doe', $result['name']);
-        $this->assertSame('john.doe@example.com', $result['email']);
-    }
-
-    public function test_to_array_without_nulls_removes_nested_null_values(): void
-    {
-        $tags = new TypedCollection('string', 'null');
-        $tags->add('premium', null, 'vip', null);
-
-        $record = new TestUserRecord(
-            id: 1,
-            name: 'John Doe',
-            email: $this->testEmail,
-            tags: $tags,
-            createdAt: $this->now
-        );
-
-        $result = $record->toArrayWithoutNulls();
-
-        $this->assertIsArray($result);
-        $this->assertArrayHasKey('tags', $result);
-        $this->assertIsArray($result['tags']);
-        $this->assertCount(2, $result['tags']);
-        $this->assertNotContains(null, $result['tags']);
-    }
-
-    public function test_to_array_without_nulls_with_non_recursive_mode(): void
-    {
-        $record = new TestUserRecord(
-            id: 1,
-            name: 'John Doe',
-            email: $this->testEmail,
-            status: null,
-            tags: $this->tags->add(null),
-            createdAt: $this->now
-        );
-
-        $result = $record->toArrayWithoutNulls(false);
-
-        $this->assertIsArray($result);
-        $this->assertArrayHasKey('id', $result);
-        $this->assertArrayHasKey('name', $result);
-        $this->assertArrayHasKey('email', $result);
-        $this->assertArrayHasKey('tags', $result);
-        $this->assertArrayHasKey('created_at', $result);
-        $this->assertArrayNotHasKey('status', $result);
-
-        // Les nulls dans les tableaux imbriqués NE sont PAS supprimés
-        $this->assertContains(null, $result['tags']);
-    }
-
-    public function test_to_array_without_nulls_preserves_empty_arrays(): void
-    {
-        $emptyCollection = new StringTypedCollection;
-
-        $record = new TestUserRecord(
-            id: 1,
-            name: 'John Doe',
-            email: $this->testEmail,
-            tags: $emptyCollection,
-            createdAt: $this->now
-        );
-
-        $result = $record->toArrayWithoutNulls();
-
-        $this->assertIsArray($result);
-        $this->assertArrayHasKey('tags', $result);
-        $this->assertIsArray($result['tags']);
-        $this->assertEmpty($result['tags']);
-    }
-
-    public function test_to_array_without_nulls_does_not_modify_original_record(): void
-    {
-        $original = new TestUserRecord(
-            id: 1,
-            name: 'John Doe',
-            email: $this->testEmail,
-            status: null,
-            role: null,
-            grade: null
-        );
-
-        $result = $original->toArrayWithoutNulls();
-
-        // Vérifier que l'original n'a pas changé
-        $originalNormalized = NormalizerChain::get()->normalize($original);
-        $this->assertArrayHasKey('status', $originalNormalized);
-        $this->assertNull($originalNormalized['status']);
-        $this->assertArrayHasKey('role', $originalNormalized);
-        $this->assertNull($originalNormalized['role']);
-        $this->assertArrayHasKey('grade', $originalNormalized);
-        $this->assertNull($originalNormalized['grade']);
-        $this->assertArrayHasKey('id', $originalNormalized);
-        $this->assertArrayHasKey('name', $originalNormalized);
-        $this->assertArrayHasKey('email', $originalNormalized);
-
-        // Vérifier que le résultat n'a pas les null
-        $this->assertArrayNotHasKey('status', $result);
-        $this->assertArrayNotHasKey('role', $result);
-        $this->assertArrayNotHasKey('grade', $result);
-        $this->assertArrayHasKey('id', $result);
-        $this->assertArrayHasKey('name', $result);
-        $this->assertArrayHasKey('email', $result);
-    }
-
-    public function test_to_array_without_nulls_works_with_nested_objects(): void
-    {
-        $nestedRecord = new TestUserRecord(
-            id: 10,
-            name: 'Nested User',
-            email: TestEmailAddress::from('nested@example.com'),
-            status: null,
-            role: null
-        );
-
-        $record = new TestUserNullableRecord(
-            id: 1,
-            name: 'John Doe',
-            email: $this->testEmail,
-            featuredProduct: null,
-            status: null,
-            tags: $this->tags,
-            createdAt: $this->now
-        );
-
-        $result = $record->toArrayWithoutNulls();
-
-        $this->assertIsArray($result);
-        $this->assertArrayHasKey('id', $result);
-        $this->assertArrayHasKey('name', $result);
-        $this->assertArrayHasKey('email', $result);
-        $this->assertArrayHasKey('tags', $result);
-        $this->assertArrayHasKey('created_at', $result);
-        $this->assertArrayNotHasKey('featured_product', $result);
-        $this->assertArrayNotHasKey('status2', $result);
-        $this->assertArrayNotHasKey('role2', $result);
-        $this->assertArrayNotHasKey('grade', $result);
-    }
-
-    public function test_to_array_without_nulls_handles_update_record(): void
-    {
-        $updateRecord = new TestUserUpdateRecord(
-            name: 'Updated Name',
-            email: null,
-            lifeStage: null
-        );
-
-        $result = $updateRecord->toArrayWithoutNulls();
-
-        $this->assertIsArray($result);
-        $this->assertArrayHasKey('name', $result);
-        $this->assertArrayNotHasKey('email', $result);
-        $this->assertArrayNotHasKey('life_stage', $result);
-        $this->assertSame('Updated Name', $result['name']);
-        $this->assertCount(1, $result);
-    }
-
-    public function test_to_array_without_nulls_preserves_false_and_zero_values(): void
-    {
-        $record = new TestUserRecord(
-            id: 0,
-            name: '',
-            email: $this->testEmail,
-            status: null,
-            grade: TestUserGrade::BRONZE
-        );
-
-        $result = $record->toArrayWithoutNulls();
-
-        $this->assertIsArray($result);
-        $this->assertArrayHasKey('id', $result);
-        $this->assertSame(0, $result['id']);
-        $this->assertArrayHasKey('name', $result);
-        $this->assertSame('', $result['name']);
-        $this->assertArrayHasKey('email', $result);
-        $this->assertArrayHasKey('grade', $result);
-        $this->assertSame(1, $result['grade']);
-        $this->assertArrayNotHasKey('status', $result);
-    }
-
-    public function test_to_array_without_nulls_works_with_collection_of_records(): void
-    {
-        $record1 = new TestUserRecord(
-            id: 1,
-            name: 'User 1',
-            email: TestEmailAddress::from('user1@example.com'),
-            status: null,
-            role: TestUserRole::USER
-        );
-
-        $record2 = new TestUserRecord(
-            id: 2,
-            name: 'User 2',
-            email: TestEmailAddress::from('user2@example.com'),
-            status: TestUserStatus::ACTIVE,
-            role: null
-        );
-
-        $collection = new RecordCollection(TestUserRecord::class);
-        $collection->add($record1, $record2);
-
-        $result = [];
-        foreach ($collection as $record) {
-            $result[] = $record->toArrayWithoutNulls();
-        }
-
-        $this->assertCount(2, $result);
-        $this->assertArrayNotHasKey('status', $result[0]);
-        $this->assertArrayHasKey('role', $result[0]);
-        $this->assertArrayHasKey('status', $result[1]);
-        $this->assertArrayNotHasKey('role', $result[1]);
-        $this->assertSame('User 1', $result[0]['name']);
-        $this->assertSame('User 2', $result[1]['name']);
-    }
-
-    public function test_to_array_without_nulls_with_deeply_nested_structure(): void
-    {
-        // Créer une structure imbriquée via les propriétés existantes
-        $tags = new TypedCollection('string', 'null');
-        $tags->add('premium', null, 'vip', null, 'gold');
-
-        // Créer un produit avec des propriétés (les produits ont name, price, etc.)
-        $product = new TestProductRecord(
-            id: 1,
-            name: 'Test Product',
-            price: 99.99,
-            isFeatured: true
-        );
-
-        // Créer une collection de produits
-        $products = new TestProductRecordCollection;
-        $products->add($product);
-
-        $record = new TestUserRecord(
-            id: 1,
-            name: 'John Doe',
-            email: $this->testEmail,
-            tags: $tags,
-            products: $products,
-            featuredProduct: $product,
-            createdAt: $this->now
-        );
-
-        $result = $record->toArrayWithoutNulls();
-
-        $this->assertIsArray($result);
-
-        // Vérifier les tags (niveau 1)
-        $this->assertArrayHasKey('tags', $result);
-        $this->assertCount(3, $result['tags']);
-        $this->assertNotContains(null, $result['tags']);
-
-        // Vérifier les produits (niveau 2)
-        $this->assertArrayHasKey('products', $result);
-        $this->assertCount(1, $result['products']);
-        $this->assertArrayHasKey('name', $result['products'][0]);
-        $this->assertSame('Test Product', $result['products'][0]['name']);
-
-        // Vérifier le produit en vedette
-        $this->assertArrayHasKey('featured_product', $result);
-        $this->assertArrayHasKey('name', $result['featured_product']);
-        $this->assertSame('Test Product', $result['featured_product']['name']);
-
-        // Vérifier les champs de base
-        $this->assertArrayHasKey('created_at', $result);
-        $this->assertArrayHasKey('name', $result);
-        $this->assertArrayHasKey('email', $result);
-        $this->assertArrayHasKey('id', $result);
     }
 }
