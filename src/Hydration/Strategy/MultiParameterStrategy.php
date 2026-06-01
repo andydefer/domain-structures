@@ -36,12 +36,16 @@ final class MultiParameterStrategy implements HydrationStrategyInterface
             throw new InvalidArgumentException(sprintf('%s must have a constructor', $className));
         }
 
-        $data = $this->normalizeToDataObject($source);
         $parameters = [];
 
         foreach ($constructor->getParameters() as $parameter) {
             $paramName = $parameter->getName();
             $paramType = $parameter->getType();
+
+            // Déterminer la classe cible pour la normalisation
+            $targetDataObjectClass = $this->getTargetDataObjectClass($paramType);
+            $data = $this->normalizeToDataObject($source, $targetDataObjectClass);
+
             $hasKey = $data->has($paramName);
 
             if (!$hasKey) {
@@ -83,10 +87,38 @@ final class MultiParameterStrategy implements HydrationStrategyInterface
         return new $className(...$parameters);
     }
 
-    private function normalizeToDataObject(mixed $source): AbstractDataObject
+    /**
+     * Détermine la classe DataObject cible à utiliser pour la normalisation.
+     */
+    private function getTargetDataObjectClass(?\ReflectionType $paramType): string
     {
+        if (!$paramType instanceof \ReflectionNamedType) {
+            return DataObject::class;
+        }
+
+        $typeName = $paramType->getName();
+
+        if (is_subclass_of($typeName, AbstractDataObject::class) || $typeName === AbstractDataObject::class) {
+            return $typeName;
+        }
+
+        return DataObject::class;
+    }
+
+    private function normalizeToDataObject(mixed $source, string $targetClass = DataObject::class): AbstractDataObject
+    {
+        // Vérifier que la classe cible est valide
+        if (!is_subclass_of($targetClass, AbstractDataObject::class) && $targetClass !== AbstractDataObject::class) {
+            $targetClass = DataObject::class;
+        }
+
         if ($source instanceof AbstractDataObject) {
-            return $source;
+            // Si c'est déjà le bon type, on le retourne
+            if ($source instanceof $targetClass) {
+                return $source;
+            }
+            // Sinon on convertit en utilisant from() pour préserver les données
+            return $targetClass::from($source->toArray());
         }
 
         if (is_string($source) && (str_starts_with(trim($source), '{') || str_starts_with(trim($source), '['))) {
@@ -100,13 +132,13 @@ final class MultiParameterStrategy implements HydrationStrategyInterface
             $flattened = NormalizerChain::get()->normalize($source);
 
             if (!is_array($flattened)) {
-                return DataObject::from(['value' => $flattened]);
+                return $targetClass::from(['value' => $flattened]);
             }
 
-            return DataObject::from($flattened);
+            return $targetClass::from($flattened);
         }
 
-        return DataObject::from($source);
+        return $targetClass::from($source);
     }
 
     private function convertValueToType(mixed $rawValue, \ReflectionType $paramType, string $paramName): mixed
