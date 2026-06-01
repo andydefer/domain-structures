@@ -421,6 +421,20 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
         return array_reduce($this->items, $callback, $initial);
     }
 
+    final public function first(): mixed
+    {
+        return $this->items[0] ?? null;
+    }
+
+    final public function last(): mixed
+    {
+        if (empty($this->items)) {
+            return null;
+        }
+
+        return $this->items[count($this->items) - 1] ?? null;
+    }
+
     // ==================== ITERATION METHODS ====================
 
     final public function each(Closure $callback): static
@@ -439,6 +453,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
 
         return $result;
     }
+
 
     // ==================== ARRAY ACCESS METHODS ====================
 

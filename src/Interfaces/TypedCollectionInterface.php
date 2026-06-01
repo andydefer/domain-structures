@@ -74,6 +74,20 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
     public function isNotEmpty(): bool;
 
     /**
+     * Returns the first item in the collection.
+     *
+     * @return TValue|null The first item, or null if the collection is empty
+     */
+    public function first(): mixed;
+
+    /**
+     * Returns the last item in the collection.
+     *
+     * @return TValue|null The last item, or null if the collection is empty
+     */
+    public function last(): mixed;
+
+    /**
      * Applies a callback to each item and returns a new collection.
      *
      * @template TReturn
@@ -97,7 +111,7 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
      * 
      * @template TReturn
      * @param Closure(TValue): TReturn $callback
-     * @param class-string $targetType
+     * @param class-string $targetCollectionClass
      * @return TypedCollection<TReturn>
      */
     public function mapToType(Closure $callback, string $targetCollectionClass, mixed ...$args): TypedCollectionInterface;
@@ -195,8 +209,8 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
     /**
      * Merges another collection into this one.
      *
-     * @param  self<TValue>  $collection
+     * @param  TypedCollectionInterface<TValue>  $collection
      * @return static
      */
-    public function merge(self $collection): static;
+    public function merge(TypedCollectionInterface $collection): static;
 }

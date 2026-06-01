@@ -776,6 +776,120 @@ final class AbstractTypedCollectionTest extends TestCase
         $this->assertFalse($result);
     }
 
+    // ==================== FIRST AND LAST METHOD TESTS ====================
+
+    public function test_first_returns_first_item_in_collection(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3, 4, 5);
+
+        $first = $collection->first();
+
+        $this->assertSame(1, $first);
+    }
+
+    public function test_first_returns_null_for_empty_collection(): void
+    {
+        $collection = new TypedCollection('int');
+
+        $first = $collection->first();
+
+        $this->assertNull($first);
+    }
+
+    public function test_first_with_single_item_returns_that_item(): void
+    {
+        $collection = new TypedCollection('string');
+        $collection->add('only item');
+
+        $first = $collection->first();
+
+        $this->assertSame('only item', $first);
+    }
+
+    public function test_first_with_objects_works_correctly(): void
+    {
+        $collection = new TypedCollection(TestUserRecord::class);
+        $user1 = new TestUserRecord(name: 'Alice', email: $this->testEmail);
+        $user2 = new TestUserRecord(name: 'Bob', email: $this->testEmail);
+        $collection->add($user1, $user2);
+
+        $first = $collection->first();
+
+        $this->assertSame($user1, $first);
+        $this->assertSame('Alice', $first->name);
+    }
+
+    public function test_last_returns_last_item_in_collection(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3, 4, 5);
+
+        $last = $collection->last();
+
+        $this->assertSame(5, $last);
+    }
+
+    public function test_last_returns_null_for_empty_collection(): void
+    {
+        $collection = new TypedCollection('int');
+
+        $last = $collection->last();
+
+        $this->assertNull($last);
+    }
+
+    public function test_last_with_single_item_returns_that_item(): void
+    {
+        $collection = new TypedCollection('string');
+        $collection->add('only item');
+
+        $last = $collection->last();
+
+        $this->assertSame('only item', $last);
+    }
+
+    public function test_last_with_objects_works_correctly(): void
+    {
+        $collection = new TypedCollection(TestUserRecord::class);
+        $user1 = new TestUserRecord(name: 'Alice', email: $this->testEmail);
+        $user2 = new TestUserRecord(name: 'Bob', email: $this->testEmail);
+        $collection->add($user1, $user2);
+
+        $last = $collection->last();
+
+        $this->assertSame($user2, $last);
+        $this->assertSame('Bob', $last->name);
+    }
+
+    public function test_first_and_last_work_together_on_same_collection(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(10, 20, 30, 40, 50);
+
+        $this->assertSame(10, $collection->first());
+        $this->assertSame(50, $collection->last());
+    }
+
+    public function test_first_and_last_after_modifications(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3);
+
+        $this->assertSame(1, $collection->first());
+        $this->assertSame(3, $collection->last());
+
+        $collection->add(4, 5);
+
+        $this->assertSame(1, $collection->first());
+        $this->assertSame(5, $collection->last());
+
+        $filtered = $collection->filter(fn($item) => $item > 2);
+
+        $this->assertSame(3, $filtered->first());
+        $this->assertSame(5, $filtered->last());
+    }
+
     // ==================== SORT METHOD TESTS ====================
 
     public function test_sort_orders_items_in_ascending_order(): void
