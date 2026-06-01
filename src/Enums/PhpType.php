@@ -395,6 +395,10 @@ enum PhpType: string
             if (is_subclass_of($type, AbstractTypedCollection::class)) {
                 return self::ABSTRACT_TYPED_COLLECTION;
             }
+            // AJOUT : Gérer les sous-classes de AbstractDataObject
+            if (is_subclass_of($type, AbstractDataObject::class)) {
+                return self::ABSTRACT_DATA_OBJECT;
+            }
         }
 
         throw new \InvalidArgumentException(sprintf('Unknown type: %s', $type));
