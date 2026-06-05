@@ -11,27 +11,58 @@ final class ScalarConverter implements TypeConverterInterface
 {
     public function supports(string $typeName): bool
     {
-        return PhpType::fromTypeString($typeName)->isScalar();
+        try {
+            // Normaliser les alias de types
+            $normalizedType = $this->normalizeTypeName($typeName);
+            $phpType = PhpType::fromTypeString($normalizedType);
+            return $phpType->isScalarOrNull();
+        } catch (InvalidArgumentException) {
+            // Le type n'est pas reconnu par PhpType (ex: 'array', 'object', 'resource', 'callable')
+            return false;
+        }
     }
 
     public function convert(mixed $value, string $typeName, string $paramName): mixed
     {
-        return match ($typeName) {
-            'int', 'integer' => $this->toInt($value, $paramName),
-            'float', 'double' => $this->toFloat($value, $paramName),
+        // Normaliser le type cible
+        $normalizedType = $this->normalizeTypeName($typeName);
+
+        return match ($normalizedType) {
+            'int' => $this->toInt($value, $paramName),
+            'float' => $this->toFloat($value, $paramName),
             'string' => $this->toString($value, $paramName),
-            'bool', 'boolean' => $this->toBool($value, $paramName),
+            'bool' => $this->toBool($value, $paramName),
+            'null' => null,
             default => throw new InvalidArgumentException(
                 sprintf('Cannot cast to scalar type %s for parameter $%s', $typeName, $paramName)
             ),
         };
     }
 
+    /**
+     * Normalize type aliases to their short form.
+     */
+    private function normalizeTypeName(string $typeName): string
+    {
+        return match ($typeName) {
+            'integer' => 'int',
+            'double' => 'float',
+            'boolean' => 'bool',
+            default => $typeName,
+        };
+    }
+
     private function toInt(mixed $value, string $paramName): int
     {
-        if (is_numeric($value)) {
-            return (int)$value;
+        // Gérer les booléens
+        if (is_bool($value)) {
+            return $value ? 1 : 0;
         }
+
+        if (is_numeric($value)) {
+            return (int) $value;
+        }
+
         throw new InvalidArgumentException(
             sprintf('Cannot convert value to int for parameter $%s', $paramName)
         );
@@ -39,9 +70,15 @@ final class ScalarConverter implements TypeConverterInterface
 
     private function toFloat(mixed $value, string $paramName): float
     {
-        if (is_numeric($value)) {
-            return (float)$value;
+        // Gérer les booléens
+        if (is_bool($value)) {
+            return $value ? 1.0 : 0.0;
         }
+
+        if (is_numeric($value)) {
+            return (float) $value;
+        }
+
         throw new InvalidArgumentException(
             sprintf('Cannot convert value to float for parameter $%s', $paramName)
         );
@@ -55,9 +92,16 @@ final class ScalarConverter implements TypeConverterInterface
             );
         }
 
-        if (is_scalar($value) || method_exists($value, '__toString')) {
-            return (string)$value;
+        // Vérifier d'abord si c'est un scalaire
+        if (is_scalar($value)) {
+            return (string) $value;
         }
+
+        // Ensuite vérifier si c'est un objet avec __toString
+        if (is_object($value) && method_exists($value, '__toString')) {
+            return (string) $value;
+        }
+
         throw new InvalidArgumentException(
             sprintf('Cannot convert value to string for parameter $%s', $paramName)
         );
@@ -68,12 +112,15 @@ final class ScalarConverter implements TypeConverterInterface
         if (is_bool($value)) {
             return $value;
         }
+
         if (is_numeric($value)) {
-            return (bool)$value;
+            return (bool) $value;
         }
+
         if (is_string($value)) {
             return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
         }
+
         throw new InvalidArgumentException(
             sprintf('Cannot convert value to bool for parameter $%s', $paramName)
         );

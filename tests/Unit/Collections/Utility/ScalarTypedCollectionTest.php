@@ -88,7 +88,7 @@ final class ScalarTypedCollectionTest extends TestCase
         $collection = new ScalarTypedCollection;
         $collection->add(1, 2, 3, 4);
 
-        $mapped = $collection->mapPreserveType(fn($item) => $item * 2);
+        $mapped = $collection->mapPreserveType(fn ($item) => $item * 2);
 
         $this->assertInstanceOf(ScalarTypedCollection::class, $mapped);
         $this->assertSame([2, 4, 6, 8], $mapped->toArray());
@@ -100,8 +100,8 @@ final class ScalarTypedCollectionTest extends TestCase
         $collection->add(1, 2, 3);
 
         $this->expectException(\TypeError::class);
-        // TypeError message: "array given" 
+        // TypeError message: "array given"
 
-        $collection->mapPreserveType(fn($item) => ['array']);
+        $collection->mapPreserveType(fn ($item) => ['array']);
     }
 }

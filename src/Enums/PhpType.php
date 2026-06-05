@@ -9,7 +9,6 @@ use AndyDefer\DomainStructures\Abstracts\AbstractDataObject;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
-use AndyDefer\DomainStructures\Utils\DataObject;
 use UnitEnum;
 
 /**
@@ -94,7 +93,7 @@ enum PhpType: string
      */
     public function isScalar(): bool
     {
-        return in_array($this, [self::INTEGER, self::DOUBLE, self::STRING, self::BOOLEAN, self::NULL]);
+        return in_array($this, [self::INTEGER, self::DOUBLE, self::STRING, self::BOOLEAN]);
     }
 
     /**
@@ -128,6 +127,11 @@ enum PhpType: string
     public function isNull(): bool
     {
         return $this === self::NULL;
+    }
+
+    public function isScalarOrNull(): bool
+    {
+        return $this->isScalar() || $this->isNull();
     }
 
     /**
@@ -324,7 +328,7 @@ enum PhpType: string
         }
 
         // Vérifier que la classe existe
-        if (!class_exists($type)) {
+        if (! class_exists($type)) {
             return false;
         }
 

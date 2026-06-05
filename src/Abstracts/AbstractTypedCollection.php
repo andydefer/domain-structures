@@ -9,7 +9,6 @@ use AndyDefer\DomainStructures\Enums\PhpType;
 use AndyDefer\DomainStructures\Interfaces\Transformable;
 use AndyDefer\DomainStructures\Interfaces\TypedCollectionInterface;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
-use AndyDefer\DomainStructures\Utils\DataObject;
 use ArrayIterator;
 use Closure;
 use InvalidArgumentException;
@@ -74,7 +73,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
             return $types;
         } catch (\ArgumentCountError $e) {
             throw new InvalidArgumentException(sprintf(
-                'Cannot determine allowed types for %s. ' .
+                'Cannot determine allowed types for %s. '.
                     'Please create an instance first before calling from(): new %s(...)',
                 $class,
                 $class
@@ -252,8 +251,9 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
      * with the original collection's allowed types.
      *
      * @template TReturn of TValue
-     * @param Closure(TValue): TReturn $callback
-     * @return static
+     *
+     * @param  Closure(TValue): TReturn  $callback
+     *
      * @throws InvalidArgumentException If mapped items are incompatible
      */
     final public function mapPreserveType(Closure $callback): static
@@ -261,6 +261,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
         if (empty($this->items)) {
             $result = new static(...$this->allowedTypes);
             $result->items = [];
+
             return $result;
         }
 
@@ -271,7 +272,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
 
         /** @var TReturn $item */
         foreach ($mappedItems as $item) {
-            /** @var mixed $item  */
+            /** @var mixed $item */
             $result->add($item);
         }
 
@@ -287,9 +288,10 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
      *
      * @template TReturn
      * @template TCollection of AbstractTypedCollection
-     * @param Closure(TValue): TReturn $callback
-     * @param class-string<TCollection> $targetCollectionClass
-     * @param mixed ...$args Constructor arguments for the target collection
+     *
+     * @param  Closure(TValue): TReturn  $callback
+     * @param  class-string<TCollection>  $targetCollectionClass
+     * @param  mixed  ...$args  Constructor arguments for the target collection
      * @return TCollection
      */
     final public function mapToType(Closure $callback, string $targetCollectionClass, mixed ...$args): TypedCollectionInterface
@@ -343,7 +345,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
 
         if (is_string($callback)) {
             $property = $callback;
-            $callback = fn($item) => is_object($item) ? ($item->$property ?? null) : null;
+            $callback = fn ($item) => is_object($item) ? ($item->$property ?? null) : null;
         }
 
         $values = array_map($callback, $items);
@@ -454,7 +456,6 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
         return $result;
     }
 
-
     // ==================== ARRAY ACCESS METHODS ====================
 
     public function offsetExists(mixed $offset): bool
@@ -507,7 +508,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
     final public function __clone()
     {
         $this->items = array_map(
-            fn($item) => is_object($item) ? clone $item : $item,
+            fn ($item) => is_object($item) ? clone $item : $item,
             $this->items
         );
     }
@@ -582,7 +583,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
 
         if (count($matchedTypes) > 1) {
             throw new InvalidArgumentException(sprintf(
-                'Ambiguous %sdata can be hydrated by multiple types [%s]. ' .
+                'Ambiguous %sdata can be hydrated by multiple types [%s]. '.
                     'Please specify the type using a "_type" key in the source data.',
                 $prefix,
                 implode('|', $matchedTypes)

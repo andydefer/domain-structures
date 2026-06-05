@@ -8,7 +8,6 @@ use AndyDefer\DomainStructures\Abstracts\AbstractDataObject;
 use AndyDefer\DomainStructures\Hydration\Converter\TypeConverterInterface;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Utils\DataObject;
-use AndyDefer\DomainStructures\Utils\StrictDataObject;
 use InvalidArgumentException;
 use ReflectionClass;
 
@@ -24,7 +23,7 @@ final class MultiParameterStrategy implements HydrationStrategyInterface
         $reflection = new ReflectionClass($className);
         $constructor = $reflection->getConstructor();
 
-        return $constructor && $constructor->getNumberOfParameters() !== 1;
+        return $constructor && $constructor->getNumberOfParameters() > 1;
     }
 
     public function hydrate(string $className, mixed $source): object
@@ -32,7 +31,7 @@ final class MultiParameterStrategy implements HydrationStrategyInterface
         $reflection = new ReflectionClass($className);
         $constructor = $reflection->getConstructor();
 
-        if (!$constructor) {
+        if (! $constructor) {
             throw new InvalidArgumentException(sprintf('%s must have a constructor', $className));
         }
 
@@ -48,14 +47,16 @@ final class MultiParameterStrategy implements HydrationStrategyInterface
 
             $hasKey = $data->has($paramName);
 
-            if (!$hasKey) {
+            if (! $hasKey) {
                 if ($parameter->isDefaultValueAvailable()) {
                     $parameters[] = $parameter->getDefaultValue();
+
                     continue;
                 }
 
                 if ($parameter->allowsNull()) {
                     $parameters[] = null;
+
                     continue;
                 }
 
@@ -69,6 +70,7 @@ final class MultiParameterStrategy implements HydrationStrategyInterface
             if ($rawValue === null) {
                 if ($parameter->allowsNull()) {
                     $parameters[] = null;
+
                     continue;
                 }
 
@@ -92,7 +94,7 @@ final class MultiParameterStrategy implements HydrationStrategyInterface
      */
     private function getTargetDataObjectClass(?\ReflectionType $paramType): string
     {
-        if (!$paramType instanceof \ReflectionNamedType) {
+        if (! $paramType instanceof \ReflectionNamedType) {
             return DataObject::class;
         }
 
@@ -108,7 +110,7 @@ final class MultiParameterStrategy implements HydrationStrategyInterface
     private function normalizeToDataObject(mixed $source, string $targetClass = DataObject::class): AbstractDataObject
     {
         // Vérifier que la classe cible est valide
-        if (!is_subclass_of($targetClass, AbstractDataObject::class) && $targetClass !== AbstractDataObject::class) {
+        if (! is_subclass_of($targetClass, AbstractDataObject::class) && $targetClass !== AbstractDataObject::class) {
             $targetClass = DataObject::class;
         }
 
@@ -117,6 +119,7 @@ final class MultiParameterStrategy implements HydrationStrategyInterface
             if ($source instanceof $targetClass) {
                 return $source;
             }
+
             // Sinon on convertit en utilisant from() pour préserver les données
             return $targetClass::from($source->toArray());
         }
@@ -131,7 +134,7 @@ final class MultiParameterStrategy implements HydrationStrategyInterface
         if (is_object($source)) {
             $flattened = NormalizerChain::get()->normalize($source);
 
-            if (!is_array($flattened)) {
+            if (! is_array($flattened)) {
                 return $targetClass::from(['value' => $flattened]);
             }
 

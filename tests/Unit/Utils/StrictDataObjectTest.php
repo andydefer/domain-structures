@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Tests\Unit\Utils;
 
-use AndyDefer\DomainStructures\Utils\StrictDataObject;
 use AndyDefer\DomainStructures\Tests\TestCase;
+use AndyDefer\DomainStructures\Utils\StrictDataObject;
 
 final class StrictDataObjectTest extends TestCase
 {
@@ -171,7 +171,7 @@ final class StrictDataObjectTest extends TestCase
 
     // ==================== TESTS POUR TOARRAY() ====================
 
-    public function test_toArray_preserves_original_key_case(): void
+    public function test_to_array_preserves_original_key_case(): void
     {
         // Arrange
         $data = [
@@ -229,7 +229,7 @@ final class StrictDataObjectTest extends TestCase
 
     // ==================== TESTS POUR NESTED ARRAYS ====================
 
-    public function test_nested_associative_arrays_become_nested_StrictDataObject(): void
+    public function test_nested_associative_arrays_become_nested_strict_data_object(): void
     {
         // Arrange
         $data = [
@@ -277,7 +277,7 @@ final class StrictDataObjectTest extends TestCase
 
     // ==================== TESTS POUR FROMJSON() ====================
 
-    public function test_fromJson_preserves_key_case(): void
+    public function test_from_json_preserves_key_case(): void
     {
         // Arrange
         $json = '{"user_id":1,"userName":"John","USER_EMAIL":"john@example.com"}';

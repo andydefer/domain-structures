@@ -134,7 +134,7 @@ final class PhpTypeTest extends TestCase
 
         $this->assertSame(PhpType::NULL, $type);
         $this->assertTrue($type->isNull());
-        $this->assertTrue($type->isScalar());
+        $this->assertFalse($type->isScalar());  // Correction : NULL n'est pas scalaire
         $this->assertFalse($type->isInt());
         $this->assertFalse($type->isString());
     }
@@ -369,10 +369,14 @@ final class PhpTypeTest extends TestCase
         $this->assertTrue(PhpType::DOUBLE->isScalar());
         $this->assertTrue(PhpType::STRING->isScalar());
         $this->assertTrue(PhpType::BOOLEAN->isScalar());
-        $this->assertTrue(PhpType::NULL->isScalar());
+        $this->assertFalse(PhpType::NULL->isScalar());  // Correction : NULL n'est pas scalaire
 
         $this->assertFalse(PhpType::UNIT_ENUM->isScalar());
         $this->assertFalse(PhpType::ABSTRACT_RECORD->isScalar());
+        $this->assertFalse(PhpType::ABSTRACT_VALUE_OBJECT->isScalar());
+        $this->assertFalse(PhpType::ABSTRACT_DATA->isScalar());
+        $this->assertFalse(PhpType::ABSTRACT_TYPED_COLLECTION->isScalar());
+        $this->assertFalse(PhpType::ABSTRACT_DATA_OBJECT->isScalar());
     }
 
     public function test_is_numeric_returns_correct_values(): void
@@ -418,6 +422,18 @@ final class PhpTypeTest extends TestCase
         $this->assertTrue(PhpType::NULL->isNull());
         $this->assertFalse(PhpType::INTEGER->isNull());
         $this->assertFalse(PhpType::STRING->isNull());
+    }
+
+    public function test_is_scalar_or_null_returns_correct_values(): void
+    {
+        $this->assertTrue(PhpType::INTEGER->isScalarOrNull());
+        $this->assertTrue(PhpType::DOUBLE->isScalarOrNull());
+        $this->assertTrue(PhpType::STRING->isScalarOrNull());
+        $this->assertTrue(PhpType::BOOLEAN->isScalarOrNull());
+        $this->assertTrue(PhpType::NULL->isScalarOrNull());
+
+        $this->assertFalse(PhpType::UNIT_ENUM->isScalarOrNull());
+        $this->assertFalse(PhpType::ABSTRACT_RECORD->isScalarOrNull());
     }
 
     public function test_is_object_returns_correct_values(): void
@@ -555,6 +571,7 @@ final class PhpTypeTest extends TestCase
         $this->assertTrue(PhpType::isValidType('bool'));
         $this->assertTrue(PhpType::isValidType('null'));
     }
+
     public function test_is_valid_type_returns_false_for_abstract_types(): void
     {
         $this->assertFalse(PhpType::isValidType(UnitEnum::class));           // interface

@@ -29,16 +29,15 @@ abstract class AbstractRecord implements Transformable
      * Returns the normalized array without null values.
      * Useful for database inserts/updates and API responses.
      *
-     * @param bool $recursive Whether to remove nulls recursively (default: true)
-     *
+     * @param  bool  $recursive  Whether to remove nulls recursively (default: true)
      * @return array<string, mixed>
      */
     public function toArrayWithoutNulls(bool $recursive = true): array
     {
         $normalized = $this->toArray();
 
-        if (!$recursive) {
-            return array_filter($normalized, fn($value) => $value !== null);
+        if (! $recursive) {
+            return array_filter($normalized, fn ($value) => $value !== null);
         }
 
         return $this->removeNullsRecursively($normalized);
@@ -48,8 +47,7 @@ abstract class AbstractRecord implements Transformable
      * Removes null values from an array recursively.
      * Preserves empty arrays (they represent empty collections).
      *
-     * @param array<mixed> $data
-     *
+     * @param  array<mixed>  $data
      * @return array<mixed>
      */
     private function removeNullsRecursively(array $data): array
@@ -60,6 +58,7 @@ abstract class AbstractRecord implements Transformable
             if (is_array($value)) {
                 // Always add the array, even if empty (empty collection has meaning)
                 $result[$key] = $this->removeNullsRecursively($value);
+
                 continue;
             }
 

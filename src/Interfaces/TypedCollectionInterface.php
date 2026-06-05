@@ -9,12 +9,12 @@ use AndyDefer\DomainStructures\Abstracts\AbstractDataObject;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
+use ArrayAccess;
 use Closure;
 use Countable;
 use IteratorAggregate;
 use JsonSerializable;
 use Stringable;
-use ArrayAccess;
 use UnitEnum;
 
 /**
@@ -29,19 +29,15 @@ use UnitEnum;
  * @extends ArrayAccess<array-key, TValue>
  * @extends Transformable<static>
  */
-interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSerializable, Stringable, ArrayAccess, Transformable
+interface TypedCollectionInterface extends ArrayAccess, Countable, IteratorAggregate, JsonSerializable, Stringable, Transformable
 {
     /**
      * Adds one or more items to the collection.
-     *
-     * @return static
      */
     public function add(AbstractDataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|TypedCollectionInterface|int|string|float|bool|null ...$items): static;
 
     /**
      * Returns a shallow copy of the entire collection.
-     *
-     * @return static
      */
     public function all(): static;
 
@@ -61,15 +57,11 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
 
     /**
      * Checks if the collection is empty.
-     *
-     * @return bool
      */
     public function isEmpty(): bool;
 
     /**
      * Checks if the collection is not empty.
-     *
-     * @return bool
      */
     public function isNotEmpty(): bool;
 
@@ -99,19 +91,20 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
 
     /**
      * Maps items and preserves the same collection type.
-     * 
+     *
      * @template TReturn of TValue
-     * @param Closure(TValue): TReturn $callback
-     * @return static
+     *
+     * @param  Closure(TValue): TReturn  $callback
      */
     public function mapPreserveType(Closure $callback): static;
 
     /**
      * Maps items to a specific target type.
-     * 
+     *
      * @template TReturn
-     * @param Closure(TValue): TReturn $callback
-     * @param class-string $targetCollectionClass
+     *
+     * @param  Closure(TValue): TReturn  $callback
+     * @param  class-string  $targetCollectionClass
      * @return TypedCollection<TReturn>
      */
     public function mapToType(Closure $callback, string $targetCollectionClass, mixed ...$args): TypedCollectionInterface;
@@ -120,7 +113,6 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
      * Filters items using a callback and returns a new collection.
      *
      * @param  Closure(TValue): bool  $callback
-     * @return static
      */
     public function filter(Closure $callback): static;
 
@@ -128,14 +120,11 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
      * Sorts the collection by values.
      *
      * @param  int  $flags  PHP sort flags (SORT_REGULAR, SORT_NUMERIC, SORT_STRING, etc.)
-     * @return static
      */
     public function sort(int $flags = SORT_REGULAR): static;
 
     /**
      * Reverses the order of items in the collection.
-     *
-     * @return static
      */
     public function reverse(): static;
 
@@ -145,7 +134,6 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
      * @param  Closure(TValue): mixed|string  $callback  Closure or property name
      * @param  int  $flags  PHP sort flags
      * @param  bool  $descending  Sort in descending order
-     * @return static
      */
     public function sortBy(Closure|string $callback, int $flags = SORT_REGULAR, bool $descending = false): static;
 
@@ -153,15 +141,11 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
      * Sorts the collection using a custom comparison function.
      *
      * @param  Closure(TValue, TValue): int  $callback
-     * @return static
      */
     public function usort(Closure $callback): static;
 
     /**
      * Checks if the collection contains a specific value.
-     *
-     * @param  AbstractDataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|self|int|string|float|bool|null  $value
-     * @return bool
      */
     public function contains(AbstractDataObject|UnitEnum|AbstractRecord|AbstractValueObject|AbstractData|self|int|string|float|bool|null $value): bool;
 
@@ -177,7 +161,6 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
      * Checks if all items satisfy the callback.
      *
      * @param  Closure(TValue): bool  $callback
-     * @return bool
      */
     public function every(Closure $callback): bool;
 
@@ -185,7 +168,6 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
      * Checks if at least one item satisfies the callback.
      *
      * @param  Closure(TValue): bool  $callback
-     * @return bool
      */
     public function some(Closure $callback): bool;
 
@@ -193,8 +175,6 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
      * Reduces the collection to a single value using a callback.
      *
      * @param  Closure(mixed, TValue): mixed  $callback
-     * @param  mixed  $initial
-     * @return mixed
      */
     public function reduce(Closure $callback, mixed $initial = null): mixed;
 
@@ -202,7 +182,6 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
      * Executes a callback for each item without modifying the collection.
      *
      * @param  Closure(TValue): void  $callback
-     * @return static
      */
     public function each(Closure $callback): static;
 
@@ -210,7 +189,6 @@ interface TypedCollectionInterface extends Countable, IteratorAggregate, JsonSer
      * Merges another collection into this one.
      *
      * @param  TypedCollectionInterface<TValue>  $collection
-     * @return static
      */
     public function merge(TypedCollectionInterface $collection): static;
 }

@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Hydration\Converter;
 
-use InvalidArgumentException;
-
 final class ClassConverter implements TypeConverterInterface
 {
     public function supports(string $typeName): bool

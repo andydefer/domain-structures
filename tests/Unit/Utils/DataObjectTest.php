@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Tests\Unit\Utils;
 
-use AndyDefer\DomainStructures\Utils\DataObject;
 use AndyDefer\DomainStructures\Tests\TestCase;
+use AndyDefer\DomainStructures\Utils\DataObject;
 
 final class DataObjectTest extends TestCase
 {
@@ -161,7 +161,7 @@ final class DataObjectTest extends TestCase
 
     // ==================== TESTS POUR TOARRAY() ====================
 
-    public function test_toArray_returns_camel_case_keys(): void
+    public function test_to_array_returns_camel_case_keys(): void
     {
         // Arrange
         $data = [
@@ -256,7 +256,7 @@ final class DataObjectTest extends TestCase
 
     // ==================== TESTS POUR FROMJSON() ====================
 
-    public function test_fromJson_normalizes_snake_case_to_camel_case(): void
+    public function test_from_json_normalizes_snake_case_to_camel_case(): void
     {
         // Arrange
         $json = '{"user_id":1,"first_name":"John","last_name":"Doe"}';

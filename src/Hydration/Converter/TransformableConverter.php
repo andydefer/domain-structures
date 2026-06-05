@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Hydration\Converter;
 
-use AndyDefer\DomainStructures\Enums\PhpType;
 use AndyDefer\DomainStructures\Interfaces\Transformable;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
-use InvalidArgumentException;
 
 final class TransformableConverter implements TypeConverterInterface
 {
@@ -18,7 +16,16 @@ final class TransformableConverter implements TypeConverterInterface
 
     public function convert(mixed $value, string $typeName, string $paramName): mixed
     {
-        if (is_object($value)) {
+        if ($value === null) {
+            return null;
+        }
+
+        if ($value instanceof $typeName) {
+            return $value;
+        }
+
+        // Normaliser uniquement si c'est un Transformable
+        if ($value instanceof Transformable) {
             $flattened = NormalizerChain::get()->normalize($value);
             return $typeName::from($flattened);
         }

@@ -6,8 +6,6 @@ namespace AndyDefer\DomainStructures\Normalizers;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractDataObject;
 use AndyDefer\DomainStructures\Normalizers\Core\AbstractNormalizer;
-use AndyDefer\DomainStructures\Utils\DataObject;
-use AndyDefer\DomainStructures\Utils\StrictDataObject;
 
 final class DataObjectNormalizer extends AbstractNormalizer
 {

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Abstracts;
 
-use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Interfaces\Transformable;
 
@@ -106,7 +105,7 @@ abstract class AbstractDataObject implements \ArrayAccess, Transformable
      */
     public function __set(string $name, mixed $value): void
     {
-        throw new \RuntimeException(get_class($this) . ' is immutable. Use with() or merge() to create a new instance.');
+        throw new \RuntimeException(get_class($this).' is immutable. Use with() or merge() to create a new instance.');
     }
 
     // ========== ARRAYACCESS (READ ONLY) ==========
@@ -142,7 +141,7 @@ abstract class AbstractDataObject implements \ArrayAccess, Transformable
      */
     public function offsetSet(mixed $offset, mixed $value): void
     {
-        throw new \RuntimeException(get_class($this) . ' is immutable. Use with() or merge() to create a new instance.');
+        throw new \RuntimeException(get_class($this).' is immutable. Use with() or merge() to create a new instance.');
     }
 
     /**
@@ -152,7 +151,7 @@ abstract class AbstractDataObject implements \ArrayAccess, Transformable
      */
     public function offsetUnset(mixed $offset): void
     {
-        throw new \RuntimeException(get_class($this) . ' is immutable. Use without() to create a new instance.');
+        throw new \RuntimeException(get_class($this).' is immutable. Use without() to create a new instance.');
     }
 
     // ========== MÉTHODES PROTECTED ==========
@@ -171,7 +170,7 @@ abstract class AbstractDataObject implements \ArrayAccess, Transformable
                 return new static($value);
             }
 
-            return array_map(fn($item) => $this->convertValue($item), $value);
+            return array_map(fn ($item) => $this->convertValue($item), $value);
         }
 
         return $value;

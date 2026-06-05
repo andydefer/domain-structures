@@ -7,14 +7,12 @@ namespace AndyDefer\DomainStructures\Tests\Unit\Abstracts;
 use AndyDefer\DomainStructures\Collections\Core\RecordCollection;
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
-use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestProductRecordCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserRole;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestProductRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestRequiredRecord;
-use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserNullableRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserUpdateRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
@@ -26,7 +24,9 @@ use InvalidArgumentException;
 final class AbstractRecordTest extends TestCase
 {
     private TestIso8601DateTime $now;
+
     private TestEmailAddress $testEmail;
+
     private TypedCollection $tags;
 
     protected function setUp(): void
@@ -224,7 +224,7 @@ final class AbstractRecordTest extends TestCase
 
     public function test_to_array_without_nulls_preserves_empty_arrays(): void
     {
-        $emptyCollection = new StringTypedCollection();
+        $emptyCollection = new StringTypedCollection;
 
         $record = new TestUserRecord(
             id: 1,
@@ -359,7 +359,7 @@ final class AbstractRecordTest extends TestCase
             isFeatured: true
         );
 
-        $products = new TestProductRecordCollection();
+        $products = new TestProductRecordCollection;
         $products->add($product);
 
         $record = new TestUserRecord(
@@ -543,7 +543,7 @@ final class AbstractRecordTest extends TestCase
 
     public function test_record_with_nested_product_collection_normalizes_correctly(): void
     {
-        $products = new TestProductRecordCollection();
+        $products = new TestProductRecordCollection;
         $products->add(
             new TestProductRecord(id: 1, name: 'Laptop', price: 999, isFeatured: true),
             new TestProductRecord(id: 2, name: 'Mouse', price: 29, isFeatured: false)

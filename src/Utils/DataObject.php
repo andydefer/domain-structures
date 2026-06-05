@@ -21,7 +21,7 @@ class DataObject extends AbstractDataObject
     /**
      * Normalise une clé string en camelCase.
      *
-     * @param string $key La clé à normaliser
+     * @param  string  $key  La clé à normaliser
      * @return string La clé normalisée en camelCase
      */
     protected function normalizeKey(string $key): string

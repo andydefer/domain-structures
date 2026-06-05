@@ -5,18 +5,14 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Tests\Unit\Hydration\Strategy;
 
 use AndyDefer\DomainStructures\Hydration\Strategy\EnumStrategy;
+use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestBackedIntEnum;
+use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestBackedStringEnum;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestPureEnum;
-use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
-use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
+use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserRole;
+use AndyDefer\DomainStructures\Tests\TestCase;
 use InvalidArgumentException;
-use PHPUnit\Framework\TestCase;
+use stdClass;
 
-/**
- * Test suite for EnumStrategy.
- *
- * Verifies that enums (backed string, backed int, and pure enums)
- * are correctly hydrated from various source formats.
- */
 final class EnumStrategyTest extends TestCase
 {
     private EnumStrategy $strategy;
@@ -24,418 +20,274 @@ final class EnumStrategyTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->strategy = new EnumStrategy();
+        $this->strategy = new EnumStrategy;
     }
 
     // ==================== SUPPORTS METHOD TESTS ====================
 
-    /**
-     * Test that supports() returns true for any enum class.
-     */
-    public function test_supports_returns_true_for_enum_class(): void
+    public function test_supports_returns_true_for_backed_string_enum(): void
     {
-        // Arrange: Strategy already initialized in setUp
-        // Act: Call supports with an enum class
-        $result = $this->strategy->supports(TestUserStatus::class, 'test');
-
-        // Assert: Should return true for any enum
-        $this->assertTrue($result, 'supports() should return true for enum classes');
+        $result = $this->strategy->supports(TestBackedStringEnum::class, null);
+        $this->assertTrue($result);
     }
 
-    /**
-     * Test that supports() returns false for non-enum classes.
-     */
-    public function test_supports_returns_false_for_non_enum_class(): void
+    public function test_supports_returns_true_for_backed_int_enum(): void
     {
-        // Arrange: Strategy already initialized in setUp
-        // Act: Call supports with a non-enum class
-        $result = $this->strategy->supports(\stdClass::class, 'test');
-
-        // Assert: Should return false for non-enum classes
-        $this->assertFalse($result, 'supports() should return false for non-enum classes');
+        $result = $this->strategy->supports(TestBackedIntEnum::class, null);
+        $this->assertTrue($result);
     }
 
-    // ==================== BACKED STRING ENUM TESTS ====================
-
-    /**
-     * Test that a backed string enum can be hydrated from a string value.
-     */
-    public function test_hydrates_backed_string_enum_from_string(): void
+    public function test_supports_returns_true_for_pure_enum(): void
     {
-        // Arrange: Define the source value and expected enum
-        $source = 'active';
-        $expectedEnum = TestUserStatus::ACTIVE;
-
-        // Act: Hydrate the enum from string source
-        $actualEnum = $this->strategy->hydrate(TestUserStatus::class, $source);
-
-        // Assert: Verify the correct enum instance and its value
-        $this->assertSame($expectedEnum, $actualEnum, 'Should return ACTIVE enum instance');
-        $this->assertSame('active', $actualEnum->value, 'Enum value should be "active"');
+        $result = $this->strategy->supports(TestPureEnum::class, null);
+        $this->assertTrue($result);
     }
 
-    /**
-     * Test that a backed string enum can be hydrated from an array with a 'value' key.
-     */
-    public function test_hydrates_backed_string_enum_from_array_with_value_key(): void
+    public function test_supports_returns_true_for_any_enum(): void
     {
-        // Arrange: Define array source with 'value' key
-        $source = ['value' => 'inactive'];
-        $expectedEnum = TestUserStatus::INACTIVE;
-
-        // Act: Hydrate the enum from array source
-        $actualEnum = $this->strategy->hydrate(TestUserStatus::class, $source);
-
-        // Assert: Verify the correct enum instance
-        $this->assertSame($expectedEnum, $actualEnum, 'Should return INACTIVE enum instance from array with value key');
-    }
-
-    /**
-     * Test that a backed string enum can be hydrated from a nested array structure.
-     */
-    public function test_hydrates_backed_string_enum_from_array_with_nested_value(): void
-    {
-        // Arrange: Create nested array structure mimicking real data
-        $source = [
-            'user' => ['status' => ['value' => 'pending']]
+        $enums = [
+            TestUserRole::class,
+            TestBackedStringEnum::class,
+            TestBackedIntEnum::class,
+            TestPureEnum::class,
         ];
-        $expectedEnum = TestUserStatus::PENDING;
 
-        // Act: Extract nested value and hydrate
-        $actualEnum = $this->strategy->hydrate(TestUserStatus::class, $source['user']['status']);
+        foreach ($enums as $enum) {
+            $result = $this->strategy->supports($enum, null);
+            $this->assertTrue($result, "Failed for enum: {$enum}");
+        }
+    }
 
-        // Assert: Verify the correct enum instance
-        $this->assertSame($expectedEnum, $actualEnum, 'Should return PENDING enum instance from nested array');
+    public function test_supports_returns_false_for_non_enum(): void
+    {
+        $nonEnums = [self::class, 'int', 'string', stdClass::class];
+
+        foreach ($nonEnums as $nonEnum) {
+            $result = $this->strategy->supports($nonEnum, null);
+            $this->assertFalse($result, "Failed for: {$nonEnum}");
+        }
+    }
+
+    // ==================== HYDRATE FROM SCALAR - BACKED STRING ENUM ====================
+
+    public function test_hydrate_creates_backed_string_enum_from_string(): void
+    {
+        $result = $this->strategy->hydrate(TestBackedStringEnum::class, 'one');
+        $this->assertSame(TestBackedStringEnum::VALUE_ONE, $result);
     }
 
     /**
-     * Test that passing an existing enum instance returns the same instance.
+     * Un string backed enum peut être créé depuis une string numérique
+     * SI cette string numérique correspond à la valeur d'une des cases.
+     * 
+     * Exemple : TestBackedStringEnum a des valeurs 'one', 'two', 'three'
+     * La string '2' ne correspond à aucune case.
+     * La string 'two' correspond à TestBackedStringEnum::VALUE_TWO.
      */
-    public function test_hydrates_backed_string_enum_from_existing_instance(): void
+    public function test_hydrate_creates_backed_string_enum_from_valid_string_value(): void
     {
-        // Arrange: Create an existing enum instance
-        $existingEnum = TestUserStatus::ACTIVE;
+        // Arrange: Utiliser une string qui correspond à une valeur existante
+        // TestBackedStringEnum a les valeurs 'one', 'two', 'three'
+        $validStringValue = 'two';
 
-        // Act: Attempt to hydrate the same instance
-        $result = $this->strategy->hydrate(TestUserStatus::class, $existingEnum);
+        // Act: Tenter de créer l'enum depuis cette string
+        $result = $this->strategy->hydrate(TestBackedStringEnum::class, $validStringValue);
 
-        // Assert: Should return the same instance without modification
-        $this->assertSame($existingEnum, $result, 'Should return the existing enum instance unchanged');
+        // Assert: L'enum est correctement créé
+        $this->assertSame(TestBackedStringEnum::VALUE_TWO, $result);
     }
 
-    // ==================== BACKED INT ENUM TESTS ====================
-
-    /**
-     * Test that a backed int enum can be hydrated from an integer value.
-     */
-    public function test_hydrates_backed_int_enum_from_int(): void
+    public function test_hydrate_returns_same_instance_when_source_is_enum(): void
     {
-        // Arrange: Define integer source and expected enum
-        $source = 1;
-        $expectedEnum = TestUserGrade::BRONZE;
-
-        // Act: Hydrate the enum from integer source
-        $actualEnum = $this->strategy->hydrate(TestUserGrade::class, $source);
-
-        // Assert: Verify the correct enum instance and its value
-        $this->assertSame($expectedEnum, $actualEnum, 'Should return BRONZE enum instance from int 1');
-        $this->assertSame(1, $actualEnum->value, 'Enum value should be 1');
+        $original = TestBackedStringEnum::VALUE_THREE;
+        $result = $this->strategy->hydrate(TestBackedStringEnum::class, $original);
+        $this->assertSame($original, $result);
     }
 
-    /**
-     * Test that a backed int enum can be hydrated from a numeric string.
-     */
-    public function test_hydrates_backed_int_enum_from_int_as_string(): void
+    public function test_hydrate_throws_exception_for_invalid_backed_string_enum_value(): void
     {
-        // Arrange: Define string numeric source and expected enum
-        $source = '1';
-        $expectedEnum = TestUserGrade::BRONZE;
-
-        // Act: Hydrate the enum from string numeric source
-        $actualEnum = $this->strategy->hydrate(TestUserGrade::class, $source);
-
-        // Assert: String "1" should be auto-converted to int 1
-        $this->assertSame($expectedEnum, $actualEnum, 'Should convert string "1" to int and return BRONZE enum');
-    }
-
-    /**
-     * Test that a backed int enum can be hydrated from an array with a 'value' key.
-     */
-    public function test_hydrates_backed_int_enum_from_array_with_value_key(): void
-    {
-        // Arrange: Define array source with integer value
-        $source = ['value' => 2];
-        $expectedEnum = TestUserGrade::SILVER;
-
-        // Act: Hydrate the enum from array source
-        $actualEnum = $this->strategy->hydrate(TestUserGrade::class, $source);
-
-        // Assert: Verify the correct enum instance
-        $this->assertSame($expectedEnum, $actualEnum, 'Should return SILVER enum instance from array with value 2');
-    }
-
-    /**
-     * Test that a backed int enum can be hydrated from an array with a string numeric value.
-     */
-    public function test_hydrates_backed_int_enum_from_array_with_value_key_as_string(): void
-    {
-        // Arrange: Define array source with string numeric value
-        $source = ['value' => '2'];
-        $expectedEnum = TestUserGrade::SILVER;
-
-        // Act: Hydrate the enum from array with string numeric value
-        $actualEnum = $this->strategy->hydrate(TestUserGrade::class, $source);
-
-        // Assert: String "2" should be auto-converted to int 2
-        $this->assertSame($expectedEnum, $actualEnum, 'Should convert string "2" to int and return SILVER enum');
-    }
-
-    /**
-     * Test that a backed int enum can be hydrated from a nested array structure.
-     */
-    public function test_hydrates_backed_int_enum_from_array_with_nested_value(): void
-    {
-        // Arrange: Create nested array structure
-        $source = [
-            'user' => ['grade' => ['value' => 3]]
-        ];
-        $expectedEnum = TestUserGrade::GOLD;
-
-        // Act: Extract nested value and hydrate
-        $actualEnum = $this->strategy->hydrate(TestUserGrade::class, $source['user']['grade']);
-
-        // Assert: Verify the correct enum instance
-        $this->assertSame($expectedEnum, $actualEnum, 'Should return GOLD enum instance from nested array with value 3');
-    }
-
-    /**
-     * Test that passing an existing enum instance returns the same instance.
-     */
-    public function test_hydrates_backed_int_enum_from_existing_instance(): void
-    {
-        // Arrange: Create an existing enum instance
-        $existingEnum = TestUserGrade::BRONZE;
-
-        // Act: Attempt to hydrate the same instance
-        $result = $this->strategy->hydrate(TestUserGrade::class, $existingEnum);
-
-        // Assert: Should return the same instance without modification
-        $this->assertSame($existingEnum, $result, 'Should return the existing enum instance unchanged');
-    }
-
-    // ==================== PURE ENUM TESTS ====================
-
-    /**
-     * Test that a pure enum can be hydrated from a case name string.
-     */
-    public function test_hydrates_pure_enum_from_string(): void
-    {
-        // Arrange: Define case name source and expected enum
-        $source = 'VALUE_ONE';
-        $expectedEnum = TestPureEnum::VALUE_ONE;
-
-        // Act: Hydrate the pure enum from string source
-        $actualEnum = $this->strategy->hydrate(TestPureEnum::class, $source);
-
-        // Assert: Verify the correct enum instance and its name
-        $this->assertSame($expectedEnum, $actualEnum, 'Should return VALUE_ONE pure enum instance');
-        $this->assertSame('VALUE_ONE', $actualEnum->name, 'Enum name should be "VALUE_ONE"');
-    }
-
-    /**
-     * Test that a pure enum can be hydrated from an array with a 'name' key.
-     */
-    public function test_hydrates_pure_enum_from_array_with_name_key(): void
-    {
-        // Arrange: Define array source with 'name' key
-        $source = ['name' => 'VALUE_TWO'];
-        $expectedEnum = TestPureEnum::VALUE_TWO;
-
-        // Act: Hydrate the pure enum from array source
-        $actualEnum = $this->strategy->hydrate(TestPureEnum::class, $source);
-
-        // Assert: Verify the correct enum instance
-        $this->assertSame($expectedEnum, $actualEnum, 'Should return VALUE_TWO pure enum instance from array with name key');
-    }
-
-    /**
-     * Test that a pure enum can be hydrated from a nested array structure.
-     */
-    public function test_hydrates_pure_enum_from_array_with_nested_name(): void
-    {
-        // Arrange: Create nested array structure
-        $source = [
-            'user' => ['role' => ['name' => 'VALUE_THREE']]
-        ];
-        $expectedEnum = TestPureEnum::VALUE_THREE;
-
-        // Act: Extract nested value and hydrate
-        $actualEnum = $this->strategy->hydrate(TestPureEnum::class, $source['user']['role']);
-
-        // Assert: Verify the correct enum instance
-        $this->assertSame($expectedEnum, $actualEnum, 'Should return VALUE_THREE pure enum instance from nested array');
-    }
-
-    /**
-     * Test that passing an existing pure enum instance returns the same instance.
-     */
-    public function test_hydrates_pure_enum_from_existing_instance(): void
-    {
-        // Arrange: Create an existing enum instance
-        $existingEnum = TestPureEnum::VALUE_ONE;
-
-        // Act: Attempt to hydrate the same instance
-        $result = $this->strategy->hydrate(TestPureEnum::class, $existingEnum);
-
-        // Assert: Should return the same instance without modification
-        $this->assertSame($existingEnum, $result, 'Should return the existing pure enum instance unchanged');
-    }
-
-    // ==================== ERROR HANDLING TESTS ====================
-
-    /**
-     * Test that an exception is thrown for an invalid backed string enum value.
-     */
-    public function test_throws_exception_for_invalid_backed_string_enum_value(): void
-    {
-        // Arrange: Define invalid string value
-        $invalidSource = 'invalid';
-
-        // Expect: InvalidArgumentException with specific message
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid value "invalid" for enum');
 
-        // Act: Attempt to hydrate with invalid value
-        $this->strategy->hydrate(TestUserStatus::class, $invalidSource);
+        $this->strategy->hydrate(TestBackedStringEnum::class, 'invalid');
     }
 
-    /**
-     * Test that an exception is thrown for an invalid backed int enum value.
-     */
-    public function test_throws_exception_for_invalid_backed_int_enum_value(): void
+    public function test_hydrate_throws_exception_for_numeric_string_not_matching_enum_value(): void
     {
-        // Arrange: Define invalid integer value
-        $invalidSource = 99;
+        // Arrange: '2' est une string numérique mais ne correspond à aucune valeur
+        // car TestBackedStringEnum a des valeurs textuelles ('one', 'two', 'three')
+        $numericStringNotMatching = '2';
 
-        // Expect: InvalidArgumentException with specific message
+        // Assert: Une exception est levée car la valeur n'existe pas dans l'enum
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage(sprintf(
+            'Invalid value "%s" for enum',
+            $numericStringNotMatching
+        ));
+
+        // Act: Tenter de créer l'enum depuis cette string numérique
+        $this->strategy->hydrate(TestBackedStringEnum::class, $numericStringNotMatching);
+    }
+
+    // ==================== HYDRATE FROM SCALAR - BACKED INT ENUM ====================
+
+    public function test_hydrate_creates_backed_int_enum_from_int(): void
+    {
+        $result = $this->strategy->hydrate(TestBackedIntEnum::class, 2);
+        $this->assertSame(TestBackedIntEnum::VALUE_TWO, $result);
+    }
+
+    public function test_hydrate_creates_backed_int_enum_from_numeric_string(): void
+    {
+        $result = $this->strategy->hydrate(TestBackedIntEnum::class, '3');
+        $this->assertSame(TestBackedIntEnum::VALUE_THREE, $result);
+    }
+
+    public function test_hydrate_returns_same_instance_for_backed_int_enum(): void
+    {
+        $original = TestBackedIntEnum::VALUE_ONE;
+        $result = $this->strategy->hydrate(TestBackedIntEnum::class, $original);
+        $this->assertSame($original, $result);
+    }
+
+    public function test_hydrate_throws_exception_for_invalid_backed_int_enum_value(): void
+    {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid value "99" for enum');
 
-        // Act: Attempt to hydrate with invalid value
-        $this->strategy->hydrate(TestUserGrade::class, $invalidSource);
+        $this->strategy->hydrate(TestBackedIntEnum::class, 99);
     }
 
-    /**
-     * Test that an exception is thrown for an invalid backed int enum value as a string.
-     */
-    public function test_throws_exception_for_invalid_backed_int_enum_value_as_string(): void
+    public function test_hydrate_throws_exception_for_string_not_matching_int_enum(): void
     {
-        // Arrange: Define invalid string numeric value
-        $invalidSource = '99';
+        // Arrange: '99' est une string numérique mais ne correspond à aucune valeur
+        $stringNotMatching = '99';
 
-        // Expect: InvalidArgumentException with specific message
+        // Assert: Exception car 99 n'existe pas dans TestBackedIntEnum
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Invalid value "99" for enum');
+        $this->expectExceptionMessage(sprintf(
+            'Invalid value "%s" for enum',
+            $stringNotMatching
+        ));
 
-        // Act: Attempt to hydrate with invalid value
-        $this->strategy->hydrate(TestUserGrade::class, $invalidSource);
+        // Act: Tenter de créer l'enum
+        $this->strategy->hydrate(TestBackedIntEnum::class, $stringNotMatching);
     }
 
-    /**
-     * Test that an exception is thrown for an invalid pure enum case name.
-     */
-    public function test_throws_exception_for_invalid_pure_enum_value(): void
-    {
-        // Arrange: Define invalid case name
-        $invalidSource = 'INVALID';
+    // ==================== HYDRATE FROM SCALAR - PURE ENUM ====================
 
-        // Expect: InvalidArgumentException with specific message
+    public function test_hydrate_creates_pure_enum_from_case_name(): void
+    {
+        $result = $this->strategy->hydrate(TestPureEnum::class, 'VALUE_TWO');
+        $this->assertSame(TestPureEnum::VALUE_TWO, $result);
+    }
+
+    public function test_hydrate_returns_same_instance_for_pure_enum(): void
+    {
+        $original = TestPureEnum::VALUE_THREE;
+        $result = $this->strategy->hydrate(TestPureEnum::class, $original);
+        $this->assertSame($original, $result);
+    }
+
+    public function test_hydrate_throws_exception_for_invalid_pure_enum_case(): void
+    {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Invalid value "INVALID" for enum');
+        $this->expectExceptionMessage('Invalid value "INVALID_CASE" for enum');
 
-        // Act: Attempt to hydrate with invalid case name
-        $this->strategy->hydrate(TestPureEnum::class, $invalidSource);
+        $this->strategy->hydrate(TestPureEnum::class, 'INVALID_CASE');
     }
 
-    /**
-     * Test that an exception is thrown for an array without 'value' or 'name' keys.
-     */
-    public function test_throws_exception_for_array_without_value_or_name_key(): void
-    {
-        // Arrange: Define array without required keys
-        $invalidSource = ['wrong' => 'active'];
+    // ==================== HYDRATE FROM ARRAY ====================
 
-        // Expect: InvalidArgumentException with specific message
+    public function test_hydrate_backed_string_enum_from_array_with_value(): void
+    {
+        $result = $this->strategy->hydrate(TestBackedStringEnum::class, ['value' => 'three']);
+        $this->assertSame(TestBackedStringEnum::VALUE_THREE, $result);
+    }
+
+    public function test_hydrate_backed_int_enum_from_array_with_value(): void
+    {
+        $result = $this->strategy->hydrate(TestBackedIntEnum::class, ['value' => 1]);
+        $this->assertSame(TestBackedIntEnum::VALUE_ONE, $result);
+    }
+
+    public function test_hydrate_pure_enum_from_array_with_name(): void
+    {
+        $result = $this->strategy->hydrate(TestPureEnum::class, ['name' => 'VALUE_ONE']);
+        $this->assertSame(TestPureEnum::VALUE_ONE, $result);
+    }
+
+    public function test_hydrate_throws_exception_for_array_without_valid_keys(): void
+    {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Cannot hydrate enum ' . TestUserStatus::class . ' from array without "value" or "name" key');
+        $this->expectExceptionMessage(sprintf(
+            'Cannot hydrate enum %s from array without "value" or "name" key',
+            TestBackedStringEnum::class
+        ));
 
-        // Act: Attempt to hydrate with invalid array structure
-        $this->strategy->hydrate(TestUserStatus::class, $invalidSource);
+        $this->strategy->hydrate(TestBackedStringEnum::class, ['invalid' => 'data']);
     }
 
-    /**
-     * Test that an exception is thrown for a null source.
-     */
-    public function test_throws_exception_for_null_source(): void
-    {
-        // Arrange: Define null source
-        $invalidSource = null;
+    // ==================== HYDRATE FROM OBJECT ====================
 
-        // Expect: InvalidArgumentException with specific message
+    public function test_hydrate_backed_enum_from_object_with_value_property(): void
+    {
+        $object = new class {
+            public string $value = 'two';
+        };
+
+        $result = $this->strategy->hydrate(TestBackedStringEnum::class, $object);
+        $this->assertSame(TestBackedStringEnum::VALUE_TWO, $result);
+    }
+
+    public function test_hydrate_pure_enum_from_object_with_name_property(): void
+    {
+        $object = new class {
+            public string $name = 'VALUE_TWO';
+        };
+
+        $result = $this->strategy->hydrate(TestPureEnum::class, $object);
+        $this->assertSame(TestPureEnum::VALUE_TWO, $result);
+    }
+
+    public function test_hydrate_throws_exception_for_object_without_valid_properties(): void
+    {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Cannot hydrate enum ' . TestUserStatus::class . ' from source type: NULL');
+        $this->expectExceptionMessage(sprintf(
+            'Cannot hydrate enum %s from object without "value" or "name" property',
+            TestBackedStringEnum::class
+        ));
 
-        // Act: Attempt to hydrate with null source
-        $this->strategy->hydrate(TestUserStatus::class, $invalidSource);
+        $object = new class {
+            public string $invalid = 'data';
+        };
+
+        $this->strategy->hydrate(TestBackedStringEnum::class, $object);
     }
 
-    // ==================== NESTED HYDRATION TESTS ====================
+    // ==================== EDGE CASES TESTS ====================
 
-    /**
-     * Test that a backed int enum can be hydrated from a deeply nested array.
-     */
-    public function test_deeply_nested_array_hydration_with_int_enum(): void
+    public function test_hydrate_throws_exception_for_unsupported_source_type(): void
     {
-        // Arrange: Create deeply nested array structure
-        $source = [
-            'level1' => [
-                'level2' => [
-                    'level3' => [
-                        'value' => 3
-                    ]
-                ]
-            ]
-        ];
-        $expectedEnum = TestUserGrade::GOLD;
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage(sprintf(
+            'Cannot hydrate enum %s from source type: resource',
+            TestBackedStringEnum::class
+        ));
 
-        // Act: Extract deeply nested value and hydrate
-        $actualEnum = $this->strategy->hydrate(TestUserGrade::class, $source['level1']['level2']['level3']);
-
-        // Assert: Verify the correct enum instance
-        $this->assertSame($expectedEnum, $actualEnum, 'Should hydrate GOLD enum from deeply nested array with value 3');
+        $resource = fopen('php://memory', 'r');
+        $this->strategy->hydrate(TestBackedStringEnum::class, $resource);
+        fclose($resource);
     }
 
-    /**
-     * Test that a backed int enum can be hydrated from a deeply nested array with a string numeric value.
-     */
-    public function test_deeply_nested_array_hydration_with_int_enum_as_string(): void
+    public function test_hydrate_is_idempotent(): void
     {
-        // Arrange: Create deeply nested array with string numeric value
-        $source = [
-            'level1' => [
-                'level2' => [
-                    'level3' => [
-                        'value' => '3'
-                    ]
-                ]
-            ]
-        ];
-        $expectedEnum = TestUserGrade::GOLD;
+        $enum = TestBackedStringEnum::VALUE_ONE;
 
-        // Act: Extract deeply nested value and hydrate
-        $actualEnum = $this->strategy->hydrate(TestUserGrade::class, $source['level1']['level2']['level3']);
+        $first = $this->strategy->hydrate(TestBackedStringEnum::class, $enum);
+        $second = $this->strategy->hydrate(TestBackedStringEnum::class, $first);
 
-        // Assert: String "3" should be auto-converted to int 3
-        $this->assertSame($expectedEnum, $actualEnum, 'Should convert string "3" to int and hydrate GOLD enum from deeply nested array');
+        $this->assertSame($enum, $first);
+        $this->assertSame($first, $second);
     }
 }

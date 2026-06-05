@@ -23,8 +23,8 @@ final class ScalarTypedCollection extends AbstractTypedCollection
      */
     public function getStrings(): self
     {
-        $result = new self();
-        $result->items = array_values(array_filter($this->items, fn($item) => is_string($item)));
+        $result = new self;
+        $result->items = array_values(array_filter($this->items, fn ($item) => is_string($item)));
 
         return $result;
     }
@@ -34,8 +34,8 @@ final class ScalarTypedCollection extends AbstractTypedCollection
      */
     public function getIntegers(): self
     {
-        $result = new self();
-        $result->items = array_values(array_filter($this->items, fn($item) => is_int($item)));
+        $result = new self;
+        $result->items = array_values(array_filter($this->items, fn ($item) => is_int($item)));
 
         return $result;
     }
@@ -45,8 +45,8 @@ final class ScalarTypedCollection extends AbstractTypedCollection
      */
     public function getBooleans(): self
     {
-        $result = new self();
-        $result->items = array_values(array_filter($this->items, fn($item) => is_bool($item)));
+        $result = new self;
+        $result->items = array_values(array_filter($this->items, fn ($item) => is_bool($item)));
 
         return $result;
     }
@@ -74,6 +74,6 @@ final class ScalarTypedCollection extends AbstractTypedCollection
      */
     public function containsNull(): bool
     {
-        return !empty($this->getNullPositions());
+        return ! empty($this->getNullPositions());
     }
 }

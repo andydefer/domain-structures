@@ -7,7 +7,6 @@ namespace AndyDefer\DomainStructures\Hydration\Strategy;
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 use AndyDefer\DomainStructures\Enums\PhpType;
 use AndyDefer\DomainStructures\Hydration\Converter\TypeConverterInterface;
-use AndyDefer\DomainStructures\Interfaces\Transformable;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use InvalidArgumentException;
 use ReflectionClass;
@@ -32,12 +31,25 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
     public function hydrate(string $className, mixed $source): object
     {
         $reflection = new ReflectionClass($className);
-        $param = $reflection->getConstructor()->getParameters()[0];
+        $constructor = $reflection->getConstructor();
+
+        if (!$constructor || $constructor->getNumberOfParameters() !== 1) {
+            throw new InvalidArgumentException(sprintf(
+                '%s does not have a constructor with exactly 1 parameter',
+                $className
+            ));
+        }
+
+        $param = $constructor->getParameters()[0];
         $paramType = $param->getType();
 
-        if ($this->isSingleValueArray($source)) {
-            $source = reset($source);
+        // Gérer null si le paramètre l'accepte
+        if ($source === null && $param->allowsNull()) {
+            return new $className(null);
         }
+
+        // Normalisation des floats pour les paramètres de type string
+        $source = $this->normalizeFloatValue($source, $paramType);
 
         if ($paramType instanceof ReflectionUnionType) {
             return $this->handleUnionType($className, $source, $paramType, $param);
@@ -46,18 +58,30 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
         return $this->handleNamedType($className, $source, $paramType, $param);
     }
 
-    private function isSingleValueArray(mixed $source): bool
+    /**
+     * Normalise les valeurs flottantes pour les paramètres de type string.
+     */
+    private function normalizeFloatValue(mixed $source, ReflectionNamedType|ReflectionUnionType|null $paramType): mixed
     {
-        if (!is_array($source)) {
-            return false;
+        if (!is_float($source)) {
+            return $source;
         }
 
-        if (count($source) !== 1) {
-            return false;
+        if ($paramType instanceof ReflectionNamedType && $paramType->getName() === 'string') {
+            $rounded = round($source, 2);
+            return number_format($rounded, 2, '.', '');
         }
 
-        $keys = array_keys($source);
-        return !is_int($keys[0]);
+        if ($paramType instanceof ReflectionUnionType) {
+            foreach ($paramType->getTypes() as $type) {
+                if ($type instanceof ReflectionNamedType && $type->getName() === 'string') {
+                    $rounded = round($source, 2);
+                    return number_format($rounded, 2, '.', '');
+                }
+            }
+        }
+
+        return $source;
     }
 
     private function handleUnionType(string $className, mixed $source, ReflectionUnionType $unionType, $param): object
@@ -87,30 +111,36 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
     private function convertValue(mixed $source, ReflectionNamedType $type, string $paramName): mixed
     {
         $typeName = $type->getName();
+        $paramType = PhpType::fromTypeString($typeName);
 
-        // Cas : la source est un tableau
+        // ==================== TABLEAU (uniquement pour les objets) ====================
         if (is_array($source)) {
-            foreach ($this->converters as $converter) {
-                if ($converter->supports($typeName)) {
-                    return $converter->convert($source, $typeName, $paramName);
+            // Si le paramètre attend un objet (Record, ValueObject, Data, Collection, Enum)
+            if ($paramType->isObject()) {
+                // Déléguer aux converters
+                foreach ($this->converters as $converter) {
+                    if ($converter->supports($typeName)) {
+                        return $converter->convert($source, $typeName, $paramName);
+                    }
                 }
             }
 
-            if (empty($source) && is_subclass_of($typeName, AbstractTypedCollection::class)) {
-                return new $typeName();
-            }
-
-            return $source;
+            throw new InvalidArgumentException(
+                sprintf('Cannot convert array to %s for parameter $%s', $typeName, $paramName)
+            );
         }
 
+        // ==================== OBJET ====================
         if (is_object($source)) {
-            $normalized = NormalizerChain::get()->normalize($source);
-            $phpType = PhpType::fromValue($normalized);
-
-            if ($phpType->isScalar() && $typeName === $phpType->getNormalizedName()) {
-                return $normalized;
+            // Si c'est déjà une instance du type cible, la retourner directement
+            if ($source instanceof $typeName) {
+                return $source;
             }
 
+            // Normaliser l'objet
+            $normalized = NormalizerChain::get()->normalize($source);
+
+            // Déléguer aux converters
             foreach ($this->converters as $converter) {
                 if ($converter->supports($typeName)) {
                     return $converter->convert($normalized, $typeName, $paramName);
@@ -118,13 +148,15 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
             }
         }
 
+        // ==================== SCALAIRE ====================
         if (is_scalar($source)) {
+            // Si le paramètre attend un scalaire du même type
             $phpType = PhpType::fromValue($source);
-
             if ($phpType->isScalar() && $typeName === $phpType->getNormalizedName()) {
                 return $source;
             }
 
+            // Sinon, déléguer aux converters
             foreach ($this->converters as $converter) {
                 if ($converter->supports($typeName)) {
                     return $converter->convert($source, $typeName, $paramName);

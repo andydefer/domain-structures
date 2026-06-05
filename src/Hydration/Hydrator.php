@@ -14,6 +14,7 @@ use AndyDefer\DomainStructures\Hydration\Strategy\HydrationStrategyInterface;
 use AndyDefer\DomainStructures\Hydration\Strategy\InstanceStrategy;
 use AndyDefer\DomainStructures\Hydration\Strategy\MultiParameterStrategy;
 use AndyDefer\DomainStructures\Hydration\Strategy\SingleParameterStrategy;
+use AndyDefer\DomainStructures\Hydration\Strategy\ZeroParameterStrategy;
 use RuntimeException;
 
 final class Hydrator
@@ -42,6 +43,7 @@ final class Hydrator
         self::$strategies = [
             new InstanceStrategy,
             new EnumStrategy,
+            new ZeroParameterStrategy,
             new SingleParameterStrategy(self::$converters),
             new MultiParameterStrategy(self::$converters),
         ];

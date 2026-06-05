@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Hydration\Strategy;
 
+use BackedEnum;
 use InvalidArgumentException;
 use ReflectionEnum;
 use UnitEnum;
-use BackedEnum;
 
 /**
  * Hydration strategy for PHP 8.1+ enums.
@@ -25,8 +25,8 @@ final class EnumStrategy implements HydrationStrategyInterface
     /**
      * Checks if the strategy supports the given class name.
      *
-     * @param string $className Fully qualified class name to check
-     * @param mixed $source The source data (not used for support check)
+     * @param  string  $className  Fully qualified class name to check
+     * @param  mixed  $source  The source data (not used for support check)
      * @return bool True if the class is an enum
      */
     public function supports(string $className, mixed $source): bool
@@ -37,9 +37,10 @@ final class EnumStrategy implements HydrationStrategyInterface
     /**
      * Hydrates an enum from various source types.
      *
-     * @param string $className Fully qualified enum class name
-     * @param mixed $source Source data (scalar, array, object, or existing enum)
+     * @param  string  $className  Fully qualified enum class name
+     * @param  mixed  $source  Source data (scalar, array, object, or existing enum)
      * @return object The hydrated enum instance
+     *
      * @throws InvalidArgumentException When hydration fails
      */
     public function hydrate(string $className, mixed $source): object
@@ -125,7 +126,7 @@ final class EnumStrategy implements HydrationStrategyInterface
      */
     private function hydratePureEnum(string $className, string $caseName): UnitEnum
     {
-        $constantName = $className . '::' . $caseName;
+        $constantName = $className.'::'.$caseName;
 
         if (defined($constantName)) {
             return constant($constantName);
