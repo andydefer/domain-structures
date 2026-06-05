@@ -80,14 +80,44 @@ final class SingleParameterStrategyTest extends TestCase
         $this->assertSame('75001', $result->getValue());
     }
 
+    // ==================== HYDRATE WITH ASSOCIATIVE ARRAY (SINGLE KEY) ====================
+    // Support pour ['value' => '...'] ou ['email' => '...'] pour compatibilité ascendante
+
+    public function test_hydrate_extracts_string_from_associative_array_with_value_key(): void
+    {
+        // ['value' => '...'] -> '...' -> constructeur(string)
+        $result = $this->strategy->hydrate(TestEmailAddress::class, ['value' => 'array@example.com']);
+
+        $this->assertSame('array@example.com', $result->getValue());
+    }
+
+    public function test_hydrate_extracts_string_from_associative_array_with_any_key(): void
+    {
+        // N'importe quelle clé associative unique est acceptée pour compatibilité
+        $result = $this->strategy->hydrate(TestEmailAddress::class, ['email' => 'email@example.com']);
+
+        $this->assertSame('email@example.com', $result->getValue());
+    }
+
     // ==================== INVALID USAGE ====================
 
-    public function test_hydrate_throws_exception_for_array_when_string_expected(): void
+    public function test_hydrate_throws_exception_for_indexed_array_when_string_expected(): void
     {
         $this->expectException(InvalidArgumentException::class);
 
-        // TestEmailAddress attend un string, pas un array
+        // Un tableau indexé n'est pas supporté
         $this->strategy->hydrate(TestEmailAddress::class, ['test@example.com']);
+    }
+
+    public function test_hydrate_throws_exception_for_array_with_multiple_keys(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        // Un tableau avec plusieurs clés ne peut pas être réduit
+        $this->strategy->hydrate(TestEmailAddress::class, [
+            'email' => 'complex@example.com',
+            'extra' => 'ignored'
+        ]);
     }
 
     public function test_hydrate_throws_exception_for_invalid_email_string(): void

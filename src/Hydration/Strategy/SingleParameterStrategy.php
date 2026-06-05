@@ -48,6 +48,11 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
             return new $className(null);
         }
 
+        // Cas spécial : tableau associatif à une seule clé -> extraire la valeur
+        if ($this->isSingleKeyAssociativeArray($source)) {
+            $source = reset($source);
+        }
+
         // Normalisation des floats pour les paramètres de type string
         $source = $this->normalizeFloatValue($source, $paramType);
 
@@ -56,6 +61,26 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
         }
 
         return $this->handleNamedType($className, $source, $paramType, $param);
+    }
+
+    /**
+     * Vérifie si c'est un tableau associatif avec une seule clé (non numérique).
+     * Exemple: ['value' => 'something'] ou ['email' => 'test@example.com']
+     */
+    private function isSingleKeyAssociativeArray(mixed $source): bool
+    {
+        if (!is_array($source)) {
+            return false;
+        }
+
+        if (count($source) !== 1) {
+            return false;
+        }
+
+        $keys = array_keys($source);
+
+        // La clé doit être une string (associatif) et non un int (indexé)
+        return is_string($keys[0]);
     }
 
     /**
@@ -113,7 +138,7 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
         $typeName = $type->getName();
         $paramType = PhpType::fromTypeString($typeName);
 
-        // ==================== TABLEAU (uniquement pour les objets) ====================
+        // ==================== TABLEAU ====================
         if (is_array($source)) {
             // Si le paramètre attend un objet (Record, ValueObject, Data, Collection, Enum)
             if ($paramType->isObject()) {
