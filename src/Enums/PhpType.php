@@ -26,7 +26,7 @@ enum PhpType: string
     case BOOLEAN = 'boolean';
     case NULL = 'NULL';
 
-        // Domain-specific abstract types
+    // Domain-specific abstract types
     case UNIT_ENUM = UnitEnum::class;
     case ABSTRACT_VALUE_OBJECT = AbstractValueObject::class;
     case ABSTRACT_TYPED_COLLECTION = AbstractTypedCollection::class;
@@ -270,7 +270,7 @@ enum PhpType: string
      */
     public static function getScalarTypeNames(): array
     {
-        return array_map(fn($type) => $type->getNormalizedName(), self::getScalarTypes());
+        return array_map(fn ($type) => $type->getNormalizedName(), self::getScalarTypes());
     }
 
     /**

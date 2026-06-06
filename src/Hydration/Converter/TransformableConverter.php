@@ -27,6 +27,7 @@ final class TransformableConverter implements TypeConverterInterface
         // Normaliser uniquement si c'est un Transformable
         if ($value instanceof Transformable) {
             $flattened = NormalizerChain::get()->normalize($value);
+
             return $typeName::from($flattened);
         }
 

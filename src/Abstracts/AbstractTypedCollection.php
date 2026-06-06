@@ -74,7 +74,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
             return $types;
         } catch (\ArgumentCountError $e) {
             throw new InvalidArgumentException(sprintf(
-                'Cannot determine allowed types for %s. ' .
+                'Cannot determine allowed types for %s. '.
                     'Please create an instance first before calling from(): new %s(...)',
                 $class,
                 $class
@@ -346,7 +346,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
 
         if (is_string($callback)) {
             $property = $callback;
-            $callback = fn($item) => is_object($item) ? ($item->$property ?? null) : null;
+            $callback = fn ($item) => is_object($item) ? ($item->$property ?? null) : null;
         }
 
         $values = array_map($callback, $items);
@@ -509,7 +509,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
     final public function __clone()
     {
         $this->items = array_map(
-            fn($item) => is_object($item) ? clone $item : $item,
+            fn ($item) => is_object($item) ? clone $item : $item,
             $this->items
         );
     }
@@ -585,11 +585,11 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
         if (count($matchedTypes) > 1) {
             // Vérifier si ce sont des types scalaires
             $scalarTypes = PhpType::getScalarTypeNames();
-            $hasScalarAmbiguity = !empty(array_intersect($matchedTypes, $scalarTypes));
+            $hasScalarAmbiguity = ! empty(array_intersect($matchedTypes, $scalarTypes));
 
             if ($hasScalarAmbiguity) {
                 throw new InvalidArgumentException(sprintf(
-                    'Ambiguous %svalue could be interpreted as multiple scalar types [%s]. ' .
+                    'Ambiguous %svalue could be interpreted as multiple scalar types [%s]. '.
                         'Please ensure the collection is configured with a single scalar type or use distinct types.',
                     $prefix,
                     implode('|', $matchedTypes)
@@ -597,7 +597,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
             }
 
             throw new InvalidArgumentException(sprintf(
-                'Ambiguous %sdata can be hydrated by multiple types [%s]. ' .
+                'Ambiguous %sdata can be hydrated by multiple types [%s]. '.
                     'Please specify the type using a "_type" key in the source data.',
                 $prefix,
                 implode('|', $matchedTypes)
@@ -678,7 +678,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
         $allowedTypes = static::getStoredAllowedTypes();
         self::validateAllowedTypes($allowedTypes);
 
-        if (!is_iterable($source)) {
+        if (! is_iterable($source)) {
             throw new InvalidArgumentException(sprintf(
                 'Cannot hydrate %s from non-iterable source',
                 static::class
@@ -717,7 +717,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
             ));
         }
 
-        if (!is_array($data)) {
+        if (! is_array($data)) {
             throw new InvalidArgumentException(sprintf(
                 'JSON must decode to an array for collection hydration. Got %s.',
                 gettype($data)
@@ -744,7 +744,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
         // Si aucun type de collection n'est spécifié, on utilise la classe courante
         $targetClass = $collectionClass ?? static::class;
 
-        if (!is_subclass_of($targetClass, AbstractTypedCollection::class)) {
+        if (! is_subclass_of($targetClass, AbstractTypedCollection::class)) {
             throw new InvalidArgumentException(sprintf(
                 'Collection class "%s" must extend %s',
                 $targetClass,
@@ -759,7 +759,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
 
         // Instancier la collection cible avec les arguments fournis
         $collection = empty($constructorArgs)
-            ? new $targetClass()
+            ? new $targetClass
             : new $targetClass(...$constructorArgs);
 
         // Récupérer les types autorisés de l'instance créée

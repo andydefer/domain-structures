@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Hydration\Strategy;
 
-use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 use AndyDefer\DomainStructures\Enums\PhpType;
 use AndyDefer\DomainStructures\Hydration\Converter\TypeConverterInterface;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
@@ -33,7 +32,7 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
         $reflection = new ReflectionClass($className);
         $constructor = $reflection->getConstructor();
 
-        if (!$constructor || $constructor->getNumberOfParameters() !== 1) {
+        if (! $constructor || $constructor->getNumberOfParameters() !== 1) {
             throw new InvalidArgumentException(sprintf(
                 '%s does not have a constructor with exactly 1 parameter',
                 $className
@@ -48,9 +47,16 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
             return new $className(null);
         }
 
-        // Cas spécial : tableau associatif à une seule clé -> extraire la valeur
-        if ($this->isSingleKeyAssociativeArray($source)) {
-            $source = reset($source);
+        // Vérifier si le paramètre attend un array
+        $targetTypeName = $paramType instanceof ReflectionNamedType ? $paramType->getName() : null;
+
+        // Si le paramètre attend un array, on ne modifie pas le source
+        if ($targetTypeName !== 'array') {
+            // Cas spécial : tableau associatif à une seule clé -> extraire la valeur
+            // MAIS uniquement si la valeur extraite n'est pas un tableau complexe qui pourrait être une payload
+            if ($this->isSingleKeyAssociativeArray($source) && ! $this->shouldKeepNestedArray($source, $paramType)) {
+                $source = reset($source);
+            }
         }
 
         // Normalisation des floats pour les paramètres de type string
@@ -64,12 +70,31 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
     }
 
     /**
+     * Détermine si on doit garder le tableau imbriqué intact.
+     */
+    private function shouldKeepNestedArray(mixed $source, ReflectionNamedType|ReflectionUnionType|null $paramType): bool
+    {
+        if (! is_array($source)) {
+            return false;
+        }
+
+        $firstValue = reset($source);
+
+        // Si la valeur est un tableau associatif avec plusieurs clés, on la garde
+        if (is_array($firstValue) && array_keys($firstValue) !== range(0, count($firstValue) - 1)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Vérifie si c'est un tableau associatif avec une seule clé (non numérique).
      * Exemple: ['value' => 'something'] ou ['email' => 'test@example.com']
      */
     private function isSingleKeyAssociativeArray(mixed $source): bool
     {
-        if (!is_array($source)) {
+        if (! is_array($source)) {
             return false;
         }
 
@@ -88,12 +113,13 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
      */
     private function normalizeFloatValue(mixed $source, ReflectionNamedType|ReflectionUnionType|null $paramType): mixed
     {
-        if (!is_float($source)) {
+        if (! is_float($source)) {
             return $source;
         }
 
         if ($paramType instanceof ReflectionNamedType && $paramType->getName() === 'string') {
             $rounded = round($source, 2);
+
             return number_format($rounded, 2, '.', '');
         }
 
@@ -101,6 +127,7 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
             foreach ($paramType->getTypes() as $type) {
                 if ($type instanceof ReflectionNamedType && $type->getName() === 'string') {
                     $rounded = round($source, 2);
+
                     return number_format($rounded, 2, '.', '');
                 }
             }
@@ -115,6 +142,7 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
             if ($type instanceof ReflectionNamedType) {
                 try {
                     $converted = $this->convertValue($source, $type, $param->getName());
+
                     return new $className($converted);
                 } catch (InvalidArgumentException) {
                     continue;
@@ -130,15 +158,23 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
     private function handleNamedType(string $className, mixed $source, ReflectionNamedType $type, $param): object
     {
         $converted = $this->convertValue($source, $type, $param->getName());
+
         return new $className($converted);
     }
 
     private function convertValue(mixed $source, ReflectionNamedType $type, string $paramName): mixed
     {
         $typeName = $type->getName();
+
+        // ==================== TABLEAU (type natif PHP) ====================
+        if ($typeName === 'array') {
+            // Normaliser le tableau pour qu'il soit propre
+            return NormalizerChain::get()->normalize($source);
+        }
+
         $paramType = PhpType::fromTypeString($typeName);
 
-        // ==================== TABLEAU ====================
+        // ==================== TABLEAU (source array vers objet) ====================
         if (is_array($source)) {
             // Si le paramètre attend un objet (Record, ValueObject, Data, Collection, Enum)
             if ($paramType->isObject()) {

@@ -93,7 +93,7 @@ final class TransformableConverterTest extends TestCase
     {
         $dataObject = new DataObject([
             'name' => 'John Doe',
-            'email' => 'john@example.com'
+            'email' => 'john@example.com',
         ]);
 
         $result = $this->converter->convert($dataObject, TestUserRecord::class, 'user');
@@ -107,7 +107,7 @@ final class TransformableConverterTest extends TestCase
     {
         $strictDataObject = new StrictDataObject([
             'name' => 'Jane Smith',
-            'email' => 'jane@example.com'
+            'email' => 'jane@example.com',
         ]);
 
         $result = $this->converter->convert($strictDataObject, TestUserRecord::class, 'user');

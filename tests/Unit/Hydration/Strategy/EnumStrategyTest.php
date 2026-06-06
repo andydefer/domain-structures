@@ -79,7 +79,7 @@ final class EnumStrategyTest extends TestCase
     /**
      * Un string backed enum peut être créé depuis une string numérique
      * SI cette string numérique correspond à la valeur d'une des cases.
-     * 
+     *
      * Exemple : TestBackedStringEnum a des valeurs 'one', 'two', 'three'
      * La string '2' ne correspond à aucune case.
      * La string 'two' correspond à TestBackedStringEnum::VALUE_TWO.
@@ -232,7 +232,8 @@ final class EnumStrategyTest extends TestCase
 
     public function test_hydrate_backed_enum_from_object_with_value_property(): void
     {
-        $object = new class {
+        $object = new class
+        {
             public string $value = 'two';
         };
 
@@ -242,7 +243,8 @@ final class EnumStrategyTest extends TestCase
 
     public function test_hydrate_pure_enum_from_object_with_name_property(): void
     {
-        $object = new class {
+        $object = new class
+        {
             public string $name = 'VALUE_TWO';
         };
 
@@ -258,7 +260,8 @@ final class EnumStrategyTest extends TestCase
             TestBackedStringEnum::class
         ));
 
-        $object = new class {
+        $object = new class
+        {
             public string $invalid = 'data';
         };
 

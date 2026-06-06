@@ -116,7 +116,7 @@ final class SingleParameterStrategyTest extends TestCase
         // Un tableau avec plusieurs clés ne peut pas être réduit
         $this->strategy->hydrate(TestEmailAddress::class, [
             'email' => 'complex@example.com',
-            'extra' => 'ignored'
+            'extra' => 'ignored',
         ]);
     }
 

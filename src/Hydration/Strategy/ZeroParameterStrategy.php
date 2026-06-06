@@ -27,7 +27,7 @@ final class ZeroParameterStrategy implements HydrationStrategyInterface
         $constructor = $reflection->getConstructor();
 
         // Support if no constructor OR constructor has zero parameters
-        return !$constructor || $constructor->getNumberOfParameters() === 0;
+        return ! $constructor || $constructor->getNumberOfParameters() === 0;
     }
 
     public function hydrate(string $className, mixed $source): object
@@ -37,6 +37,6 @@ final class ZeroParameterStrategy implements HydrationStrategyInterface
         }
 
         // Sinon, créer une instance vide (source ignorée)
-        return new $className();
+        return new $className;
     }
 }

@@ -112,7 +112,7 @@ final class MultiParameterStrategyTest extends TestCase
     {
         $dataObject = new DataObject([
             'name' => 'DataObject User',
-            'email' => 'dataobject@example.com'
+            'email' => 'dataobject@example.com',
         ]);
 
         $result = $this->strategy->hydrate(TestUserRecord::class, $dataObject);

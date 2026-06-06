@@ -139,8 +139,8 @@ final class TransformableTest extends TestCase
     public function test_record_collect_chaining_map_and_filter(): void
     {
         $adminEmails = TestUserRecord::collect($this->usersArray)
-            ->filter(fn($user) => $user->role === TestUserRole::ADMIN)
-            ->map(fn($user) => $user->email->getValue())
+            ->filter(fn ($user) => $user->role === TestUserRole::ADMIN)
+            ->map(fn ($user) => $user->email->getValue())
             ->sort()
             ->toArray();
 
@@ -150,9 +150,9 @@ final class TransformableTest extends TestCase
     public function test_record_collect_chaining_with_multiple_operations(): void
     {
         $result = TestUserRecord::collect($this->usersArray)
-            ->filter(fn($user) => $user->status === TestUserStatus::ACTIVE)
-            ->filter(fn($user) => $user->grade->value >= 3)  // ✅ Correction: grade est un enum
-            ->map(fn($user) => $user->name)
+            ->filter(fn ($user) => $user->status === TestUserStatus::ACTIVE)
+            ->filter(fn ($user) => $user->grade->value >= 3)  // ✅ Correction: grade est un enum
+            ->map(fn ($user) => $user->name)
             ->sort()
             ->reverse()
             ->toArray();
@@ -207,7 +207,7 @@ final class TransformableTest extends TestCase
     public function test_data_collect_chaining(): void
     {
         $activeUsers = TestUserData::collect($this->usersArray)
-            ->filter(fn($user) => $user->status === TestUserStatus::ACTIVE)
+            ->filter(fn ($user) => $user->status === TestUserStatus::ACTIVE)
             ->count();
 
         $this->assertSame(4, $activeUsers);
@@ -353,8 +353,8 @@ final class TransformableTest extends TestCase
         $this->assertContainsOnlyInstancesOf(TestProductData::class, $result);
 
         $featured = $result
-            ->filter(fn($product) => $product->isFeatured === true)
-            ->map(fn($product) => $product->name)
+            ->filter(fn ($product) => $product->isFeatured === true)
+            ->map(fn ($product) => $product->name)
             ->toArray();
 
         $this->assertSame(['Laptop', 'Keyboard', 'Desk'], $featured);
@@ -393,8 +393,8 @@ final class TransformableTest extends TestCase
     public function test_data_object_collect_chaining(): void
     {
         $names = DataObject::collect($this->usersArray)
-            ->filter(fn($item) => $item->get('status') === 'active')
-            ->map(fn($item) => $item->get('name'))
+            ->filter(fn ($item) => $item->get('status') === 'active')
+            ->map(fn ($item) => $item->get('name'))
             ->sort()
             ->toArray();
 
@@ -448,8 +448,8 @@ final class TransformableTest extends TestCase
     public function test_complex_workflow_across_types(): void
     {
         $records = TestUserRecord::collect($this->usersArray)
-            ->filter(fn($record) => $record->status === TestUserStatus::ACTIVE)
-            ->filter(fn($record) => $record->grade->value >= 3);  // ✅ Correction: grade est un enum
+            ->filter(fn ($record) => $record->status === TestUserStatus::ACTIVE)
+            ->filter(fn ($record) => $record->grade->value >= 3);  // ✅ Correction: grade est un enum
 
         $dataCollection = new DataCollection(TestUserData::class);
         foreach ($records as $record) {
@@ -457,7 +457,7 @@ final class TransformableTest extends TestCase
         }
 
         $result = $dataCollection
-            ->map(fn(TestUserData $data) => $data->name)
+            ->map(fn (TestUserData $data) => $data->name)
             ->sort()
             ->toArray();
 
@@ -470,9 +470,9 @@ final class TransformableTest extends TestCase
         $collection = TestUserRecord::collect($this->usersArray, RecordCollection::class);
 
         $activeAdmins = $collection
-            ->filter(fn(TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE)
-            ->filter(fn(TestUserRecord $record) => $record->role === TestUserRole::ADMIN)
-            ->map(fn(TestUserRecord $record) => $record->name)
+            ->filter(fn (TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE)
+            ->filter(fn (TestUserRecord $record) => $record->role === TestUserRole::ADMIN)
+            ->map(fn (TestUserRecord $record) => $record->name)
             ->toArray();
 
         $this->assertSame(['Alice', 'Charlie'], $activeAdmins);
@@ -481,7 +481,7 @@ final class TransformableTest extends TestCase
     public function test_nested_collect_with_map(): void
     {
         $emailCollections = TestEmailAddress::collect($this->emailsArray)
-            ->map(fn($email) => TestEmailAddress::collect([$email->getValue(), $email->getValue()]))
+            ->map(fn ($email) => TestEmailAddress::collect([$email->getValue(), $email->getValue()]))
             ->toArray();
 
         $this->assertCount(5, $emailCollections);

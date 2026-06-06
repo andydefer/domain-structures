@@ -15,6 +15,7 @@ final class ScalarConverter implements TypeConverterInterface
             // Normaliser les alias de types
             $normalizedType = $this->normalizeTypeName($typeName);
             $phpType = PhpType::fromTypeString($normalizedType);
+
             return $phpType->isScalarOrNull();
         } catch (InvalidArgumentException) {
             // Le type n'est pas reconnu par PhpType (ex: 'array', 'object', 'resource', 'callable')
