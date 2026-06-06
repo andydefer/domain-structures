@@ -6,6 +6,7 @@ namespace AndyDefer\DomainStructures\Abstracts;
 
 use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 use AndyDefer\DomainStructures\Enums\PhpType;
+use AndyDefer\DomainStructures\Hydration\Hydrator;
 use AndyDefer\DomainStructures\Interfaces\Transformable;
 use AndyDefer\DomainStructures\Interfaces\TypedCollectionInterface;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
@@ -73,7 +74,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
             return $types;
         } catch (\ArgumentCountError $e) {
             throw new InvalidArgumentException(sprintf(
-                'Cannot determine allowed types for %s. '.
+                'Cannot determine allowed types for %s. ' .
                     'Please create an instance first before calling from(): new %s(...)',
                 $class,
                 $class
@@ -345,7 +346,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
 
         if (is_string($callback)) {
             $property = $callback;
-            $callback = fn ($item) => is_object($item) ? ($item->$property ?? null) : null;
+            $callback = fn($item) => is_object($item) ? ($item->$property ?? null) : null;
         }
 
         $values = array_map($callback, $items);
@@ -508,7 +509,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
     final public function __clone()
     {
         $this->items = array_map(
-            fn ($item) => is_object($item) ? clone $item : $item,
+            fn($item) => is_object($item) ? clone $item : $item,
             $this->items
         );
     }
@@ -582,8 +583,21 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
         $prefix = $itemIndex !== null ? "item #{$itemIndex}: " : '';
 
         if (count($matchedTypes) > 1) {
+            // Vérifier si ce sont des types scalaires
+            $scalarTypes = PhpType::getScalarTypeNames();
+            $hasScalarAmbiguity = !empty(array_intersect($matchedTypes, $scalarTypes));
+
+            if ($hasScalarAmbiguity) {
+                throw new InvalidArgumentException(sprintf(
+                    'Ambiguous %svalue could be interpreted as multiple scalar types [%s]. ' .
+                        'Please ensure the collection is configured with a single scalar type or use distinct types.',
+                    $prefix,
+                    implode('|', $matchedTypes)
+                ));
+            }
+
             throw new InvalidArgumentException(sprintf(
-                'Ambiguous %sdata can be hydrated by multiple types [%s]. '.
+                'Ambiguous %sdata can be hydrated by multiple types [%s]. ' .
                     'Please specify the type using a "_type" key in the source data.',
                 $prefix,
                 implode('|', $matchedTypes)
@@ -634,19 +648,25 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
 
     protected static function convertItem(mixed $item, string $targetType): mixed
     {
+        // Si l'item est déjà du bon type, on le retourne directement
         if ($item instanceof $targetType) {
             return $item;
         }
 
+        // Pour les types scalaires, conversion standard PHP
         if (in_array($targetType, PhpType::getScalarTypeNames(), true)) {
-            return $item;
+            return match ($targetType) {
+                'int' => (int) $item,
+                'string' => (string) $item,
+                'float' => (float) $item,
+                'bool' => (bool) $item,
+                'null' => null,
+                default => $item,
+            };
         }
 
-        if (is_subclass_of($targetType, Transformable::class)) {
-            return $targetType::from($item);
-        }
-
-        throw new \RuntimeException(sprintf('Cannot convert to type %s', $targetType));
+        // Utiliser l'hydrateur pour les objets
+        return Hydrator::hydrate($targetType, $item);
     }
 
     final public static function from(mixed $source): static
@@ -658,7 +678,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
         $allowedTypes = static::getStoredAllowedTypes();
         self::validateAllowedTypes($allowedTypes);
 
-        if (! is_iterable($source)) {
+        if (!is_iterable($source)) {
             throw new InvalidArgumentException(sprintf(
                 'Cannot hydrate %s from non-iterable source',
                 static::class
@@ -670,7 +690,9 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
 
         foreach ($source as $item) {
             $itemIndex++;
-            $convertedItem = self::processItemForHydration($item, $allowedTypes, $itemIndex);
+            // Normaliser l'item d'abord
+            $normalizedItem = NormalizerChain::get()->normalize($item);
+            $convertedItem = self::processItemForHydration($normalizedItem, $allowedTypes, $itemIndex);
             $collection->add($convertedItem);
         }
 
@@ -695,8 +717,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
             ));
         }
 
-        // Vérifier que c'est un tableau (pour une collection)
-        if (! is_array($data)) {
+        if (!is_array($data)) {
             throw new InvalidArgumentException(sprintf(
                 'JSON must decode to an array for collection hydration. Got %s.',
                 gettype($data)
@@ -712,28 +733,46 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
      * @template TCollection of AbstractTypedCollection
      *
      * @param  iterable<mixed>  $sources
-     * @param  class-string<TCollection>  $collectionClass
-     * @return TCollection
+     * @param  class-string<TCollection>|null  $collectionClass
+     * @param  string  ...$constructorArgs  Arguments to pass to the target collection's constructor
+     * @return ($collectionClass is null ? static : TCollection)
      *
      * @throws InvalidArgumentException
      */
-    public static function collect(iterable $sources, string $collectionClass = TypedCollection::class): AbstractTypedCollection
+    public static function collect(iterable $sources, ?string $collectionClass = null, string ...$constructorArgs): AbstractTypedCollection
     {
-        if (! is_subclass_of($collectionClass, AbstractTypedCollection::class)) {
+        // Si aucun type de collection n'est spécifié, on utilise la classe courante
+        $targetClass = $collectionClass ?? static::class;
+
+        if (!is_subclass_of($targetClass, AbstractTypedCollection::class)) {
             throw new InvalidArgumentException(sprintf(
                 'Collection class "%s" must extend %s',
-                $collectionClass,
+                $targetClass,
                 AbstractTypedCollection::class
             ));
         }
 
-        $allowedTypes = static::getStoredAllowedTypes();
+        // Si la source est déjà une instance de la classe cible, on la retourne directement
+        if ($sources instanceof $targetClass) {
+            return $sources;
+        }
+
+        // Instancier la collection cible avec les arguments fournis
+        $collection = empty($constructorArgs)
+            ? new $targetClass()
+            : new $targetClass(...$constructorArgs);
+
+        // Récupérer les types autorisés de l'instance créée
+        $allowedTypes = $collection->getAllowedTypes();
         self::validateAllowedTypes($allowedTypes);
 
-        $collection = new $collectionClass(...$allowedTypes);
-
+        // Hydratation des items
         foreach ($sources as $item) {
-            $convertedItem = self::processItemForHydration($item, $allowedTypes);
+            // Normaliser l'item d'abord
+            $normalizedItem = NormalizerChain::get()->normalize($item);
+
+            // Puis traiter l'item normalisé pour l'hydratation
+            $convertedItem = self::processItemForHydration($normalizedItem, $allowedTypes);
             $collection->add($convertedItem);
         }
 

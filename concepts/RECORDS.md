@@ -132,13 +132,13 @@ class UserDTO
     public $email;
 }
 
-// ✅ Record (immutable, type-safe)
+// ✅ Record (immutable, type-safe, propriétés en snake_case)
 final class UserRecord extends AbstractRecord
 {
     public function __construct(
         public readonly ?int $id,
         public readonly string $name,
-        public readonly EmailAddress $email,
+        public readonly EmailAddress $email_address,
     ) {}
 }
 ```
@@ -183,9 +183,9 @@ final class UserRecord extends AbstractRecord
     public function __construct(
         public readonly ?int $id,
         public readonly string $name,
-        public readonly EmailAddress $email,
+        public readonly EmailAddress $email_address,
         public readonly UserRole $role,
-        public readonly Iso8601DateTime $createdAt,
+        public readonly Iso8601DateTime $created_at,
     ) {}
 }
 ```
@@ -210,8 +210,8 @@ public readonly ?null $value;  // Null
 
 ```php
 // ✅ Value Objects
-public readonly EmailAddress $email;        // VO
-public readonly Iso8601DateTime $createdAt; // VO
+public readonly EmailAddress $email_address;        // VO
+public readonly Iso8601DateTime $created_at; // VO
 public readonly Money $price;               // VO
 
 // ✅ Enums (UnitEnum)
@@ -235,17 +235,17 @@ public readonly DataObject $metadata;
 public readonly UserData $userData;
 
 // ❌ DateTime / DateTimeImmutable (utiliser Iso8601DateTime VO)
-public readonly \DateTimeImmutable $createdAt;
+public readonly \DateTimeImmutable $created_at;
 ```
 
 ### Pourquoi `\DateTimeImmutable` est interdit ?
 
 ```php
 // ❌ Mauvais
-public readonly \DateTimeImmutable $createdAt;
+public readonly \DateTimeImmutable $created_at;
 
 // ✅ Bon - Utiliser le Value Object Iso8601DateTime
-public readonly Iso8601DateTime $createdAt;
+public readonly Iso8601DateTime $created_at;
 ```
 
 **Raisons :**
@@ -335,8 +335,8 @@ $record = UserRecord::from([
     'created_at' => '2024-01-01T12:00:00+00:00'  // Devient Iso8601DateTime
 ]);
 
-echo $record->email->getDomain();        // 'example.com'
-echo $record->createdAt->toDateTime();   // DateTime object
+echo $record->email_address->getDomain();        // 'example.com'
+echo $record->created_at->toDateTime();   // DateTime object
 ```
 
 ---
@@ -402,8 +402,8 @@ $record = UserRecord::from([
     'id' => 1,
     'name' => 'John Doe',
     'email' => 'john@example.com',
-    'emailVerifiedAt' => '2024-01-01T12:00:00+00:00',
-    'createdAt' => '2024-01-01T12:00:00+00:00'
+    'email_verified_at' => '2024-01-01T12:00:00+00:00',
+    'created_at' => '2024-01-01T12:00:00+00:00'
 ]);
 
 $normalized = NormalizerChain::get()->normalize($record);
@@ -441,12 +441,12 @@ final class UserRecord extends AbstractRecord
     public function __construct(
         public readonly ?int $id,
         public readonly string $name,
-        public readonly EmailAddress $email,        // VO
+        public readonly EmailAddress $email_address,        // VO
         public readonly PhoneNumber $phone,         // VO
         public readonly Password $password,         // VO
         public readonly Address $address,           // VO
-        public readonly Iso8601DateTime $createdAt, // VO pour les dates
-        public readonly Iso8601DateTime $updatedAt, // VO pour les dates
+        public readonly Iso8601DateTime $created_at, // VO pour les dates
+        public readonly Iso8601DateTime $updated_at, // VO pour les dates
         public readonly UserRole $role,             // Enum
         public readonly UserStatus $status,         // Enum
     ) {}
@@ -467,8 +467,8 @@ $record = UserRecord::from([
 ]);
 
 // ✅ Comportement disponible
-$domain = $record->email->getDomain();                    // 'example.com'
-$isAfter = $record->createdAt->isAfter($otherDate);      // Comparaison
+$domain = $record->email_address->getDomain();                    // 'example.com'
+$isAfter = $record->created_at->isAfter($otherDate);      // Comparaison
 
 // ✅ Pas de duplication de validation
 // La validation est centralisée dans les Value Objects
@@ -499,7 +499,7 @@ final class UserRecordCollection extends AbstractTypedCollection
     
     public function createdAfter(Iso8601DateTime $date): self
     {
-        return $this->filter(fn(UserRecord $user) => $user->createdAt->isAfter($date));
+        return $this->filter(fn(UserRecord $user) => $user->created_at->isAfter($date));
     }
 }
 
@@ -737,8 +737,8 @@ $record = new UserRecord(...);
 final class UserRecord extends AbstractRecord
 {
     public function __construct(
-        public readonly EmailAddress $email,        // Validation intégrée
-        public readonly Iso8601DateTime $createdAt, // Validation intégrée
+        public readonly EmailAddress $email_address,        // Validation intégrée
+        public readonly Iso8601DateTime $created_at, // Validation intégrée
         public readonly Password $password,         // Validation intégrée
     ) {}
 }
@@ -748,7 +748,7 @@ final class UserRecord extends AbstractRecord
 {
     public function __construct(
         public readonly string $email,      // Validation à faire ailleurs
-        public readonly string $createdAt,  // Pas de garantie de format
+        public readonly string $created_at,  // Pas de garantie de format
         public readonly string $password,   // Pas de validation
     ) {}
 }
@@ -780,8 +780,8 @@ final class UserRecord extends AbstractRecord
 final class UserRecord extends AbstractRecord
 {
     public function __construct(
-        public readonly Iso8601DateTime $createdAt,
-        public readonly Iso8601DateTime $updatedAt,
+        public readonly Iso8601DateTime $created_at,
+        public readonly Iso8601DateTime $updated_at,
     ) {}
 }
 
@@ -789,8 +789,8 @@ final class UserRecord extends AbstractRecord
 final class UserRecord extends AbstractRecord
 {
     public function __construct(
-        public readonly string $createdAt,           // Format non garanti
-        public readonly \DateTimeImmutable $updatedAt, // Non hydratable
+        public readonly string $created_at,           // Format non garanti
+        public readonly \DateTimeImmutable $updated_at, // Non hydratable
     ) {}
 }
 ```
@@ -820,10 +820,10 @@ foreach ($dbResults as $row) {
 $record = UserRecord::from($formData);
 $db->insert('users', NormalizerChain::get()->normalize($record));
 
-// ❌ Mauvais - accès direct aux propriétés (camelCase)
+// ❌ Mauvais - accès direct aux propriétés (snake_case)
 $db->insert('users', [
     'id' => $record->id,
-    'createdAt' => $record->createdAt,  // La base attend 'created_at'
+    'created_at' => $record->created_at,  // ✅ Déjà en snake_case
 ]);
 ```
 
@@ -838,6 +838,36 @@ $db->update('users', $updateData->toArrayWithoutNulls(), ['id' => $userId]);
 $db->update('users', NormalizerChain::get()->normalize($updateData), ['id' => $userId]);
 ```
 
+### 16.8. Utiliser le snake_case pour les noms de propriétés
+
+```php
+// ✅ Bon - propriétés en snake_case
+final class UserRecord extends AbstractRecord
+{
+    public function __construct(
+        public readonly ?int $id,
+        public readonly string $first_name,
+        public readonly string $last_name,
+        public readonly EmailAddress $email_address,
+        public readonly Iso8601DateTime $created_at,
+        public readonly ?Iso8601DateTime $updated_at,
+        public readonly ?Iso8601DateTime $deleted_at,
+    ) {}
+}
+
+// ❌ Mauvais - propriétés en camelCase
+final class UserRecord extends AbstractRecord
+{
+    public function __construct(
+        public readonly ?int $id,
+        public readonly string $firstName,     // ❌ camelCase
+        public readonly string $lastName,      // ❌ camelCase
+        public readonly EmailAddress $emailAddress,  // ❌ camelCase
+        public readonly Iso8601DateTime $createdAt,  // ❌ camelCase
+    ) {}
+}
+```
+
 ---
 
 ## 17. Récapitulatif des contraintes
@@ -847,6 +877,7 @@ $db->update('users', NormalizerChain::get()->normalize($updateData), ['id' => $u
 | **Héritage** | Étend `AbstractRecord` |
 | **Constructeur** | Public (mais `readonly`) |
 | **Propriétés** | `public readonly` |
+| **Nommage des propriétés** | **`snake_case`** (obligatoire) |
 | **Types scalaires autorisés** | `int`, `string`, `float`, `bool`, `null` |
 | **Types objets autorisés** | `ValueObject`, `Enum`, `TypedCollection`, `Record` |
 | **Types INTERDITS** | `DataObject`, `AbstractData`, `DateTime`, `DateTimeImmutable` |
@@ -869,26 +900,26 @@ final class Iso8601DateTime extends AbstractValueObject { /* ... */ }
 enum UserRole: string { case ADMIN = 'admin'; case USER = 'user'; }
 enum UserStatus: string { case ACTIVE = 'active'; case INACTIVE = 'inactive'; }
 
-// 3. Définir le Record
+// 3. Définir le Record (propriétés en snake_case)
 final class UserRecord extends AbstractRecord
 {
     public function __construct(
         public readonly ?int $id,
         public readonly string $name,
-        public readonly EmailAddress $email,
+        public readonly EmailAddress $email_address,
         public readonly UserRole $role,
         public readonly UserStatus $status,
-        public readonly Iso8601DateTime $createdAt,
-        public readonly ?Iso8601DateTime $updatedAt,
+        public readonly Iso8601DateTime $created_at,
+        public readonly ?Iso8601DateTime $updated_at,
     ) {}
 }
 
-// 4. Définir un Record de mise à jour (toutes propriétés nullables)
+// 4. Définir un Record de mise à jour (toutes propriétés nullables, en snake_case)
 final class UserUpdateRecord extends AbstractRecord
 {
     public function __construct(
         public readonly ?string $name = null,
-        public readonly ?EmailAddress $email = null,
+        public readonly ?EmailAddress $email_address = null,
         public readonly ?UserRole $role = null,
         public readonly ?UserStatus $status = null,
     ) {}
@@ -910,7 +941,7 @@ $users = UserRecord::collect($dbResults);
 $activeAdmins = $users
     ->filter(fn($u) => $u->status === UserStatus::ACTIVE)
     ->filter(fn($u) => $u->role === UserRole::ADMIN)
-    ->filter(fn($u) => $u->createdAt->isAfter(Iso8601DateTime::from('2024-01-01T00:00:00+00:00')));
+    ->filter(fn($u) => $u->created_at->isAfter(Iso8601DateTime::from('2024-01-01T00:00:00+00:00')));
 
 // 7. Normalisation pour la base de données
 $db->insert('users', NormalizerChain::get()->normalize($record));
@@ -924,3 +955,4 @@ Pour toute question ou suggestion, n'hésitez pas à :
 - Ouvrir une issue sur GitHub
 - Consulter la documentation complète
 - Contacter l'équipe de développement
+```
