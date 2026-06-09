@@ -126,7 +126,7 @@ final class EnumStrategy implements HydrationStrategyInterface
      */
     private function hydratePureEnum(string $className, string $caseName): UnitEnum
     {
-        $constantName = $className.'::'.$caseName;
+        $constantName = $className . '::' . $caseName;
 
         if (defined($constantName)) {
             return constant($constantName);

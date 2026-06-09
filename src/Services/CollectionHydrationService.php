@@ -1,0 +1,259 @@
+<?php
+// src/Services/CollectionHydrationService.php
+
+declare(strict_types=1);
+
+namespace AndyDefer\DomainStructures\Services;
+
+use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
+use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
+use AndyDefer\DomainStructures\Abstracts\AbstractData;
+use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
+use AndyDefer\DomainStructures\Abstracts\AbstractDataObject;
+use AndyDefer\DomainStructures\Enums\PhpType;
+use InvalidArgumentException;
+use RuntimeException;
+use UnitEnum;
+
+final class CollectionHydrationService
+{
+    private const FAMILY_ENUM = UnitEnum::class;
+    private const FAMILY_VALUE_OBJECT = AbstractValueObject::class;
+    private const FAMILY_DATA = AbstractData::class;
+    private const FAMILY_RECORD = AbstractRecord::class;
+    private const FAMILY_DATA_OBJECT = AbstractDataObject::class;
+    private const FAMILY_SCALAR = 'scalar';
+
+    private ItemHydrationService $itemHydrationService;
+
+    public function __construct(?ItemHydrationService $itemHydrationService = null)
+    {
+        $this->itemHydrationService = $itemHydrationService ?? new ItemHydrationService();
+    }
+
+    public function collect(
+        iterable $sources,
+        string $collectionClass = AbstractTypedCollection::class
+    ): AbstractTypedCollection {
+        if (!is_subclass_of($collectionClass, AbstractTypedCollection::class)) {
+            throw new InvalidArgumentException(sprintf(
+                'Collection class "%s" must extend %s',
+                $collectionClass,
+                AbstractTypedCollection::class
+            ));
+        }
+
+        if ($sources instanceof $collectionClass) {
+            return $sources;
+        }
+
+        try {
+            $tempCollection = new $collectionClass();
+        } catch (\ArgumentCountError $e) {
+            throw new InvalidArgumentException(sprintf(
+                'Collection class "%s" cannot be instantiated. It may require constructor arguments.',
+                $collectionClass
+            ));
+        }
+
+        $allowedTypes = $tempCollection->getAllowedTypes();
+
+        if (empty($allowedTypes)) {
+            throw new InvalidArgumentException(sprintf(
+                'Collection class "%s" has no allowed types defined',
+                $collectionClass
+            ));
+        }
+
+        // ✅ Vérifier la cohérence des familles (incluant les scalaires)
+        $this->validateFamilyConsistency($allowedTypes);
+
+        $collection = new $collectionClass();
+
+        foreach ($sources as $item) {
+            // INTERDIRE LES COLLECTIONS IMBRIQUÉES
+            if ($item instanceof AbstractTypedCollection) {
+                throw new InvalidArgumentException(
+                    'Nested collections are not allowed. Use flat collections instead.'
+                );
+            }
+
+            $convertedItem = $this->convertItem($item, $allowedTypes);
+            $collection->add($convertedItem);
+        }
+
+        return $collection;
+    }
+
+    public function collectFromJson(
+        string $json,
+        string $collectionClass = AbstractTypedCollection::class
+    ): AbstractTypedCollection {
+        $data = json_decode($json, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new RuntimeException(sprintf('Invalid JSON: %s', json_last_error_msg()));
+        }
+
+        if (!is_array($data) && !is_object($data)) {
+            throw new InvalidArgumentException('JSON must decode to an array or object for collection hydration');
+        }
+
+        if (is_object($data)) {
+            $data = (array) $data;
+        }
+
+        return $this->collect($data, $collectionClass);
+    }
+
+    /**
+     * Valide que tous les types autorisés appartiennent à la même famille
+     * Pour les scalaires, ils doivent être du même type exact
+     *
+     * @param array<string> $allowedTypes
+     * @throws InvalidArgumentException
+     */
+    private function validateFamilyConsistency(array $allowedTypes): void
+    {
+        if (count($allowedTypes) <= 1) {
+            return;
+        }
+
+        $families = [];
+
+        foreach ($allowedTypes as $type) {
+            $family = $this->getFamily($type);
+
+            // Pour les scalaires, on utilise le type exact comme identifiant de famille
+            if ($family === self::FAMILY_SCALAR) {
+                $family = $type; // 'int', 'string', 'float', 'bool', 'null'
+            }
+
+            $families[$type] = $family;
+        }
+
+        $uniqueFamilies = array_unique($families);
+
+        if (count($uniqueFamilies) > 1) {
+            $familyGroups = [];
+            foreach ($families as $type => $family) {
+                $familyName = $family;
+                if ($family === self::FAMILY_ENUM) $familyName = 'Enum';
+                if ($family === self::FAMILY_VALUE_OBJECT) $familyName = 'ValueObject';
+                if ($family === self::FAMILY_DATA) $familyName = 'Data';
+                if ($family === self::FAMILY_RECORD) $familyName = 'Record';
+                if ($family === self::FAMILY_DATA_OBJECT) $familyName = 'DataObject';
+
+                $familyGroups[$familyName][] = $type;
+            }
+
+            $groups = [];
+            foreach ($familyGroups as $family => $types) {
+                $groups[] = sprintf('%s: [%s]', $family, implode(', ', $types));
+            }
+
+            throw new InvalidArgumentException(sprintf(
+                'Inconsistent families in collection. All allowed types must belong to the same family. Found: %s',
+                implode(' | ', $groups)
+            ));
+        }
+    }
+
+    /**
+     * Détermine la famille d'un type
+     *
+     * @param string $type
+     * @return string
+     */
+    private function getFamily(string $type): string
+    {
+        // Vérifier les types scalaires
+        if (in_array($type, PhpType::getScalarTypeNames(), true)) {
+            return self::FAMILY_SCALAR;
+        }
+
+        // Vérifier les énumérations
+        if (enum_exists($type)) {
+            return self::FAMILY_ENUM;
+        }
+
+        // Vérifier les abstractions de domaine
+        if (is_subclass_of($type, AbstractDataObject::class)) {
+            return self::FAMILY_DATA_OBJECT;
+        }
+
+        if (is_subclass_of($type, AbstractRecord::class)) {
+            return self::FAMILY_RECORD;
+        }
+
+        if (is_subclass_of($type, AbstractData::class)) {
+            return self::FAMILY_DATA;
+        }
+
+        if (is_subclass_of($type, AbstractValueObject::class)) {
+            return self::FAMILY_VALUE_OBJECT;
+        }
+
+        throw new InvalidArgumentException(sprintf(
+            'Type "%s" does not belong to any valid family (must be scalar, UnitEnum, AbstractValueObject, AbstractData, AbstractRecord, or AbstractDataObject)',
+            $type
+        ));
+    }
+
+    private function convertItem(mixed $item, array $allowedTypes): mixed
+    {
+        // Cas 1: L'item a un _type explicite
+        if (is_array($item) && isset($item['_type'])) {
+            $explicitType = $item['_type'];
+
+            if (!in_array($explicitType, $allowedTypes, true)) {
+                throw new InvalidArgumentException(sprintf(
+                    'Type "%s" specified in "_type" is not allowed. Allowed: %s',
+                    $explicitType,
+                    implode('|', $allowedTypes)
+                ));
+            }
+
+            // Extraire la valeur à hydrater
+            $valueToHydrate = $item;
+
+            // Si le tableau a exactement 2 clés ('_type' et 'value'), on prend uniquement la valeur
+            if (count($item) === 2 && array_key_exists('value', $item)) {
+                $valueToHydrate = $item['value'];
+            } elseif (count($item) > 2) {
+                // Si c'est un tableau complexe, on retire _type pour l'hydratation
+                unset($valueToHydrate['_type']);
+            }
+
+            // Utiliser ItemHydrationService pour l'hydratation
+            return $this->itemHydrationService->hydrate($explicitType, $valueToHydrate);
+        }
+
+        // Cas 2: Format simplifié {value: ...}
+        if (is_array($item) && count($item) === 1 && isset($item['value'])) {
+            $item = $item['value'];
+        }
+
+        // Cas 3: Un seul type autorisé
+        if (count($allowedTypes) === 1) {
+            return $this->itemHydrationService->hydrate($allowedTypes[0], $item);
+        }
+
+        // Cas 4: Multiples types autorisés - essayer chacun
+        $lastException = null;
+        foreach ($allowedTypes as $allowedType) {
+            try {
+                return $this->itemHydrationService->hydrate($allowedType, $item);
+            } catch (\Exception $e) {
+                $lastException = $e;
+                continue;
+            }
+        }
+
+        throw new InvalidArgumentException(sprintf(
+            'Cannot convert item to any allowed type [%s]. Last error: %s',
+            implode('|', $allowedTypes),
+            $lastException?->getMessage()
+        ), 0, $lastException);
+    }
+}

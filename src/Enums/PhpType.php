@@ -26,13 +26,13 @@ enum PhpType: string
     case BOOLEAN = 'boolean';
     case NULL = 'NULL';
 
-    // Domain-specific abstract types
+        // Domain-specific abstract types
     case UNIT_ENUM = UnitEnum::class;
     case ABSTRACT_VALUE_OBJECT = AbstractValueObject::class;
-    case ABSTRACT_TYPED_COLLECTION = AbstractTypedCollection::class;
     case ABSTRACT_DATA = AbstractData::class;
     case ABSTRACT_RECORD = AbstractRecord::class;
     case ABSTRACT_DATA_OBJECT = AbstractDataObject::class;
+    case ABSTRACT_TYPED_COLLECTION = AbstractTypedCollection::class;
 
     /**
      * Get the normalized short name for the PHP type.
@@ -270,7 +270,7 @@ enum PhpType: string
      */
     public static function getScalarTypeNames(): array
     {
-        return array_map(fn ($type) => $type->getNormalizedName(), self::getScalarTypes());
+        return array_map(fn($type) => $type->getNormalizedName(), self::getScalarTypes());
     }
 
     /**
