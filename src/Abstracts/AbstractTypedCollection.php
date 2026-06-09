@@ -74,7 +74,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
             return $types;
         } catch (\ArgumentCountError $e) {
             throw new InvalidArgumentException(sprintf(
-                'Cannot determine allowed types for %s. '.
+                'Cannot determine allowed types for %s. ' .
                     'Please create an instance first before calling from(): new %s(...)',
                 $class,
                 $class
@@ -346,7 +346,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
 
         if (is_string($callback)) {
             $property = $callback;
-            $callback = fn ($item) => is_object($item) ? ($item->$property ?? null) : null;
+            $callback = fn($item) => is_object($item) ? ($item->$property ?? null) : null;
         }
 
         $values = array_map($callback, $items);
@@ -509,7 +509,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
     final public function __clone()
     {
         $this->items = array_map(
-            fn ($item) => is_object($item) ? clone $item : $item,
+            fn($item) => is_object($item) ? clone $item : $item,
             $this->items
         );
     }
@@ -589,7 +589,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
 
             if ($hasScalarAmbiguity) {
                 throw new InvalidArgumentException(sprintf(
-                    'Ambiguous %svalue could be interpreted as multiple scalar types [%s]. '.
+                    'Ambiguous %svalue could be interpreted as multiple scalar types [%s]. ' .
                         'Please ensure the collection is configured with a single scalar type or use distinct types.',
                     $prefix,
                     implode('|', $matchedTypes)
@@ -597,7 +597,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
             }
 
             throw new InvalidArgumentException(sprintf(
-                'Ambiguous %sdata can be hydrated by multiple types [%s]. '.
+                'Ambiguous %sdata can be hydrated by multiple types [%s]. ' .
                     'Please specify the type using a "_type" key in the source data.',
                 $prefix,
                 implode('|', $matchedTypes)
@@ -669,6 +669,46 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
         return Hydrator::hydrate($targetType, $item);
     }
 
+    /**
+     * Creates a collection instance from an iterable source.
+     *
+     * @deprecated Cette méthode statique est dépréciée depuis la version 2.0.0.
+     *             Elle sera supprimée dans la version 3.0.0.
+     * 
+     * RAISONS DE LA DÉPRÉCIATION :
+     * 
+     * 1. MÉTHODE STATIQUE DANS UNE CLASSE ABSTRAITE
+     *    Les méthodes statiques créent un couplage implicite et sont difficiles à tester.
+     *    Elles violent le Dependency Inversion Principle (DIP).
+     * 
+     * 2. RESPONSABILITÉ MULTIPLE
+     *    La classe abstraite ne devrait pas gérer l'hydratation des collections.
+     *    C'est une responsabilité transverse qui appartient à un Service.
+     * 
+     * 3. DÉPENDANCE CACHÉE AU SINGLETON NormalizerChain
+     *    NormalizerChain::get() est un singleton global, non injectable.
+     *    Impossible de mocker ou remplacer le normalizer.
+     * 
+     * 4. LOGIQUE D'HYDRATATION NON TESTABLE ISOLÉMENT
+     *    La logique est figée dans la classe, on ne peut pas la modifier ou la décorer.
+     * 
+     * ✅ NOUVELLE APPROCHE : Utilisez CollectionHydrationService
+     * 
+     * @example
+     * // ❌ À ÉVITER (déprécié)
+     * $users = UserRecordCollection::from($data);
+     * $users = UserRecordCollection::fromJson($json);
+     * 
+     * // ✅ RECOMMANDÉ (nouvelle approche)
+     * $hydrationService = new CollectionHydrationService();
+     * $users = $hydrationService->collect($data, UserRecordCollection::class);
+     * $users = $hydrationService->collectFromJson($json, UserRecordCollection::class);
+     * 
+     * @param  iterable<mixed>  $source  Source data (array, Collection, etc.)
+     * @return static
+     * 
+     * @throws InvalidArgumentException
+     */
     final public static function from(mixed $source): static
     {
         if ($source instanceof static) {
@@ -702,8 +742,36 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
     /**
      * Creates a collection instance from a JSON string.
      *
+     * @deprecated Cette méthode statique est dépréciée depuis la version 2.0.0.
+     *             Elle sera supprimée dans la version 3.0.0.
+     * 
+     * RAISONS DE LA DÉPRÉCIATION :
+     * 
+     * 1. DÉCODAGE JSON ICI - Responsabilité mal placée
+     *    Le décodage JSON ne devrait pas être dans une classe de collection.
+     *    Cela crée une dépendance au format de données.
+     * 
+     * 2. IMPOSSIBLE DE PERSONNALISER LE DÉCODAGE
+     *    On ne peut pas injecter de stratégie de décodage (ex: JSON:API, HAL, etc.)
+     * 
+     * 3. MÊMES RAISONS QUE self::from()
+     *    - Méthode statique dans classe abstraite
+     *    - Dépendance cachée au singleton NormalizerChain
+     *    - Non testable isolément
+     * 
+     * ✅ NOUVELLE APPROCHE : Utilisez CollectionHydrationService::collectFromJson()
+     * 
+     * @example
+     * // ❌ À ÉVITER (déprécié)
+     * $users = UserRecordCollection::fromJson('{"users": [...]}');
+     * 
+     * // ✅ RECOMMANDÉ (nouvelle approche)
+     * $hydrationService = new CollectionHydrationService();
+     * $users = $hydrationService->collectFromJson($json, UserRecordCollection::class);
+     * 
      * @param  string  $json  JSON string representing an array of items
-     *
+     * @return static
+     * 
      * @throws InvalidArgumentException If JSON is invalid or source cannot be hydrated
      */
     final public static function fromJson(string $json): static
@@ -730,13 +798,59 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
     /**
      * Hydrates a collection of sources into a typed collection.
      *
+     * @deprecated Cette méthode statique est dépréciée depuis la version 2.0.0.
+     *             Elle sera supprimée dans la version 3.0.0.
+     * 
+     * RAISONS DE LA DÉPRÉCIATION :
+     * 
+     * 1. COMPLEXITÉ DES PARAMÈTRES
+     *    La signature avec $collectionClass nullable et $constructorArgs variable
+     *    est trop complexe et source d'erreurs.
+     * 
+     * 2. TYPAGE DYNAMIQUE DANGEREUX
+     *    Le paramètre $collectionClass permet de créer n'importe quelle collection,
+     *    sans garantie de type-safety.
+     * 
+     * 3. CRÉATION DYNAMIQUE DE CLASSE
+     *    new $targetClass(...$constructorArgs) est fragile et difficile à debugger.
+     *    Les erreurs de constructeur ne sont pas visibles à la compilation.
+     * 
+     * 4. DÉPENDANCE AUX ARGUMENTS VARIABLES
+     *    On ne sait pas quels arguments passent au constructeur.
+     *    Violation du principe "Explicit is better than implicit".
+     * 
+     * 5. MÉTHODE STATIQUE AVEC TROP DE RESPONSABILITÉS
+     *    - Validation des types
+     *    - Instanciation dynamique
+     *    - Normalisation des items
+     *    - Hydratation des items
+     * 
+     * ✅ NOUVELLE APPROCHE : Utilisez CollectionHydrationService
+     * 
+     * @example
+     * // ❌ À ÉVITER (déprécié)
+     * $users = UserRecordCollection::collect($data);
+     * $users = UserRecordCollection::collect($data, OtherCollection::class);
+     * $users = UserRecordCollection::collect($data, null, 'arg1', 'arg2');
+     * 
+     * // ✅ RECOMMANDÉ (nouvelle approche)
+     * // Cas simple - même collection
+     * $hydrationService = new CollectionHydrationService();
+     * $users = $hydrationService->collect($data, UserRecordCollection::class);
+     * 
+     * // Cas avec arguments de constructeur
+     * $collection = new UserRecordCollection('arg1', 'arg2');
+     * foreach ($data as $item) {
+     *     $collection->add($hydrationService->hydrate(UserRecord::class, $item));
+     * }
+     * 
      * @template TCollection of AbstractTypedCollection
-     *
+     * 
      * @param  iterable<mixed>  $sources
      * @param  class-string<TCollection>|null  $collectionClass
      * @param  string  ...$constructorArgs  Arguments to pass to the target collection's constructor
      * @return ($collectionClass is null ? static : TCollection)
-     *
+     * 
      * @throws InvalidArgumentException
      */
     public static function collect(iterable $sources, ?string $collectionClass = null, string ...$constructorArgs): AbstractTypedCollection
