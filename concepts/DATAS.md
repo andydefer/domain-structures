@@ -11,8 +11,8 @@
 7. [Créer sa première Data DTO](#7-créer-sa-première-data-dto)
 8. [Les collections typées pour les Data](#8-les-collections-typées-pour-les-data)
 9. [Les méthodes fondamentales](#9-les-méthodes-fondamentales)
-10. [Hydratation : `from()` et `fromJson()`](#10-hydratation--from-et-fromjson)
-11. [Collections de Data : `collect()`](#11-collections-de-data--collect)
+10. [Hydratation avec HydrationService](#10-hydratation-avec-hydrationservice)
+11. [Collections de Data](#11-collections-de-data)
 12. [Normalisation : camelCase pour l'API](#12-normalisation--camelcase-pour-lapi)
 13. [Consommation par les clients](#13-consommation-par-les-clients)
     - [13.1. TypeScript (Frontend Web)](#131-typescript-frontend-web)
@@ -475,8 +475,17 @@ final class UserDataCollection extends DataCollection
 ### 8.3. Utilisation
 
 ```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+
 final class ListUsersAction extends AbstractAction
 {
+    private HydrationService $hydration;
+    
+    public function __construct()
+    {
+        $this->hydration = new HydrationService();
+    }
+    
     protected function handle(Recordable $request): JsonResponse
     {
         $usersRecord = $this->userService->getUsers($request);
@@ -484,12 +493,14 @@ final class ListUsersAction extends AbstractAction
         // Transformation : UserRecord → UserData
         $userDataCollection = new UserDataCollection();
         foreach ($usersRecord->users->all() as $userRecord) {
-            $userDataCollection->add(UserData::fromRecord($userRecord));
+            $userDataCollection->add(
+                $this->hydration->hydrate(UserData::class, $userRecord->toArray())
+            );
         }
         
         $admins = $userDataCollection->getAdmins();
         
-        return $this->json(UserData::collect($admins));
+        return $this->json($admins->toArray());
     }
 }
 ```
@@ -498,12 +509,16 @@ final class ListUsersAction extends AbstractAction
 
 ## 9. Les méthodes fondamentales
 
-### 9.1. `from(mixed $source): static`
+> **⚠️ IMPORTANT : Les méthodes `from()`, `fromJson()` et `collect()` sont dépréciées depuis la version 2.0.0. Utilisez `HydrationService` à la place.**
 
-Hydrate une Data depuis n'importe quelle source :
+### 9.1. `HydrationService::hydrate(string $className, mixed $source): object`
 
 ```php
-$userData = UserData::from([
+use AndyDefer\DomainStructures\Services\HydrationService;
+
+$hydration = new HydrationService();
+
+$userData = $hydration->hydrate(UserData::class, [
     'id' => '123e4567-e89b-12d3-a456-426614174000',
     'name' => 'John Doe',
     'email' => 'john@example.com',
@@ -514,14 +529,15 @@ $userData = UserData::from([
 ]);
 ```
 
-### 9.2. `fromJson(string $json): static`
+### 9.2. `HydrationService::hydrateFromJson(string $className, string $json): object`
 
 ```php
 $json = '{"id":"123...","name":"John Doe","email":"john@example.com","totalSpent":{"amount":1500,"currency":"EUR"},"createdAt":"2024-01-01T12:00:00+00:00","role":"admin","purchasedProducts":[...]}';
-$userData = UserData::fromJson($json);
+
+$userData = $hydration->hydrateFromJson(UserData::class, $json);
 ```
 
-### 9.3. `collect(iterable $sources, string $collectionClass): AbstractTypedCollection`
+### 9.3. `HydrationService::collect(iterable $sources, string $collectionClass): AbstractTypedCollection`
 
 ```php
 $sources = [
@@ -529,24 +545,226 @@ $sources = [
     ['id' => '...', 'name' => 'Jane', 'email' => 'jane@example.com'],
 ];
 
-$users = UserData::collect($sources, UserDataCollection::class);
+$users = $hydration->collect($sources, UserDataCollection::class);
 // $users est un UserDataCollection
+```
+
+### 9.4. `HydrationService::collectFromJson(string $json, string $collectionClass): AbstractTypedCollection`
+
+```php
+$json = '[{"id":"...","name":"John"},{"id":"...","name":"Jane"}]';
+
+$users = $hydration->collectFromJson($json, UserDataCollection::class);
 ```
 
 ---
 
-## 10. Normalisation : camelCase pour l'API
+## 10. Hydratation avec HydrationService
+
+### 10.1. Installation du service
 
 ```php
-$userData = new UserData(
-    id: UserId::from('123...'),
-    name: PersonName::from('John Doe'),
-    email: EmailAddress::from('john@example.com'),
-    totalSpent: Price::from(['amount' => 1500, 'currency' => 'EUR']),
-    createdAt: Iso8601DateTime::from('2024-01-01T12:00:00+00:00'),
-    role: UserRole::ADMIN,
-    purchasedProducts: new ProductDataCollection()
-);
+use AndyDefer\DomainStructures\Services\HydrationService;
+
+$hydration = new HydrationService();
+```
+
+### 10.2. Hydrater une Data depuis un tableau
+
+```php
+$userData = $hydration->hydrate(UserData::class, [
+    'id' => '123e4567-e89b-12d3-a456-426614174000',
+    'name' => 'John Doe',
+    'email' => 'john@example.com',
+    'totalSpent' => ['amount' => 1500.00, 'currency' => 'EUR'],
+    'createdAt' => '2024-01-01T12:00:00+00:00',
+    'role' => 'admin',
+    'purchasedProducts' => []
+]);
+```
+
+### 10.3. Hydrater une Data depuis JSON
+
+```php
+$json = '{
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "totalSpent": {"amount": 1500.00, "currency": "EUR"},
+    "createdAt": "2024-01-01T12:00:00+00:00",
+    "role": "admin",
+    "purchasedProducts": []
+}';
+
+$userData = $hydration->hydrateFromJson(UserData::class, $json);
+```
+
+### 10.4. Hydrater une collection de Data
+
+```php
+$sources = [
+    ['id' => '...', 'name' => 'John', 'email' => 'john@example.com'],
+    ['id' => '...', 'name' => 'Jane', 'email' => 'jane@example.com'],
+];
+
+$users = $hydration->collect($sources, UserDataCollection::class);
+```
+
+### 10.5. Hydrater une collection depuis JSON
+
+```php
+$json = '[
+    {"id": "...", "name": "John", "email": "john@example.com"},
+    {"id": "...", "name": "Jane", "email": "jane@example.com"}
+]';
+
+$users = $hydration->collectFromJson($json, UserDataCollection::class);
+```
+
+### 10.6. Exemple complet dans un contrôleur
+
+```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\Actions\Http\ResponseFactory;
+
+final class CreateUserAction extends AbstractAction
+{
+    private HydrationService $hydration;
+    
+    public function __construct(
+        private readonly UserService $userService,
+    ) {
+        $this->hydration = new HydrationService();
+    }
+    
+    protected function handle(AbstractRecord $request): ResponseFactory
+    {
+        /** @var CreateUserRecord $request */
+        
+        // Hydrater depuis le Record reçu (qui vient de la Request)
+        $userData = $this->hydration->hydrate(
+            UserData::class,
+            $request->toArray()
+        );
+        
+        // Traitement via le Service
+        $result = $this->userService->create($userData);
+        
+        // Retourner la réponse hydratée
+        return ResponseFactory::json(
+            $this->hydration->hydrate(UserData::class, $result->toArray()),
+            201
+        );
+    }
+}
+```
+
+---
+
+## 11. Collections de Data
+
+### 11.1. Créer une collection spécialisée
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Collections;
+
+use AndyDefer\DomainStructures\Collections\Core\DataCollection;
+use App\Data\UserData;
+
+/**
+ * @extends DataCollection<UserData>
+ */
+final class UserDataCollection extends DataCollection
+{
+    public function __construct()
+    {
+        parent::__construct(UserData::class);
+    }
+    
+    public function getAdmins(): self
+    {
+        return $this->filter(fn(UserData $user) => $user->role === UserRole::ADMIN);
+    }
+    
+    public function getActive(): self
+    {
+        return $this->filter(fn(UserData $user) => $user->status === UserStatus::ACTIVE);
+    }
+}
+```
+
+### 11.2. Utiliser la collection avec HydrationService
+
+```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+
+$hydration = new HydrationService();
+
+// Hydrater une collection depuis des données brutes
+$users = $hydration->collect($userDataArray, UserDataCollection::class);
+
+// Hydrater une collection depuis JSON
+$users = $hydration->collectFromJson($json, UserDataCollection::class);
+
+// Utiliser les méthodes spécifiques
+$admins = $users->getAdmins();
+$activeUsers = $users->getActive();
+```
+
+### 11.3. Transformation Record → Data avec HydrationService
+
+```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+
+final class UserDataTransformer
+{
+    private HydrationService $hydration;
+    
+    public function __construct()
+    {
+        $this->hydration = new HydrationService();
+    }
+    
+    public function fromRecord(UserRecord $record): UserData
+    {
+        return $this->hydration->hydrate(UserData::class, $record->toArray());
+    }
+    
+    public function fromRecordCollection(UserRecordCollection $records): UserDataCollection
+    {
+        $data = array_map(
+            fn($record) => $record->toArray(),
+            $records->toArray()
+        );
+        
+        return $this->hydration->collect($data, UserDataCollection::class);
+    }
+}
+```
+
+---
+
+## 12. Normalisation : camelCase pour l'API
+
+```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
+
+$hydration = new HydrationService();
+
+$userData = $hydration->hydrate(UserData::class, [
+    'id' => '123...',
+    'name' => 'John Doe',
+    'email' => 'john@example.com',
+    'totalSpent' => ['amount' => 1500, 'currency' => 'EUR'],
+    'createdAt' => '2024-01-01T12:00:00+00:00',
+    'role' => 'admin',
+    'purchasedProducts' => []
+]);
 
 $normalized = NormalizerChain::get()->normalize($userData);
 // Résultat :
@@ -563,9 +781,9 @@ $normalized = NormalizerChain::get()->normalize($userData);
 
 ---
 
-## 11. Consommation par les clients
+## 13. Consommation par les clients
 
-### 11.1. TypeScript (Frontend Web)
+### 13.1. TypeScript (Frontend Web)
 
 ```typescript
 // Value Objects miroir
@@ -618,7 +836,7 @@ async function fetchUser(id: string): Promise<UserData> {
 }
 ```
 
-### 11.2. Kotlin (Android)
+### 13.2. Kotlin (Android)
 
 ```kotlin
 // Value Objects miroir
@@ -687,7 +905,7 @@ class UserViewModel(
 }
 ```
 
-### 11.3. Swift (iOS)
+### 13.3. Swift (iOS)
 
 ```swift
 // Value Objects miroir
@@ -767,9 +985,9 @@ class UserViewModel: ObservableObject {
 
 ---
 
-## 12. Bonnes pratiques
+## 14. Bonnes pratiques
 
-### 12.1. Toujours utiliser des Value Objects
+### 14.1. Toujours utiliser des Value Objects
 
 ```php
 // ✅ BON
@@ -783,7 +1001,7 @@ public readonly string $createdAt;
 public readonly float $price;
 ```
 
-### 12.2. Toujours utiliser des collections typées concrètes
+### 14.2. Toujours utiliser des collections typées concrètes
 
 ```php
 // ✅ BON
@@ -796,7 +1014,7 @@ public readonly DataCollection $users;
 public readonly array $products;
 ```
 
-### 12.3. Nommer les propriétés en camelCase
+### 14.3. Nommer les propriétés en camelCase
 
 ```php
 // ✅ BON
@@ -807,7 +1025,47 @@ public readonly Iso8601DateTime $emailVerifiedAt;
 public readonly Iso8601DateTime $created_at;
 ```
 
-### 12.4. Utiliser des Enums pour les valeurs fixes
+### 14.4. Utiliser HydrationService pour l'hydratation
+
+```php
+// ✅ BON - Avec HydrationService
+$hydration = new HydrationService();
+$userData = $hydration->hydrate(UserData::class, $data);
+$users = $hydration->collect($dataArray, UserDataCollection::class);
+
+// ❌ MAUVAIS - Méthodes dépréciées
+$userData = UserData::from($data);
+$users = UserData::collect($dataArray, UserDataCollection::class);
+```
+
+### 14.5. Injecter HydrationService dans les services
+
+```php
+// ✅ BON - Injection de dépendance
+final class UserService
+{
+    private HydrationService $hydration;
+    
+    public function __construct(HydrationService $hydration)
+    {
+        $this->hydration = $hydration;
+    }
+    
+    public function getUserData(array $data): UserData
+    {
+        return $this->hydration->hydrate(UserData::class, $data);
+    }
+}
+
+// ❌ MAUVAIS - Instanciation directe dans la méthode
+public function getUserData(array $data): UserData
+{
+    $hydration = new HydrationService(); // À éviter
+    return $hydration->hydrate(UserData::class, $data);
+}
+```
+
+### 14.6. Utiliser des Enums pour les valeurs fixes
 
 ```php
 // ✅ BON
@@ -819,7 +1077,7 @@ public readonly string $role;
 
 ---
 
-## 13. Récapitulatif des contraintes
+## 15. Récapitulatif des contraintes
 
 | Contrainte | Règle |
 |------------|-------|
@@ -831,14 +1089,19 @@ public readonly string $role;
 | **Propriétés** | `public readonly` |
 | **Nommage** | `camelCase` |
 | **Logique** | ❌ Pas de logique métier |
+| **Hydratation** | ✅ Utiliser `HydrationService` |
 
 ---
 
 ## En résumé : La règle d'or
 
-> **Dans une Data DTO, on ne manipule JAMAIS de types primitifs ni de collections génériques. Chaque donnée est représentée par un concept explicite (Value Object, Enum, Data, ou Collection typée concrète).**
+> **Dans une Data DTO, on ne manipule JAMAIS de types primitifs ni de collections génériques. Chaque donnée est représentée par un concept explicite (Value Object, Enum, Data, ou Collection typée concrète). L'hydratation se fait exclusivement via `HydrationService`.**
 
 ```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+
+$hydration = new HydrationService();
+
 // La Data parfaite - AUCUN type primitif, AUCUNE collection générique !
 final class UserData extends AbstractData
 {
@@ -856,6 +1119,11 @@ final class UserData extends AbstractData
         public readonly UserDataCollection $friends,              // Collection typée concrète
     ) {}
 }
-```
 
-**Résultat :** Une API documentée, type-safe, prédictible, et consommable par n'importe quel client sans ambiguïté.
+// Hydratation
+$userData = $hydration->hydrate(UserData::class, $data);
+$userData = $hydration->hydrateFromJson(UserData::class, $json);
+$users = $hydration->collect($dataArray, UserDataCollection::class);
+$users = $hydration->collectFromJson($json, UserDataCollection::class);
+```
+---

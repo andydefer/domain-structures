@@ -1,27 +1,36 @@
-# DataObject - Documentation Officielle
+# DataObject & StrictDataObject - Documentation Officielle
 
 ## Table des matières
 
-1. [Définition et rôle](#1-définition-et-rôle)
-2. [Pourquoi DataObject ?](#2-pourquoi-dataobject-)
-3. [Normalisation des clés](#3-normalisation-des-clés)
-4. [Conversion des tableaux imbriqués](#4-conversion-des-tableaux-imbriqués)
-5. [Opérations de transformation](#5-opérations-de-transformation)
-6. [Rôle dans Hydratable](#6-rôle-dans-hydratable)
+1. [Présentation](#1-présentation)
+2. [DataObject - Normalisation camelCase](#2-dataobject---normalisation-camelcase)
+3. [StrictDataObject - Préservation de la casse](#3-strictdataobject---préservation-de-la-casse)
+4. [Points communs](#4-points-communs)
+5. [Conversion des tableaux imbriqués](#5-conversion-des-tableaux-imbriqués)
+6. [Opérations de transformation](#6-opérations-de-transformation)
 7. [Rôle dans les réponses API et JSON](#7-rôle-dans-les-réponses-api-et-json)
 8. [API complète](#8-api-complète)
-9. [Exemples concrets](#9-exemples-concrets)
-10. [Ce que DataObject n'est PAS](#10-ce-que-dataobject-nest-pas)
+9. [Exemples concrets avec HydrationService](#9-exemples-concrets-avec-hydrationservice)
+10. [Quand utiliser DataObject vs StrictDataObject](#10-quand-utiliser-dataobject-vs-strictdataobject)
 11. [Récapitulatif](#11-récapitulatif)
 
 ---
 
-## 1. Définition et rôle
+## 1. Présentation
 
-`DataObject` est une classe utilitaire qui **normalise et unifie l'accès aux données** provenant de sources variées (tableaux, objets, JSON). Son rôle principal est de servir de **pont entre les sources de données externes** (API, fichiers, bases NoSQL) et le système d'hydratation automatique (`Hydratable`).
+`DataObject` et `StrictDataObject` sont des classes utilitaires qui **normalisent et unifient l'accès aux données** provenant de sources variées (tableaux, objets, JSON). Leur différence principale réside dans la **normalisation des clés**.
+
+| Classe | Normalisation | Cas d'usage |
+|--------|---------------|-------------|
+| `DataObject` | Convertit snake_case → camelCase | APIs externes, bases de données (convention standard) |
+| `StrictDataObject` | Préserve la casse originale | Données avec clés en PascalCase, UPPER_CASE, ou mixtes |
 
 ```php
 use AndyDefer\DomainStructures\Utils\DataObject;
+use AndyDefer\DomainStructures\Utils\StrictDataObject;
+use AndyDefer\DomainStructures\Services\HydrationService;
+
+$hydration = new HydrationService();
 
 // Source externe (snake_case)
 $apiData = [
@@ -30,140 +39,257 @@ $apiData = [
     'last_name' => 'Doe'
 ];
 
-// Normalisation
-$normalized = DataObject::from($apiData);
+// DataObject : normalise en camelCase
+$normalized = new DataObject($apiData);
+echo $normalized->firstName;  // "John" (camelCase)
+echo $normalized->first_name; // "John" (snake_case aussi accepté)
 
-// Accès unifié
-echo $normalized->id;         // 123
-echo $normalized->first_name; // "John" 
-echo $normalized->lastName;   // "Doe" (camelCase aussi accepté)
+// Hydratation avec HydrationService
+$user = $hydration->hydrate(UserRecord::class, $normalized->toArray());
+
+// StrictDataObject : préserve la casse
+$strict = new StrictDataObject($apiData);
+echo $strict->first_name;     // "John"
+echo $strict->firstName;      // ❌ null (clé non existante)
 ```
 
 ---
 
-## 2. Pourquoi DataObject ?
+## 2. DataObject - Normalisation camelCase
 
-### 2.1. Le problème des sources hétérogènes
+### 2.1. Principe
 
-```php
-// ❌ SANS DataObject - Hydratation manuelle et fragile
-class UserRecord extends AbstractRecord
-{
-    public static function fromApi(array $data): static
-    {
-        return new static(
-            id: $data['id'] ?? 0,
-            firstName: $data['first_name'] ?? '',  // mapping manuel
-            lastName: $data['last_name'] ?? ''     // répétitif
-        );
-    }
-    
-    public static function fromJson(string $json): static
-    {
-        $data = json_decode($json, true);
-        return self::fromApi($data);  // Duplication
-    }
-}
-
-// ✅ AVEC DataObject - Hydratation automatique
-class UserRecord extends AbstractRecord
-{
-    use Hydratable;  // from() fonctionne automatiquement !
-}
-
-// Une seule méthode pour toutes les sources
-$user = UserRecord::from($apiData);           // array
-$user = UserRecord::fromJson($apiJson);       // string JSON (recommandé)
-$user = UserRecord::from($apiObject);         // stdClass
-```
-
-### 2.2. Ce que DataObject résout
-
-| Problème | Solution DataObject |
-|----------|--------------------|
-| Sources multiples (array, object, JSON) | `from()` accepte tout type |
-| Accès sécurisé aux clés | `get()` avec valeur par défaut |
-| Tableaux imbriqués difficiles à manipuler | Conversion récursive en objet |
-| Pas de méthodes utilitaires | `with()`, `merge()`, `without()` |
-
----
-
-## 3. Normalisation des clés
-
-**Fonction principale** : Normalise les clés pour un accès flexible, mais **ne convertit pas** automatiquement snake_case → camelCase pour l'hydratation.
-
-### 3.1. Comportement réel
+`DataObject` **convertit automatiquement** les clés snake_case en camelCase tout en permettant un accès indifférent.
 
 ```php
-// Les clés sont stockées telles quelles
+use AndyDefer\DomainStructures\Utils\DataObject;
+
 $data = new DataObject([
-    'id' => 123,
+    'user_id' => 123,
     'first_name' => 'John',
     'last_name' => 'Doe',
     'email_verified_at' => '2024-01-01'
 ]);
 
-// Accès possible dans les DEUX formats (recherche normalisée)
-echo $data->id;              // 123 (exact match)
-echo $data->first_name;      // "John" (exact match)
-echo $data->firstName;       // "John" (normalisé → first_name)
-echo $data->lastName;        // "Doe" (normalisé → last_name)
+// Stockage interne en camelCase
+$data->toArray();  
+// ['userId' => 123, 'firstName' => 'John', 'lastName' => 'Doe', 'emailVerifiedAt' => '2024-01-01']
 
-// Le DataObject original garde les clés d'origine
-$data->toArray();  // ['id' => 123, 'first_name' => 'John', 'last_name' => 'Doe', 'email_verified_at' => '2024-01-01']
+// Accès possible dans les DEUX formats
+echo $data->userId;           // 123 (camelCase)
+echo $data->user_id;          // 123 (snake_case → camelCase)
+echo $data->firstName;        // "John"
+echo $data->first_name;       // "John" (snake_case → camelCase)
+echo $data->emailVerifiedAt;  // "2024-01-01"
+echo $data->email_verified_at; // "2024-01-01"
 ```
 
-### 3.2. Accès normalisé
+### 2.2. Conversion snake_case → camelCase
 
 ```php
-// Vous pouvez accéder indifféremment en camelCase ou snake_case
+// Règles de conversion
 $data = new DataObject([
-    'user_id' => 123,
-    'user_email' => 'john@example.com'
+    'id' => 1,                    // id → id
+    'user_id' => 2,               // user_id → userId
+    'first_name' => 'John',       // first_name → firstName
+    'email_verified_at' => 'now', // email_verified_at → emailVerifiedAt
+    'HTTP_STATUS' => 200,         // HTTP_STATUS → httpStatus
+    'XML_parser' => 'libxml'      // XML_parser → xmlParser
 ]);
+```
 
-echo $data->userId;      // 123 (trouve user_id)
-echo $data->user_email;  // "john@example.com" (exact match)
-echo $data->userEmail;   // "john@example.com" (trouve user_email)
+### 2.3. Cas d'usage privilégiés
+
+```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+
+$hydration = new HydrationService();
+
+// ✅ APIs externes (convention snake_case)
+$apiResponse = [
+    'user_id' => 123,
+    'first_name' => 'John',
+    'created_at' => '2024-01-01'
+];
+
+$data = new DataObject($apiResponse);
+// Utilisation fluide en camelCase
+$userId = $data->userId;
+$firstName = $data->firstName;
+
+// Hydratation directe
+$user = $hydration->hydrate(UserRecord::class, $data->toArray());
 ```
 
 ---
 
-## 4. Conversion des tableaux imbriqués
+## 3. StrictDataObject - Préservation de la casse
 
-Les tableaux associatifs imbriqués sont automatiquement convertis en `DataObject`.
+### 3.1. Principe
+
+`StrictDataObject` **préserve exactement** les clés telles qu'elles sont fournies.
 
 ```php
+use AndyDefer\DomainStructures\Utils\StrictDataObject;
+
+$data = new StrictDataObject([
+    'user_id' => 123,
+    'firstName' => 'John',
+    'UserName' => 'johndoe',
+    'UPPER_CASE_KEY' => 'value',
+    'PascalCaseKey' => 'pascal'
+]);
+
+// Stockage interne identique à l'original
+$data->toArray();  
+// ['user_id' => 123, 'firstName' => 'John', 'UserName' => 'johndoe', 'UPPER_CASE_KEY' => 'value', 'PascalCaseKey' => 'pascal']
+
+// Accès STRICT - uniquement la clé exacte
+echo $data->user_id;        // 123
+echo $data->firstName;      // "John"
+echo $data->UserName;       // "johndoe"
+echo $data->UPPER_CASE_KEY; // "value"
+
+// ❌ Pas d'accès normalisé
+echo $data->UserId;         // null (n'existe pas)
+echo $data->userName;       // null (n'existe pas)
+```
+
+### 3.2. Cas d'usage privilégiés
+
+```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+
+$hydration = new HydrationService();
+
+// ✅ Données avec clés en PascalCase
+$pascalCaseData = [
+    'UserId' => 123,
+    'FirstName' => 'John',
+    'CreatedAt' => '2024-01-01'
+];
+
+$data = new StrictDataObject($pascalCaseData);
+echo $data->UserId;     // 123
+echo $data->FirstName;  // "John"
+
+// ✅ Données avec clés en UPPER_CASE
+$envData = [
+    'DB_HOST' => 'localhost',
+    'DB_PORT' => 3306,
+    'APP_ENV' => 'production'
+];
+
+$config = new StrictDataObject($envData);
+echo $config->DB_HOST;  // "localhost"
+echo $config->DB_PORT;  // 3306
+
+// ✅ Données avec casse mixte à préserver
+$mixedCaseData = [
+    'userID' => 123,
+    'User_Name' => 'john_doe',
+    'emailAddress' => 'john@example.com'
+];
+
+$data = new StrictDataObject($mixedCaseData);
+// Toutes les clés restent exactement comme fournies
+```
+
+---
+
+## 4. Points communs
+
+### 4.1. Héritage commun
+
+Les deux classes héritent de `AbstractDataObject` et partagent les mêmes fonctionnalités de base.
+
+```php
+// Toutes deux supportent :
+// - Accès par propriété (->)
+// - Accès par tableau ([])
+// - Méthodes with(), merge(), without()
+// - Conversion récursive des tableaux imbriqués
+```
+
+### 4.2. Création d'instance
+
+```php
+use AndyDefer\DomainStructures\Utils\DataObject;
+use AndyDefer\DomainStructures\Utils\StrictDataObject;
+
+// À partir d'un tableau
+$data1 = new DataObject(['key' => 'value']);
+$data2 = new StrictDataObject(['key' => 'value']);
+
+// À partir d'un objet existant
+$data3 = new DataObject($existingObject);
+$data4 = new StrictDataObject($existingObject);
+
+// À partir de JSON (via utilitaire)
+$json = '{"key":"value"}';
+$data5 = DataObject::fromJson($json);
+$data6 = StrictDataObject::fromJson($json);
+```
+
+### 4.3. Immutabilité
+
+Les deux classes sont **immutables** : les modifications créent de nouvelles instances.
+
+```php
+$original = new DataObject(['name' => 'John', 'age' => 30]);
+
+$modified = $original->with('age', 31);
+$merged = $original->merge(['email' => 'john@example.com']);
+$reduced = $original->without('age');
+
+// L'original reste inchangé
+echo $original->age;  // 30
+echo $modified->age;  // 31
+```
+
+---
+
+## 5. Conversion des tableaux imbriqués
+
+Les deux classes convertissent récursivement les tableaux associatifs imbriqués en instances de la même classe.
+
+```php
+use AndyDefer\DomainStructures\Utils\DataObject;
+use AndyDefer\DomainStructures\Utils\StrictDataObject;
+
+// DataObject convertit récursivement en DataObject
 $data = new DataObject([
     'user' => [
         'profile' => [
-            'name' => 'John',
-            'email' => 'john@example.com'
+            'first_name' => 'John',
+            'last_name' => 'Doe'
         ]
     ],
-    'tags' => ['premium', 'vip'],  // Liste indexée → reste array
-    'metadata' => [
-        'created_at' => '2024-01-01',
-        'updated_at' => '2024-01-02'
+    'tags' => ['premium', 'vip']  // Liste indexée → reste array
+]);
+
+echo $data->user->profile->firstName;  // "John" (camelCase)
+$data->user instanceof DataObject;     // true
+
+// StrictDataObject convertit récursivement en StrictDataObject
+$strict = new StrictDataObject([
+    'user' => [
+        'profile' => [
+            'first_name' => 'John',
+            'last_name' => 'Doe'
+        ]
     ]
 ]);
 
-// Accès fluide
-echo $data->user->profile->name;        // "John"
-echo $data['user']['profile']['email']; // "john@example.com"
-echo $data->metadata->created_at;       // "2024-01-01"
-
-// Types
-$data->user instanceof DataObject;      // true
-$data->user->profile instanceof DataObject; // true
-is_array($data->tags);                  // true (liste conservée)
+echo $strict->user->profile->first_name;  // "John" (casse préservée)
+$strict->user instanceof StrictDataObject; // true
 ```
 
 ---
 
-## 5. Opérations de transformation
+## 6. Opérations de transformation
 
-DataObject fournit des méthodes pour créer de nouvelles instances modifiées.
+Les deux classes fournissent les mêmes méthodes pour créer de nouvelles instances modifiées.
 
 ```php
 $user = new DataObject(['name' => 'John', 'age' => 30]);
@@ -180,151 +306,57 @@ $merged = $user->merge([
 
 // without() - Supprimer des propriétés
 $reduced = $user->without('email', 'age');
-
-// L'original reste inchangé
-echo $user->age;     // 30
-echo $updated->age;  // 31
-```
-
----
-
-## 6. Rôle dans Hydratable
-
-**C'est l'utilisation la plus importante de DataObject.** Le trait `Hydratable` utilise DataObject pour normaliser les sources avant hydratation.
-
-### 6.1. Comment ça fonctionne
-
-```php
-trait Hydratable
-{
-    public static function from(mixed $source): static
-    {
-        // 1. DataObject normalise TOUTE source
-        $dataObject = DataObject::from($source);
-        
-        // 2. Analyse du constructeur
-        foreach ($constructor->getParameters() as $parameter) {
-            $paramName = $parameter->getName();
-            
-            // 3. Récupération de la valeur (normalisée)
-            $rawValue = self::getValueFromDataObject($dataObject, $paramName);
-            
-            // 4. Conversion et assignation
-            $parameters[] = self::convertToType($rawValue, $paramType);
-        }
-        
-        return new static(...$parameters);
-    }
-    
-    public static function fromJson(string $json): static
-    {
-        $data = json_decode($json, true);
-        
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new RuntimeException(sprintf('Invalid JSON: %s', json_last_error_msg()));
-        }
-        
-        return static::from($data);
-    }
-}
-```
-
-### 6.2. Exemple concret
-
-```php
-use AndyDefer\DomainStructures\Traits\Hydratable;
-
-class ProductRecord extends AbstractRecord
-{
-    use Hydratable;
-    
-    public function __construct(
-        public readonly int $id,
-        public readonly string $name,
-        public readonly float $price
-    ) {}
-}
-
-// Source externe
-$apiData = [
-    'id' => 123,
-    'name' => 'Laptop',
-    'price' => 999.99
-];
-
-// Hydratation automatique
-$product = ProductRecord::from($apiData);
 ```
 
 ---
 
 ## 7. Rôle dans les réponses API et JSON
 
-### 7.1. Les 3 bonnes méthodes d'hydratation depuis JSON
+### 7.1. Hydratation depuis JSON avec HydrationService
 
 ```php
-// Réponse API (JSON)
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\DomainStructures\Utils\DataObject;
+use AndyDefer\DomainStructures\Utils\StrictDataObject;
+
+$hydration = new HydrationService();
+
+// Réponse API (JSON) avec snake_case
 $jsonResponse = '{
     "id": 123,
     "first_name": "John",
     "email_verified_at": "2024-01-01T12:00:00+00:00"
 }';
 
-// Méthode 1 : Décodage manuel + from()
+// Méthode 1 : hydrateFromJson() (RECOMMANDÉ)
+$user = $hydration->hydrateFromJson(UserRecord::class, $jsonResponse);
+
+// Méthode 2 : Décodage manuel + hydrate()
 $data = json_decode($jsonResponse, true);
-$user = TestUserNullableRecord::from($data);
+$user = $hydration->hydrate(UserRecord::class, $data);
 
-// Méthode 2 : Via DataObject
-$user = TestUserNullableRecord::from(DataObject::fromJson($jsonResponse));
+// Méthode 3 : Via DataObject (normalisation camelCase)
+$dataObject = new DataObject(json_decode($jsonResponse, true));
+$user = $hydration->hydrate(UserRecord::class, $dataObject->toArray());
 
-// Méthode 3 : Via Hydratable (RECOMMANDÉ)
-$user = TestUserNullableRecord::fromJson($jsonResponse);
+// Méthode 4 : Via StrictDataObject (casse préservée)
+$strictObject = new StrictDataObject(json_decode($jsonResponse, true));
+$user = $hydration->hydrate(UserRecord::class, $strictObject->toArray());
 ```
 
-### 7.2. Pourquoi la méthode 3 est recommandée
+### 7.2. Collection depuis JSON
 
 ```php
-// La méthode fromJson() offerte par Hydratable :
-// 1. Valide le JSON
-// 2. Décode automatiquement
-// 3. Gère les erreurs
-// 4. Une ligne de code
+use AndyDefer\DomainStructures\Services\HydrationService;
 
-// À utiliser pour TOUTE donnée JSON
-$user = UserRecord::fromJson($jsonResponse);
-$products = ProductRecord::collect($productsJson, ProductCollection::class);
-```
+$hydration = new HydrationService();
 
-### 7.3. APIs externes
+$jsonResponse = '[
+    {"id": 1, "name": "Product A", "price": 99.99},
+    {"id": 2, "name": "Product B", "price": 149.99}
+]';
 
-```php
-class ExternalApiService
-{
-    public function getUser(int $id): UserRecord
-    {
-        // Appel API externe
-        $response = $this->httpClient->get("/users/{$id}");
-        
-        // Hydratation directe depuis JSON (recommandé)
-        return UserRecord::fromJson($response);
-    }
-    
-    public function getProducts(): ProductCollection
-    {
-        $response = $this->httpClient->get('/products');
-        
-        // Collection automatique depuis JSON
-        return ProductRecord::collect($response, ProductCollection::class);
-    }
-    
-    public function createUser(array $data): UserRecord
-    {
-        $response = $this->httpClient->post('/users', ['json' => $data]);
-        
-        // Hydratation depuis la réponse
-        return UserRecord::fromJson($response);
-    }
-}
+$products = $hydration->collectFromJson($jsonResponse, ProductCollection::class);
 ```
 
 ---
@@ -335,25 +367,16 @@ class ExternalApiService
 
 ```php
 /**
- * @param array<string|int, mixed> $data
+ * @param array<string|int, mixed>|object $data
  */
-public function __construct(array $data = [])
+public function __construct(array|object $data = [])
 ```
 
 ### 8.2. Méthodes statiques
 
 ```php
-// Crée une instance depuis n'importe quelle source
-public static function from(mixed $source): static
-
 // Crée une instance depuis JSON
 public static function fromJson(string $json): static
-
-// Hydrate une collection d'objets
-public static function collect(
-    iterable $sources, 
-    string $collectionClass = TypedCollection::class
-): AbstractTypedCollection
 ```
 
 ### 8.3. Méthodes d'instance
@@ -378,279 +401,350 @@ public function __toString(): string
 public function offsetExists(mixed $offset): bool
 public function offsetGet(mixed $offset): mixed
 ```
+
 ---
 
-## 9. Exemples concrets
+## 9. Exemples concrets avec HydrationService
 
-### 9.1. API REST complète
+### 9.1. API externe en snake_case
 
 ```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\DomainStructures\Utils\DataObject;
+
 class UserController
 {
-    public function store(Request $request): JsonResponse
+    private HydrationService $hydration;
+    
+    public function __construct()
     {
-        // 1. Récupération du JSON brut
-        $json = $request->getContent();
-        
-        // 2. Hydratation directe (recommandé)
-        $user = UserRecord::fromJson($json);
-        
-        // 3. Validation métier
-        $this->validateUser($user);
-        
-        // 4. Sauvegarde
-        $saved = $this->userRepository->save($user);
-        
-        // 5. Retour API
-        return response()->json($saved->toArray());
+        $this->hydration = new HydrationService();
     }
     
-    public function update(int $id, Request $request): JsonResponse
+    public function fetchUser(int $id): UserRecord
     {
-        $json = $request->getContent();
-        $data = json_decode($json, true);
+        // API externe renvoie du snake_case
+        $response = $this->httpClient->get("/users/{$id}");
+        $data = json_decode($response, true);
         
-        // Mise à jour partielle
-        $existing = $this->userRepository->find($id);
-        $updated = $existing->withData(DataObject::from($data));
+        // DataObject normalise en camelCase pour l'hydratation
+        $dataObject = new DataObject($data);
         
-        return response()->json($updated->toArray());
+        return $this->hydration->hydrate(UserRecord::class, $dataObject->toArray());
+    }
+    
+    public function fetchUsers(): UserCollection
+    {
+        $response = $this->httpClient->get('/users');
+        return $this->hydration->collectFromJson($response, UserCollection::class);
     }
 }
 ```
 
-### 9.2. Import CSV
+### 9.2. Configuration en UPPER_CASE
 
 ```php
-class CsvImporter
-{
-    public function import(string $filePath): ProductCollection
-    {
-        $rows = array_map('str_getcsv', file($filePath));
-        $headers = array_shift($rows);
-        
-        $products = [];
-        foreach ($rows as $row) {
-            $data = array_combine($headers, $row);
-            $products[] = ProductRecord::from($data);
-        }
-        
-        return ProductRecord::collect($products);
-    }
-}
-```
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\DomainStructures\Utils\StrictDataObject;
 
-### 9.3. Configuration flexible
-
-```php
-class AppConfig
+class DatabaseConfig
 {
-    private DataObject $config;
+    private StrictDataObject $config;
+    private HydrationService $hydration;
     
     public function __construct(array $config)
     {
-        $this->config = new DataObject($config);
+        $this->hydration = new HydrationService();
+        // Préserve les clés UPPER_CASE
+        $this->config = new StrictDataObject($config);
     }
     
-    public function getDatabaseDsn(): string
+    public function getHost(): string
     {
-        return sprintf(
-            'mysql:host=%s;port=%s;dbname=%s',
-            $this->config->get('database.host', 'localhost'),
-            $this->config->get('database.port', 3306),
-            $this->config->get('database.name', 'app')
+        return $this->config->DB_HOST;
+    }
+    
+    public function getPort(): int
+    {
+        return $this->config->DB_PORT;
+    }
+    
+    public function toConfigRecord(): DatabaseConfigRecord
+    {
+        return $this->hydration->hydrate(
+            DatabaseConfigRecord::class,
+            $this->config->toArray()
         );
     }
-    
-    public static function fromJsonFile(string $path): self
-    {
-        $json = file_get_contents($path);
-        $config = DataObject::fromJson($json);
-        
-        return new self($config->toArray());
-    }
 }
+
+// Utilisation
+$config = new DatabaseConfig(parse_ini_file('.env'));
+echo $config->getHost();  // localhost
 ```
 
-### 9.4. Webhook handler
+### 9.3. Transformation avant hydratation
 
 ```php
-class WebhookController
-{
-    public function handle(Request $request): JsonResponse
-    {
-        // Récupération du payload JSON
-        $payload = $request->getContent();
-        
-        // Hydratation selon le type d'événement
-        $event = WebhookEvent::fromJson($payload);
-        
-        match ($event->type) {
-            'user.created' => $this->handleUserCreated($event->data),
-            'order.paid' => $this->handleOrderPaid($event->data),
-            default => $this->handleUnknown($event)
-        };
-        
-        return response()->json(['status' => 'ok']);
-    }
-    
-    private function handleUserCreated(DataObject $data): void
-    {
-        $user = UserRecord::from($data->toArray());
-        $this->userService->syncFromWebhook($user);
-    }
-}
-```
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\DomainStructures\Utils\DataObject;
 
-### 9.5. Transformation de données
-
-```php
 class DataEnricher
 {
-    public function enrich(DataObject $source): DataObject
+    private HydrationService $hydration;
+    
+    public function __construct()
     {
-        return $source
-            ->with('id', (int) $source->id)
-            ->with('email', strtolower($source->email))
-            ->with('full_name', trim($source->first_name . ' ' . $source->last_name))
-            ->with('created_at', new DateTimeImmutable())
-            ->without('temporary_field', 'debug_info');
+        $this->hydration = new HydrationService();
+    }
+    
+    public function enrichAndHydrate(array $source, string $targetClass): object
+    {
+        $dataObject = new DataObject($source);
+        
+        $enriched = $dataObject
+            ->with('id', (int) $dataObject->id)
+            ->with('email', strtolower($dataObject->email))
+            ->with('full_name', trim($dataObject->first_name . ' ' . $dataObject->last_name))
+            ->without('temporary_field');
+        
+        return $this->hydration->hydrate($targetClass, $enriched->toArray());
+    }
+    
+    public function enrichAndCollect(array $sources, string $collectionClass): AbstractTypedCollection
+    {
+        $enriched = array_map(function($source) {
+            $dataObject = new DataObject($source);
+            return $dataObject
+                ->with('id', (int) $dataObject->id)
+                ->without('temporary_field')
+                ->toArray();
+        }, $sources);
+        
+        return $this->hydration->collect($enriched, $collectionClass);
     }
 }
+```
 
-$rawData = new DataObject([
-    'id' => '123',
-    'first_name' => '  John  ',
-    'last_name' => 'Doe',
-    'email' => 'JOHN@EXAMPLE.COM',
-    'temporary_field' => 'temp'
-]);
+### 9.4. Webhook avec casse mixte
 
-$enriched = $enricher->enrich($rawData);
-$user = UserRecord::from($enriched->toArray());
+```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\DomainStructures\Utils\StrictDataObject;
+
+class WebhookHandler
+{
+    private HydrationService $hydration;
+    
+    public function __construct()
+    {
+        $this->hydration = new HydrationService();
+    }
+    
+    public function handle(string $payload): void
+    {
+        $data = json_decode($payload, true);
+        
+        // StrictDataObject préserve la casse du webhook
+        $webhookData = new StrictDataObject($data);
+        
+        // Accès avec la casse exacte du webhook
+        $eventType = $webhookData->event_type;
+        $userId = $webhookData->userId;
+        $timestamp = $webhookData->TIMESTAMP;
+        
+        $event = $this->hydration->hydrate(WebhookEvent::class, $webhookData->toArray());
+        $this->processEvent($event);
+    }
+}
+```
+
+### 9.5. Service complet avec HydrationService
+
+```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\DomainStructures\Utils\DataObject;
+
+class ProductService
+{
+    private HydrationService $hydration;
+    
+    public function __construct()
+    {
+        $this->hydration = new HydrationService();
+    }
+    
+    public function createFromApi(array $apiData): ProductRecord
+    {
+        // Normalisation des données API
+        $normalized = new DataObject($apiData);
+        
+        // Enrichissement
+        $enriched = $normalized
+            ->with('price', (float) $normalized->price)
+            ->with('stock', (int) ($normalized->stock ?? 0))
+            ->with('created_at', new DateTimeImmutable()->format('Y-m-d H:i:s'));
+        
+        // Hydratation
+        return $this->hydration->hydrate(ProductRecord::class, $enriched->toArray());
+    }
+    
+    public function importFromJson(string $json): ProductCollection
+    {
+        return $this->hydration->collectFromJson($json, ProductCollection::class);
+    }
+    
+    public function updateFromJson(int $id, string $json): ProductRecord
+    {
+        $existing = $this->find($id);
+        $data = json_decode($json, true);
+        $dataObject = new DataObject($data);
+        
+        $merged = $existing->toArray();
+        $merged = array_merge($merged, $dataObject->toArray());
+        
+        return $this->hydration->hydrate(ProductRecord::class, $merged);
+    }
+}
 ```
 
 ---
 
-## 10. Ce que DataObject n'est PAS
+## 10. Quand utiliser DataObject vs StrictDataObject
 
-### 10.1. ❌ Pas un mécanisme d'immutabilité
+### 10.1. Utilisez DataObject quand :
 
-```php
-// DataObject ne protège PAS les objets imbriqués
-$nestedObject = new stdClass();
-$nestedObject->value = 42;
-
-$data = new DataObject(['nested' => $nestedObject]);
-
-// ⚠️ Ceci est possible !
-$data->nested->value = 100;  // Modifie l'objet imbriqué !
-
-// La seule protection concerne l'assignation directe
-$data->newProperty = 'value';  // ❌ RuntimeException
-```
-
-### 10.2. ❌ Pas un Value Object
+| Situation | Exemple |
+|-----------|---------|
+| API externes en snake_case | `first_name`, `user_id`, `created_at` |
+| Bases de données conventionnelles | `last_login_at`, `is_active` |
+| Vous voulez un accès unifié camelCase | `$data->firstName`, `$data->userId` |
+| Vous travaillez avec des DTO standards | Données JSON classiques |
 
 ```php
-// DataObject n'a pas d'égalité structurelle
-$data1 = new DataObject(['name' => 'John']);
-$data2 = new DataObject(['name' => 'John']);
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\DomainStructures\Utils\DataObject;
 
-$data1 == $data2;   // false (pas de comparaison structurelle)
-$data1 === $data2;  // false (instances différentes)
+$hydration = new HydrationService();
+
+// ✅ Bon usage de DataObject
+$apiData = ['first_name' => 'John', 'last_name' => 'Doe'];
+$data = new DataObject($apiData);
+echo $data->firstName;  // "John"
+
+$user = $hydration->hydrate(UserRecord::class, $data->toArray());
 ```
 
-### 10.3. ❌ Pas un Record métier
+### 10.2. Utilisez StrictDataObject quand :
+
+| Situation | Exemple |
+|-----------|---------|
+| Clés en PascalCase | `UserId`, `FirstName`, `CreatedAt` |
+| Clés en UPPER_CASE | `DB_HOST`, `API_KEY`, `MAX_RETRIES` |
+| Clés avec casse mixte spécifique | `userID`, `XMLparser`, `HTTP_STATUS` |
+| Vous devez préserver exactement les clés | Configuration, variables d'environnement |
 
 ```php
-// Pour les entités métier, utilisez AbstractRecord
-// Pour les Value Objects, utilisez AbstractValueObject
-// Pour les DTO, utilisez AbstractData
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\DomainStructures\Utils\StrictDataObject;
 
-// DataObject est UNIQUEMENT pour :
-// - Normalisation de sources externes
-// - Pont entre API et hydratation
-// - Configuration dynamique
+$hydration = new HydrationService();
+
+// ✅ Bon usage de StrictDataObject
+$pascalData = ['UserId' => 123, 'FirstName' => 'John'];
+$strict = new StrictDataObject($pascalData);
+echo $strict->UserId;     // 123
+echo $strict->FirstName;  // "John"
+
+$envData = ['DB_HOST' => 'localhost', 'DB_PORT' => 3306];
+$config = new StrictDataObject($envData);
+echo $config->DB_HOST;  // "localhost"
+
+$configRecord = $hydration->hydrate(DatabaseConfig::class, $config->toArray());
 ```
+
+### 10.3. Tableau comparatif
+
+| Caractéristique | DataObject | StrictDataObject |
+|-----------------|------------|------------------|
+| Normalisation camelCase | ✅ Oui | ❌ Non |
+| Préserve la casse originale | ❌ Non | ✅ Oui |
+| Accès snake_case → camelCase | ✅ Oui | ❌ Non |
+| Accès camelCase → camelCase | ✅ Oui | ✅ Oui (si clé exacte) |
+| Accès UPPER_CASE | → lowercase | ✅ Exact |
+| Idéal pour APIs externes | ✅ Oui | ❌ Non |
+| Idéal pour configurations | ❌ Non | ✅ Oui |
 
 ---
 
 ## 11. Récapitulatif
 
-### 11.1. Ce que DataObject fait
+### 11.1. Ce que DataObject et StrictDataObject font
 
-| Fonctionnalité | Support |
-|----------------|---------|
-| Normalisation de l'accès (camelCase/snake_case) | ✅ Oui |
-| Conversion tableaux imbriqués → DataObject | ✅ Oui |
-| Méthodes with(), merge(), without() | ✅ Oui |
-| Accès par propriété (->) | ✅ Oui |
-| Accès par tableau ([]) | ✅ Oui |
-| get() avec valeur par défaut | ✅ Oui |
-| Support JSON via fromJson() | ✅ Oui |
-| Intégration avec Hydratable | ✅ Oui |
+| Fonctionnalité | DataObject | StrictDataObject |
+|----------------|------------|------------------|
+| Accès par propriété (->) | ✅ Oui | ✅ Oui |
+| Accès par tableau ([]) | ✅ Oui | ✅ Oui |
+| Conversion tableaux imbriqués | ✅ Oui (même classe) | ✅ Oui (même classe) |
+| Méthodes with/merge/without | ✅ Oui | ✅ Oui |
+| Immutabilité | ✅ Oui | ✅ Oui |
+| get() avec valeur par défaut | ✅ Oui | ✅ Oui |
 
-### 11.2. Ce que DataObject ne fait PAS
-
-| Fonctionnalité | Support |
-|----------------|---------|
-| Immutabilité totale | ❌ Non |
-| Protection des objets imbriqués | ❌ Non |
-| Égalité structurelle | ❌ Non |
-| Validation de données | ❌ Non |
-| Type-safety forte | ❌ Non |
-| Conversion automatique snake_case → camelCase | ❌ Non (seulement accès normalisé) |
-
-### 11.3. Bonnes pratiques pour l'hydratation JSON
+### 11.2. Bonnes pratiques avec HydrationService
 
 ```php
-// ✅ RECOMMANDÉ - Utiliser fromJson() directement
-$user = UserRecord::fromJson($jsonResponse);
+use AndyDefer\DomainStructures\Services\HydrationService;
 
-// ✅ ACCEPTABLE - Décodage manuel si besoin de validation
-$data = json_decode($jsonResponse, true);
-if (json_last_error() === JSON_ERROR_NONE) {
-    $user = UserRecord::from($data);
-}
+$hydration = new HydrationService();
 
-// ✅ ACCEPTABLE - Via DataObject si besoin de normalisation
-$user = UserRecord::from(DataObject::fromJson($jsonResponse));
+// ✅ RECOMMANDÉ - hydrateFromJson() direct
+$user = $hydration->hydrateFromJson(UserRecord::class, $jsonResponse);
+$products = $hydration->collectFromJson($jsonResponse, ProductCollection::class);
 
-// ❌ À ÉVITER - Passer JSON directement à from() (ne fonctionne pas)
-$user = UserRecord::from($jsonResponse);  // String JSON != array
+// ✅ ACCEPTABLE - via DataObject si besoin normalisation
+$dataObject = new DataObject(json_decode($jsonResponse, true));
+$user = $hydration->hydrate(UserRecord::class, $dataObject->toArray());
+
+// ✅ ACCEPTABLE - via StrictDataObject si préservation casse
+$strictObject = new StrictDataObject(json_decode($jsonResponse, true));
+$config = $hydration->hydrate(ConfigRecord::class, $strictObject->toArray());
+
+// ✅ Pour les collections
+$users = $hydration->collect($dataArray, UserCollection::class);
 ```
 
-### 11.4. Quand utiliser DataObject
+### 11.3. Points clés à retenir
 
-✅ **À utiliser pour :**
-- Sources externes (API, fichiers, bases NoSQL)
-- Configuration dynamique
-- Données temporaires non structurées
-- Pont avec Hydratable
-
-❌ **À éviter pour :**
-- Entités métier (utilisez `AbstractRecord`)
-- Value Objects (utilisez `AbstractValueObject`)
-- DTO structurés (utilisez `AbstractData`)
-- Collections typées (utilisez `TypedCollection`)
+1. **DataObject** = normalisation camelCase → APIs externes
+2. **StrictDataObject** = préservation de la casse → configurations, clés spécifiques
+3. Les deux sont **immutables** → `with()`, `merge()`, `without()` créent de nouvelles instances
+4. Les deux convertissent récursivement les tableaux imbriqués
+5. Utilisez **HydrationService** pour l'hydratation des objets métier (items et collections)
+6. **Plus d'utilisation de `::from()`** → utilisez `new DataObject()` ou `new StrictDataObject()`
 
 ---
 
 ## 12. Conclusion
 
-**DataObject est un normalisateur d'accès aux données, pas un convertisseur automatique de casse.**
+**DataObject** et **StrictDataObject** sont des normalisateurs d'accès aux données avec des stratégies de normalisation différentes.
 
-Son rôle unique et essentiel dans l'architecture est de :
-1. **Normaliser l'accès** (accès indifférent camelCase/snake_case)
-2. **Unifier les sources** (array, object)
-3. **Permettre l'hydratation automatique** via `Hydratable`
-4. **Servir de pont** entre le monde externe (API, fichiers) et le domaine
+- **DataObject** : Idéal pour les APIs externes (snake_case → camelCase)
+- **StrictDataObject** : Idéal pour les configurations et données avec casse spécifique
 
-### Points clés à retenir :
+Les deux servent de pont entre le monde externe (API, fichiers) et **HydrationService**, sans remplacer les objets métier (`AbstractRecord`, `AbstractValueObject`, etc.).
 
-- DataObject **ne convertit pas** les clés snake_case en camelCase automatiquement
-- DataObject **permet un accès normalisé** (les deux fonctionnent)
-- `Hydratable::fromJson()` est la méthode **recommandée** pour les réponses API
-- DataObject **n'est pas immutable** - seules les assignations directes sont bloquées
-- Pour l'hydratation JSON, utilisez toujours `fromJson()` pas `from()`
+```php
+// Flux complet recommandé
+$json = '{"first_name":"John","last_name":"Doe"}';
+$hydration = new HydrationService();
+
+// Étape 1 : Normalisation (optionnelle)
+$dataObject = new DataObject(json_decode($json, true));
+
+// Étape 2 : Hydratation
+$user = $hydration->hydrate(UserRecord::class, $dataObject->toArray());
+
+// Ou directement
+$user = $hydration->hydrateFromJson(UserRecord::class, $json);
+```
+---

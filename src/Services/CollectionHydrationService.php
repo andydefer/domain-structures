@@ -6,29 +6,20 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Services;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
-use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
-use AndyDefer\DomainStructures\Abstracts\AbstractData;
-use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
-use AndyDefer\DomainStructures\Abstracts\AbstractDataObject;
+use AndyDefer\DomainStructures\Configs\CollectionFamilyConfig;
 use AndyDefer\DomainStructures\Enums\PhpType;
 use InvalidArgumentException;
 use RuntimeException;
-use UnitEnum;
 
 final class CollectionHydrationService
 {
-    private const FAMILY_ENUM = UnitEnum::class;
-    private const FAMILY_VALUE_OBJECT = AbstractValueObject::class;
-    private const FAMILY_DATA = AbstractData::class;
-    private const FAMILY_RECORD = AbstractRecord::class;
-    private const FAMILY_DATA_OBJECT = AbstractDataObject::class;
-    private const FAMILY_SCALAR = 'scalar';
-
     private ItemHydrationService $itemHydrationService;
+    private CollectionFamilyConfig $familyConfig;
 
-    public function __construct(?ItemHydrationService $itemHydrationService = null)
+    public function __construct()
     {
-        $this->itemHydrationService = $itemHydrationService ?? new ItemHydrationService();
+        $this->itemHydrationService = new ItemHydrationService();
+        $this->familyConfig = new CollectionFamilyConfig();
     }
 
     public function collect(
@@ -65,7 +56,7 @@ final class CollectionHydrationService
             ));
         }
 
-        // ✅ Vérifier la cohérence des familles (incluant les scalaires)
+        // Vérifier la cohérence des familles (incluant les scalaires)
         $this->validateFamilyConsistency($allowedTypes);
 
         $collection = new $collectionClass();
@@ -125,7 +116,7 @@ final class CollectionHydrationService
             $family = $this->getFamily($type);
 
             // Pour les scalaires, on utilise le type exact comme identifiant de famille
-            if ($family === self::FAMILY_SCALAR) {
+            if ($family === $this->familyConfig->scalar()) {
                 $family = $type; // 'int', 'string', 'float', 'bool', 'null'
             }
 
@@ -137,13 +128,7 @@ final class CollectionHydrationService
         if (count($uniqueFamilies) > 1) {
             $familyGroups = [];
             foreach ($families as $type => $family) {
-                $familyName = $family;
-                if ($family === self::FAMILY_ENUM) $familyName = 'Enum';
-                if ($family === self::FAMILY_VALUE_OBJECT) $familyName = 'ValueObject';
-                if ($family === self::FAMILY_DATA) $familyName = 'Data';
-                if ($family === self::FAMILY_RECORD) $familyName = 'Record';
-                if ($family === self::FAMILY_DATA_OBJECT) $familyName = 'DataObject';
-
+                $familyName = $this->familyConfig->getDisplayName($family);
                 $familyGroups[$familyName][] = $type;
             }
 
@@ -169,29 +154,29 @@ final class CollectionHydrationService
     {
         // Vérifier les types scalaires
         if (in_array($type, PhpType::getScalarTypeNames(), true)) {
-            return self::FAMILY_SCALAR;
+            return $this->familyConfig->scalar();
         }
 
         // Vérifier les énumérations
         if (enum_exists($type)) {
-            return self::FAMILY_ENUM;
+            return $this->familyConfig->enum();
         }
 
         // Vérifier les abstractions de domaine
-        if (is_subclass_of($type, AbstractDataObject::class)) {
-            return self::FAMILY_DATA_OBJECT;
+        if (is_subclass_of($type, $this->familyConfig->dataObject())) {
+            return $this->familyConfig->dataObject();
         }
 
-        if (is_subclass_of($type, AbstractRecord::class)) {
-            return self::FAMILY_RECORD;
+        if (is_subclass_of($type, $this->familyConfig->record())) {
+            return $this->familyConfig->record();
         }
 
-        if (is_subclass_of($type, AbstractData::class)) {
-            return self::FAMILY_DATA;
+        if (is_subclass_of($type, $this->familyConfig->data())) {
+            return $this->familyConfig->data();
         }
 
-        if (is_subclass_of($type, AbstractValueObject::class)) {
-            return self::FAMILY_VALUE_OBJECT;
+        if (is_subclass_of($type, $this->familyConfig->valueObject())) {
+            return $this->familyConfig->valueObject();
         }
 
         throw new InvalidArgumentException(sprintf(

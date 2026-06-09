@@ -1,7 +1,3 @@
-Voici le document mis à jour avec les nouvelles méthodes `mapPreserveType` et `mapToType`, la correction du test d'exception, et la version corrigée du test `ScalarTypedCollectionTest` :
-
----
-
 # TypedCollection - Documentation du Package
 
 ## Table des matières
@@ -19,9 +15,10 @@ Voici le document mis à jour avec les nouvelles méthodes `mapPreserveType` et 
 11. [Méthodes de recherche et manipulation avancées](#11-méthodes-de-recherche-et-manipulation-avancées)
 12. [Les trois méthodes Map](#12-les-trois-méthodes-map)
 13. [Créer une collection spécialisée](#13-créer-une-collection-spécialisée)
-14. [Hydratation et normalisation](#14-hydratation-et-normalisation)
-15. [Exemples complets](#15-exemples-complets)
-16. [Récapitulatif des contraintes](#16-récapitulatif-des-contraintes)
+14. [Hydratation avec HydrationService](#14-hydratation-avec-hydrationservice)
+15. [Normalisation](#15-normalisation)
+16. [Exemples complets](#16-exemples-complets)
+17. [Récapitulatif des contraintes](#17-récapitulatif-des-contraintes)
 
 ---
 
@@ -42,6 +39,10 @@ TypedCollection → Collection type-safe → Remplacement des tableaux bruts
 ### 2.1. Le problème des tableaux bruts
 
 ```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+
+$hydration = new HydrationService();
+
 // ❌ MAUVAIS - Tableau brut non typé
 final class OrderRecord extends AbstractRecord
 {
@@ -54,7 +55,6 @@ final class OrderRecord extends AbstractRecord
 // - On ne sait pas si c'est un tableau de int, string, ou d'objets
 // - On peut ajouter n'importe quoi sans contrôle
 // - Pas de méthodes utilitaires (map, filter, sum, etc.)
-// - Risque d'erreurs à l'exécution
 
 // ✅ BON - Collection typée
 final class OrderRecord extends AbstractRecord
@@ -73,7 +73,7 @@ final class OrderRecord extends AbstractRecord
 | Pas de validation à l'ajout | Validation automatique du type |
 | Modification dangereuse | Type-safe garanti |
 | Documentation implicite | Documentation explicite |
-| Pas de méthodes utilitaires | Nombreuses méthodes disponibles (map, filter, sum, etc.) |
+| Pas de méthodes utilitaires | Nombreuses méthodes disponibles |
 
 ---
 
@@ -102,17 +102,18 @@ final class OrderRecord extends AbstractRecord
 > **Tout objet stocké dans une TypedCollection DOIT implémenter l'interface `Transformable`.**
 
 ```php
+use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
+
 // ✅ BON - Les objets Transformable sont acceptés
-$collection = new TypedCollection(UserRecord::class);     // UserRecord extends AbstractRecord implements Transformable
-$collection = new TypedCollection(EmailAddress::class);   // EmailAddress extends AbstractValueObject implements Transformable
-$collection = new TypedCollection(UserData::class);       // UserData extends AbstractData implements Transformable
-$collection = new TypedCollection(TypedCollection::class); // TypedCollection extends AbstractTypedCollection implements Transformable
+$collection = new TypedCollection(UserRecord::class);     // UserRecord implements Transformable
+$collection = new TypedCollection(EmailAddress::class);   // EmailAddress implements Transformable
+$collection = new TypedCollection(UserData::class);       // UserData implements Transformable
+$collection = new TypedCollection(TypedCollection::class); // TypedCollection implements Transformable
 $collection = new TypedCollection(DataObject::class);      // DataObject implements Transformable
 $collection = new TypedCollection(UnitEnum::class);        // UnitEnum - les enums sont acceptés
 
 // ❌ MAUVAIS - Objet qui n'implémente pas Transformable
 $collection = new TypedCollection(DateTime::class);        // DateTime n'implémente pas Transformable
-$collection = new TypedCollection(UnknownClass::class);    // N'existe pas ou n'implémente pas Transformable
 ```
 
 ### 3.3. Types multiples
@@ -128,10 +129,6 @@ $items->add(
     new ProductRecord(name: 'Laptop', price: 999.99),
     'Just a description'
 );
-
-// Collection acceptant Enums et Value Objects
-$collection = new TypedCollection(TestUserRole::class, EmailAddress::class);
-$collection->add(TestUserRole::ADMIN, EmailAddress::from('admin@example.com'));
 ```
 
 ---
@@ -149,15 +146,6 @@ final class UserRecord extends AbstractRecord
     public function __construct(
         public readonly TypedCollection $products,  // Quels produits ? On ne sait pas !
         public readonly TypedCollection $friends,   // Quels amis ? On ne sait pas !
-    ) {}
-}
-
-// ❌ À ÉVITER - Même problème avec Data
-final class UserData extends AbstractData
-{
-    public function __construct(
-        public readonly TypedCollection $orders,    // On ne sait pas ce que c'est !
-        public readonly TypedCollection $tags,      // Des strings ? Des objets ?
     ) {}
 }
 ```
@@ -191,43 +179,13 @@ final class UserData extends AbstractData
 | **Documentation** | On ne sait pas ce qu'elle contient | Le nom dit tout (`ProductDataCollection`) |
 | **Type-safety** | Type-safe à l'ajout | Type-safe à l'ajout + méthodes spécifiques |
 | **Méthodes métier** | Aucune | Peut avoir (`getFeatured()`, `getTotalPrice()`) |
-| **Maintenabilité** | Moins bonne | Excellente |
-| **IDE** | Aucun autocomplétion sur le contenu | Autocomplétion complète |
+| **IDE** | Aucun autocomplétion | Autocomplétion complète |
 
 ---
 
 ## 5. Quand utiliser TypedCollection générique ?
 
 > **La seule exception où `TypedCollection` générique est acceptable : quand les données proviennent d'une source externe non maîtrisée ou pour des données temporaires.**
-
-### 5.1. Cas d'usage acceptables
-
-```php
-// ✅ Acceptable - Données externes (API tierce, fichier CSV)
-final class ExternalDataRecord extends AbstractRecord
-{
-    public function __construct(
-        public readonly TypedCollection $rawData,  // Source externe, on ne maîtrise pas le type
-    ) {}
-}
-
-// ✅ Acceptable - Configuration dynamique
-final class ConfigRecord extends AbstractRecord
-{
-    public function __construct(
-        public readonly TypedCollection $settings,  // Configuration aux types variés
-    ) {}
-}
-
-// ✅ Acceptable - Transformation temporaire
-function processData(TypedCollection $items): TypedCollection
-{
-    // Traitement temporaire où le type n'est pas critique
-    return $items->map(fn($item) => $item->value);
-}
-```
-
-### 5.2. Récapitulatif
 
 | Situation | Utilisation |
 |-----------|-------------|
@@ -242,7 +200,7 @@ function processData(TypedCollection $items): TypedCollection
 
 ## 6. Les collections utilitaires prédéfinies
 
-Le package fournit des collections spécialisées pour les types scalaires les plus courants. Ces classes étendent `TypedCollection` et ajoutent des méthodes spécifiques.
+Le package fournit des collections spécialisées pour les types scalaires les plus courants.
 
 ### 6.1. StringTypedCollection
 
@@ -319,16 +277,9 @@ Toutes les collections numériques disposent de la méthode statique `range()` :
 $evenNumbers = IntTypedCollection::range(2, 20, 2);
 // [2, 4, 6, 8, 10, 12, 14, 16, 18, 20]
 
-$descending = IntTypedCollection::range(10, 1, -1);
-// [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
-
 // FloatTypedCollection::range()
 $floats = FloatTypedCollection::range(0, 1, 0.25);
 // [0.0, 0.25, 0.5, 0.75, 1.0]
-
-// NumberTypedCollection::range()
-$mixed = NumberTypedCollection::range(0, 5, 1);
-// [0, 1, 2, 3, 4, 5]
 ```
 
 ---
@@ -348,15 +299,7 @@ $tags->add('php', 'laravel', 'typescript');
 $users = new TypedCollection(UserRecord::class);
 $users->add(new UserRecord(id: 1, name: 'John'));
 
-// Collection de Value Objects
-$emails = new TypedCollection(EmailAddress::class);
-$emails->add(EmailAddress::from('john@example.com'));
-
-// Collection de Data
-$usersData = new TypedCollection(UserData::class);
-$usersData->add(UserData::fromRecord($userRecord));
-
-// Collection mixte (types multiples)
+// Collection mixte
 $mixed = new TypedCollection('int', 'string', UserRecord::class);
 ```
 
@@ -380,9 +323,8 @@ $mixed = new TypedCollection('int', 'string', UserRecord::class);
 |---------|-------------|---------|
 | `map(Closure $callback): TypedCollection` | Transforme chaque élément, détection auto des types | `$tags->map(fn($tag) => strtoupper($tag))` |
 | `filter(Closure $callback): static` | Filtre les éléments | `$tags->filter(fn($tag) => strlen($tag) > 3)` |
-| `each(Closure $callback): static` | Exécute une action (sans modification) | `$collection->each(fn($item) => $sum += $item)` |
+| `each(Closure $callback): static` | Exécute une action | `$collection->each(fn($item) => $sum += $item)` |
 | `sort(int $flags = SORT_REGULAR): static` | Trie les éléments | `$numbers->sort()` |
-| `sortBy(Closure\|string $callback, bool $descending = false): static` | Trie par clé ou fonction | `$products->sortBy('price')` |
 | `reverse(): static` | Inverse l'ordre | `$collection->reverse()` |
 
 ---
@@ -391,7 +333,7 @@ $mixed = new TypedCollection('int', 'string', UserRecord::class);
 
 | Méthode | Description | Exemple |
 |---------|-------------|---------|
-| `sum(?Closure $callback = null): int\|float` | Calcule la somme | `$numbers->sum()` ou `$orders->sum(fn($o) => $o->total)` |
+| `sum(?Closure $callback = null): int\|float` | Calcule la somme | `$numbers->sum()` |
 | `avg(?Closure $callback = null): ?float` | Calcule la moyenne | `$numbers->avg()` |
 | `max(?Closure $callback = null): mixed` | Valeur maximale | `$numbers->max()` |
 | `min(?Closure $callback = null): mixed` | Valeur minimale | `$numbers->min()` |
@@ -407,7 +349,6 @@ $orders->add(
 
 $total = $orders->sum(fn($order) => $order->total);  // 425
 $average = $orders->avg(fn($order) => $order->total); // 141.67
-$max = $orders->max(fn($order) => $order->total);     // 250
 ```
 
 ---
@@ -417,9 +358,9 @@ $max = $orders->max(fn($order) => $order->total);     // 250
 | Méthode | Description | Exemple |
 |---------|-------------|---------|
 | `contains(mixed $value): bool` | Vérifie si un élément existe | `$tags->contains('laravel')` |
-| `every(Closure $callback): bool` | Tous les éléments satisfont le prédicat | `$numbers->every(fn($n) => $n > 0)` |
+| `every(Closure $callback): bool` | Tous les éléments satisfont | `$numbers->every(fn($n) => $n > 0)` |
 | `some(Closure $callback): bool` | Au moins un élément satisfait | `$numbers->some(fn($n) => $n > 100)` |
-| `find(Closure $callback): mixed` | Trouve le premier élément satisfaisant le prédicat | `$users->find(fn($u) => $u->id === 42)` |
+| `find(Closure $callback): mixed` | Trouve le premier élément | `$users->find(fn($u) => $u->id === 42)` |
 
 ---
 
@@ -446,8 +387,6 @@ $collection->add(1, 2, 3, 4, 5);
 
 // Retourne une TypedCollection générique avec le type auto-détecté 'string'
 $stringCollection = $collection->map(fn($item) => "Number: {$item}");
-
-// $stringCollection est de type TypedCollection, pas IntTypedCollection
 ```
 
 ### 12.2. `mapPreserveType()` - Préserve le type de collection
@@ -467,7 +406,7 @@ $collection->mapPreserveType(fn($item) => "Number: {$item}");
 
 ### 12.3. `mapToType()` - Change vers un type de collection spécifique
 
-Transforme la collection vers une classe de collection cible. Accepte des arguments supplémentaires pour le constructeur.
+Transforme la collection vers une classe de collection cible.
 
 ```php
 $collection = new IntTypedCollection();
@@ -478,13 +417,6 @@ $stringCollection = $collection->mapToType(
     fn($item) => "Number: {$item}",
     StringTypedCollection::class
 );
-
-// Avec des arguments de constructeur pour la collection cible
-$enumCollection = $collection->mapToType(
-    fn($item) => $item->status,
-    TypedCollection::class,
-    TestUserStatus::class  // ← argument du constructeur de TypedCollection
-);
 ```
 
 ### 12.4. Tableau comparatif
@@ -492,8 +424,8 @@ $enumCollection = $collection->mapToType(
 | Méthode | Retour | Quand l'utiliser |
 |---------|--------|------------------|
 | `map()` | `TypedCollection` (auto-détection) | Transformation simple, type générique acceptable |
-| `mapPreserveType()` | `static` (même classe) | Garder le même type de collection (ex: `IntTypedCollection` → `IntTypedCollection`) |
-| `mapToType()` | `TypedCollectionInterface` (classe spécifique) | Changer vers une collection spécifique (ex: `IntTypedCollection` → `StringTypedCollection`) |
+| `mapPreserveType()` | `static` (même classe) | Garder le même type de collection |
+| `mapToType()` | `TypedCollectionInterface` | Changer vers une collection spécifique |
 
 ---
 
@@ -520,11 +452,6 @@ final class UserRecordCollection extends TypedCollection
     {
         return $this->filter(fn(UserRecord $user) => $user->status === UserStatus::ACTIVE);
     }
-    
-    public function getById(int $id): ?UserRecord
-    {
-        return $this->find(fn(UserRecord $user) => $user->id === $id);
-    }
 }
 ```
 
@@ -544,12 +471,6 @@ final class ProductDataCollection extends DataCollection
     {
         return $this->filter(fn(ProductData $product) => $product->isFeatured === true);
     }
-    
-    public function getTotalPrice(): Price
-    {
-        $total = $this->reduce(fn($carry, ProductData $product) => $carry + $product->price->getAmount(), 0);
-        return Price::from(['amount' => $total, 'currency' => 'EUR']);
-    }
 }
 ```
 
@@ -560,45 +481,83 @@ $users = new UserRecordCollection();
 $users->add(
     new UserRecord(id: 1, name: 'John', role: UserRole::ADMIN),
     new UserRecord(id: 2, name: 'Jane', role: UserRole::USER),
-    new UserRecord(id: 3, name: 'Bob', role: UserRole::ADMIN),
 );
 
-$admins = $users->getAdmins();  // UserRecordCollection avec John et Bob
-$activeUsers = $users->getActive();  // UserRecordCollection filtré
+$admins = $users->getAdmins();  // UserRecordCollection avec John seulement
 ```
 
 ---
 
-## 14. Hydratation et normalisation
+## 14. Hydratation avec HydrationService
 
-### 14.1. Hydratation depuis une source
+### 14.1. Création manuelle
 
 ```php
-// Depuis un tableau
-$collection = TypedCollection::from([
-    ['id' => 1, 'name' => 'Product 1', 'price' => 100],
-    ['id' => 2, 'name' => 'Product 2', 'price' => 200],
-]);
+use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
 
-// Depuis un JSON
-$collection = TypedCollection::fromJson('[{"id":1,"name":"Product 1"},{"id":2,"name":"Product 2"}]');
-
-// Depuis une collection existante
-$newCollection = TypedCollection::from($existingCollection);
+$collection = new TypedCollection(UserRecord::class);
+$collection->add($user1, $user2, $user3);
 ```
 
-### 14.2. Normalisation
+### 14.2. Via HydrationService
 
 ```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+
+$hydration = new HydrationService();
+
+// Depuis un tableau de données
+$collection = $hydration->collect([
+    ['id' => 1, 'name' => 'Product 1', 'price' => 100],
+    ['id' => 2, 'name' => 'Product 2', 'price' => 200],
+], ProductCollection::class);
+
+// Depuis JSON
+$json = '[{"id":1,"name":"Product 1"},{"id":2,"name":"Product 2"}]';
+$collection = $hydration->collectFromJson($json, ProductCollection::class);
+```
+
+### 14.3. Dans un Record
+
+```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+
+final class OrderRecord extends AbstractRecord
+{
+    use Hydratable;
+    
+    public function __construct(
+        public readonly int $order_id,
+        public readonly TypedCollection $items,  // OrderItemCollection
+    ) {}
+}
+
+$hydration = new HydrationService();
+$order = $hydration->hydrate(OrderRecord::class, [
+    'order_id' => 12345,
+    'items' => [
+        ['product_id' => 1, 'quantity' => 2, 'price' => 49.99],
+        ['product_id' => 2, 'quantity' => 1, 'price' => 99.99],
+    ]
+]);
+```
+
+---
+
+## 15. Normalisation
+
+```php
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
+
 // Normalisation pour les réponses JSON
 $normalized = NormalizerChain::get()->normalize($collection);
 ```
 
 ---
 
-## 15. Exemples complets
+## 16. Exemples complets
 
-### 15.1. Collection de UserRecord avec méthodes métier
+### 16.1. Collection de UserRecord avec méthodes métier
 
 ```php
 final class UserRecordCollection extends TypedCollection
@@ -622,16 +581,22 @@ final class UserRecordCollection extends TypedCollection
         return $emails;
     }
 }
+
+// Utilisation avec HydrationService
+$hydration = new HydrationService();
+$users = $hydration->collect($dbResults, UserRecordCollection::class);
+$admins = $users->getAdmins();
 ```
 
-### 15.2. Transformation avec mapToType
+### 16.2. Transformation avec mapToType
 
 ```php
-$users = new UserRecordCollection();
-$users->add(
-    new UserRecord(id: 1, name: 'John', role: UserRole::ADMIN),
-    new UserRecord(id: 2, name: 'Jane', role: UserRole::USER),
-);
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+
+$hydration = new HydrationService();
+
+$users = $hydration->collect($dbResults, UserRecordCollection::class);
 
 // Transformation vers une StringTypedCollection
 $names = $users->mapToType(
@@ -640,9 +605,47 @@ $names = $users->mapToType(
 );
 ```
 
+### 16.3. Exemple complet dans une Action
+
+```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
+use AndyDefer\Actions\Http\ResponseFactory;
+
+final class ListUsersAction extends AbstractAction
+{
+    private HydrationService $hydration;
+    
+    public function __construct(
+        private readonly UserRepository $repository,
+    ) {
+        $this->hydration = new HydrationService();
+    }
+    
+    protected function handle(AbstractRecord $request): ResponseFactory
+    {
+        /** @var ListUsersRecord $request */
+        
+        $results = $this->repository->findAll($request);
+        
+        // Collection typée
+        $users = $this->hydration->collect($results, UserRecordCollection::class);
+        
+        // Transformation en Data pour l'API
+        $usersData = $users->mapToType(
+            fn(UserRecord $user) => $this->hydration->hydrate(UserData::class, $user->toArray()),
+            UserDataCollection::class
+        );
+        
+        
+        return ResponseFactory::json($usersData);
+    }
+}
+```
+
 ---
 
-## 16. Récapitulatif des contraintes
+## 17. Récapitulatif des contraintes
 
 | Règle | Explication |
 |-------|-------------|
@@ -650,6 +653,8 @@ $names = $users->mapToType(
 | **✅ Utilisation de TypedCollection** | Toute collection doit être typée avec `TypedCollection` |
 | **✅ Collections spécialisées** | Privilégier les collections spécialisées (ex: `UserRecordCollection`) |
 | **✅ Transformable** | Tout objet dans une collection doit implémenter `Transformable` |
-| **⚠️ map() générique** | `map()` retourne une `TypedCollection` générique (perte du type spécifique) |
+| **⚠️ map() générique** | `map()` retourne une `TypedCollection` générique |
 | **✅ mapPreserveType()** | Pour garder le même type de collection |
 | **✅ mapToType()** | Pour changer vers un type de collection spécifique |
+| **✅ Hydratation** | Utiliser `HydrationService::collect()` ou `collectFromJson()` |
+---

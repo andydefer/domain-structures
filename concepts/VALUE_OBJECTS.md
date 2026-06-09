@@ -1,4 +1,8 @@
+Tu as raison ! Voici la version corrigée SANS TypedCollection :
+
+```markdown
 # Value Objects - Documentation du Package domain-structures
+
 ---
 
 ## Table des matières
@@ -10,14 +14,13 @@
 5. [Les types supportés par l'hydratation](#5-les-types-supportés-par-lhydratation)
 6. [Les méthodes fondamentales](#6-les-méthodes-fondamentales)
 7. [Accès direct aux propriétés](#7-accès-direct-aux-propriétés)
-8. [Hydratation : `from()`](#8-hydratation--from)
-9. [Hydratation JSON : `fromJson()`](#9-hydratation-json--fromjson)
-10. [Collections de Value Objects : `collect()`](#10-collections-de-value-objects--collect)
-11. [Normalisation](#11-normalisation)
-12. [Égalité : `equals()`](#12-égalité--equals)
-13. [Règles de validation](#13-règles-de-validation)
-14. [Bonnes pratiques](#14-bonnes-pratiques)
-15. [Récapitulatif des contraintes](#15-récapitulatif-des-contraintes)
+8. [Hydratation avec HydrationService](#8-hydratation-avec-hydrationservice)
+9. [Collections de Value Objects](#9-collections-de-value-objects)
+10. [Normalisation](#10-normalisation)
+11. [Égalité : `equals()`](#11-égalité--equals)
+12. [Règles de validation](#12-règles-de-validation)
+13. [Bonnes pratiques](#13-bonnes-pratiques)
+14. [Récapitulatif des contraintes](#14-récapitulatif-des-contraintes)
 
 ---
 
@@ -52,7 +55,7 @@ Value Object → Concept métier → Validation OBLIGATOIRE → Pas d'identité 
 | **Logique métier** | ✅ **Peut en avoir** | ❌ Aucune | ❌ Transformation uniquement |
 | **Validation** | ✅ **OBLIGATOIRE** | ❌ Optionnelle | ❌ Optionnelle |
 | **Constructeur** | **Public avec validation** | Public | Public |
-| **Peut contenir** | VO, scalaires, TypedCollection, Enums | VO, scalaires, TypedCollection, Enum | Data, TypedCollection |
+| **Peut contenir** | VO, scalaires, Enums | VO, scalaires, Enum | Data |
 | **Peut contenir des Records** | ❌ **Interdit** | ✅ Oui | ✅ Oui |
 | **Nommage** | `EmailAddress`, `Money` | `UserRecord` | `UserData` |
 | **Normalisation** | `mixed` (selon type) | `snake_case` | `camelCase` |
@@ -104,7 +107,7 @@ final class EmailAddress extends AbstractValueObject
 }
 
 // Utilisation
-$email = EmailAddress::from('john@example.com');
+$email = new EmailAddress('john@example.com');
 echo $email->value;           // 'john@example.com'
 echo $email->getDomain();     // 'example.com'
 ```
@@ -113,7 +116,7 @@ echo $email->getDomain();     // 'example.com'
 
 ## 5. Les types supportés par l'hydratation
 
-Le système d'hydratation (`from()`) supporte les types suivants :
+Le système d'hydratation via `HydrationService` supporte les types suivants :
 
 ### Types PHP natifs (scalaires)
 - `int` / `integer`
@@ -125,12 +128,9 @@ Le système d'hydratation (`from()`) supporte les types suivants :
 ### Types spécifiques du domaine
 - `UnitEnum` - Énumérations PHP
 - `AbstractValueObject` - Value Objects
-- `AbstractTypedCollection` - Collections typées
 - `AbstractData` - Data DTO
 - `AbstractRecord` - Records
 - `DataObject` - Objets de données flexibles
-
-> ⚠️ **Important :** Pour certains types complexes, l'hydratation via le constructeur peut être difficile. Utilisez toujours la méthode `from()` qui gère automatiquement tous ces cas.
 
 ---
 
@@ -138,56 +138,26 @@ Le système d'hydratation (`from()`) supporte les types suivants :
 
 Tous les Value Objects héritent de `AbstractValueObject` et bénéficient de :
 
-### 6.1. `from(mixed $source): static`
-
-Point d'entrée unique pour créer des Value Objects :
-
-```php
-$email = EmailAddress::from('john@example.com');
-$money = Money::from(['amount' => 99.99, 'currency' => 'EUR']);
-```
-
-### 6.2. `fromJson(string $json): static`
-
-Hydratation depuis JSON :
-
-```php
-$email = EmailAddress::fromJson('"john@example.com"');
-$money = Money::fromJson('{"amount":99.99,"currency":"EUR"}');
-```
-
-### 6.3. `collect(iterable $sources, string $collectionClass): AbstractTypedCollection`
-
-Collection typée de Value Objects :
-
-```php
-$emails = EmailAddress::collect([
-    'john@example.com',
-    'jane@example.com',
-    'bob@example.com'
-]);
-```
-
-### 6.4. `getValue(): mixed`
+### 6.1. `getValue(): mixed`
 
 Retourne la valeur brute du Value Object :
 
 ```php
-$email = EmailAddress::from('john@example.com');
+$email = new EmailAddress('john@example.com');
 $value = $email->getValue(); // 'john@example.com'
 ```
 
-### 6.5. `equals(self $other): bool`
+### 6.2. `equals(self $other): bool`
 
 Compare deux Value Objects :
 
 ```php
-$email1 = EmailAddress::from('john@example.com');
-$email2 = EmailAddress::from('john@example.com');
+$email1 = new EmailAddress('john@example.com');
+$email2 = new EmailAddress('john@example.com');
 $email1->equals($email2); // true
 ```
 
-### 6.6. `__toString(): string`
+### 6.3. `__toString(): string`
 
 Convertit automatiquement en JSON :
 
@@ -220,7 +190,7 @@ final class Money extends AbstractValueObject
 }
 
 // Utilisation
-$money = Money::from(['amount' => 99.99, 'currency' => 'EUR']);
+$money = new Money(99.99, Currency::EUR);
 echo $money->amount;     // 99.99 (accès direct !)
 echo $money->currency;   // Currency::EUR (accès direct !)
 
@@ -229,25 +199,40 @@ echo $money->currency;   // Currency::EUR (accès direct !)
 
 ---
 
-## 8. Hydratation : `from()`
+## 8. Hydratation avec HydrationService
 
-La méthode `from()` accepte de multiples formats :
+### 8.1. Utilisation du constructeur
 
 ```php
-// 1. Depuis une chaîne simple
-$email = EmailAddress::from('john@example.com');
+// Pour un Value Object à un seul paramètre
+$email = new EmailAddress('john@example.com');
 
-// 2. Depuis un tableau
-$money = Money::from(['amount' => 99.99, 'currency' => 'EUR']);
-
-// 3. Depuis un objet
-$profile = UserProfile::from($someObject);
-
-// 4. Depuis un autre Value Object (retourne l'original)
-$email2 = EmailAddress::from($email);
+// Pour un Value Object à plusieurs paramètres
+$money = new Money(99.99, Currency::EUR);
 ```
 
-### Garanties
+### 8.2. Via HydrationService
+
+```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+
+$hydration = new HydrationService();
+
+// Depuis un tableau
+$money = $hydration->hydrate(Money::class, [
+    'amount' => 99.99,
+    'currency' => 'EUR'
+]);
+
+// Depuis JSON
+$json = '{"amount": 99.99, "currency": "EUR"}';
+$money = $hydration->hydrateFromJson(Money::class, $json);
+
+// Depuis une valeur simple
+$email = $hydration->hydrate(EmailAddress::class, 'john@example.com');
+```
+
+### 8.3. Garanties
 
 1. **Validation** : Le format est vérifié dans le constructeur
 2. **Immutabilité** : L'objet ne pourra jamais être modifié
@@ -255,76 +240,62 @@ $email2 = EmailAddress::from($email);
 
 ---
 
-## 9. Hydratation JSON : `fromJson()`
+## 9. Collections de Value Objects
+
+### 9.1. Avec un tableau simple
 
 ```php
-$json = '"john@example.com"';
-$email = EmailAddress::fromJson($json);
-
-$json = '{"amount": 99.99, "currency": "EUR"}';
-$money = Money::fromJson($json);
-```
-
-**Avantages :**
-- Une seule ligne pour décoder et hydrater
-- Gestion automatique des erreurs JSON
-- Comportement cohérent avec `from()`
-
----
-
-## 10. Collections de Value Objects : `collect()`
-
-```php
-$emails = EmailAddress::collect([
-    'john@example.com',
-    'jane@example.com',
-    'bob@example.com'
-]);
+$emails = [
+    new EmailAddress('john@example.com'),
+    new EmailAddress('jane@example.com'),
+    new EmailAddress('bob@example.com')
+];
 
 foreach ($emails as $email) {
     echo $email->value;
 }
 ```
 
-### Collection personnalisée
+### 9.2. Avec HydrationService
 
 ```php
-final class EmailCollection extends AbstractTypedCollection
-{
-    public function __construct()
-    {
-        parent::__construct(EmailAddress::class);
-    }
-    
-    public function fromDomain(string $domain): self
-    {
-        return $this->filter(fn(EmailAddress $email) => $email->getDomain() === $domain);
-    }
-}
+use AndyDefer\DomainStructures\Services\HydrationService;
 
-$collection = EmailAddress::collect($sources, EmailCollection::class);
-$gmailEmails = $collection->fromDomain('gmail.com');
+$hydration = new HydrationService();
+
+$sources = [
+    'john@example.com',
+    'jane@example.com',
+    'bob@example.com'
+];
+
+$emails = [];
+foreach ($sources as $source) {
+    $emails[] = $hydration->hydrate(EmailAddress::class, $source);
+}
 ```
 
 ---
 
-## 11. Normalisation
+## 10. Normalisation
 
 Les Value Objects se normalisent automatiquement via le `NormalizerChain` :
 
 ```php
-$email = EmailAddress::from('john@example.com');
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
+
+$email = new EmailAddress('john@example.com');
 $normalized = NormalizerChain::get()->normalize($email);
 // 'john@example.com' (string)
 
-$money = Money::from(['amount' => 99.99, 'currency' => 'EUR']);
+$money = new Money(99.99, Currency::EUR);
 $normalized = NormalizerChain::get()->normalize($money);
 // ['amount' => 99.99, 'currency' => 'EUR'] (array)
 ```
 
 ---
 
-## 12. Égalité : `equals()`
+## 11. Égalité : `equals()`
 
 ```php
 public function equals(self $other): bool
@@ -336,9 +307,9 @@ public function equals(self $other): bool
 3. Pour les valeurs objets : comparaison par valeur (`==`)
 
 ```php
-$email1 = EmailAddress::from('john@example.com');
-$email2 = EmailAddress::from('john@example.com');
-$email3 = EmailAddress::from('jane@example.com');
+$email1 = new EmailAddress('john@example.com');
+$email2 = new EmailAddress('john@example.com');
+$email3 = new EmailAddress('jane@example.com');
 
 $email1->equals($email2); // true
 $email1->equals($email3); // false
@@ -346,7 +317,7 @@ $email1->equals($email3); // false
 
 ---
 
-## 13. Règles de validation
+## 12. Règles de validation
 
 Les Value Objects doivent se valider dans le **constructeur** :
 
@@ -368,11 +339,11 @@ final class Age extends AbstractValueObject
 }
 
 // Utilisation
-$age = Age::from(25);
+$age = new Age(25);
 $age->canVote(); // true
 
 try {
-    $invalidAge = Age::from(-5);
+    $invalidAge = new Age(-5);
 } catch (InvalidArgumentException $e) {
     echo $e->getMessage(); // 'Age cannot be negative'
 }
@@ -380,9 +351,9 @@ try {
 
 ---
 
-## 14. Bonnes pratiques
+## 13. Bonnes pratiques
 
-### 14.1. Validation dans le constructeur
+### 13.1. Validation dans le constructeur
 
 ```php
 // ✅ Bon - validation immédiate
@@ -394,7 +365,7 @@ public function __construct(public readonly string $value)
 }
 ```
 
-### 14.2. Utiliser l'accès direct aux propriétés
+### 13.2. Utiliser l'accès direct aux propriétés
 
 ```php
 // ✅ Bon - accès direct
@@ -404,17 +375,17 @@ echo $money->amount;
 echo $money->getAmount();
 ```
 
-### 14.3. Toujours utiliser `from()`
+### 13.3. Utiliser le constructeur directement
 
 ```php
-// ✅ Bon
-$email = EmailAddress::from('john@example.com');
-
-// ❌ Mauvais - contourne l'hydratation
+// ✅ Bon - constructeur direct
 $email = new EmailAddress('john@example.com');
+
+// ✅ Bon - HydrationService pour les sources complexes
+$email = $hydration->hydrate(EmailAddress::class, 'john@example.com');
 ```
 
-### 14.4. Profiter de l'immutabilité
+### 13.4. Profiter de l'immutabilité
 
 ```php
 // ✅ Bon - crée une nouvelle instance
@@ -424,9 +395,23 @@ $newMoney = $money->add($otherMoney);
 $money->amount += $otherMoney->amount;
 ```
 
+### 13.5. Utiliser `equals()` pour la comparaison
+
+```php
+// ✅ Bon
+if ($email1->equals($email2)) {
+    // ...
+}
+
+// ❌ Mauvais - comparaison d'objets
+if ($email1 === $email2) {
+    // Ne fonctionne que si c'est la même instance
+}
+```
+
 ---
 
-## 15. Récapitulatif des contraintes
+## 14. Récapitulatif des contraintes
 
 | Contrainte | Règle |
 |------------|-------|
@@ -438,15 +423,18 @@ $money->amount += $otherMoney->amount;
 | **État mutable** | ❌ Interdit (`readonly` obligatoire) |
 | **Peut contenir des Records** | ❌ **INTERDIT** |
 | **Accès propriétés** | Direct via `HasPropertiesAccess` (intégré) |
-| **Point d'entrée** | `from()` - hérité |
-| **JSON** | `fromJson()` - hérité |
-| **Collection** | `collect()` - hérité |
+| **Création** | `new ValueObject(...)` ou `HydrationService::hydrate()` |
+| **JSON** | `HydrationService::hydrateFromJson()` |
+| **Normalisation** | Automatique via `NormalizerChain` |
 
 ---
 
 ## Exemple complet
 
 ```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
+
 // 1. Définir le Value Object
 final class EmailAddress extends AbstractValueObject
 {
@@ -463,25 +451,33 @@ final class EmailAddress extends AbstractValueObject
     }
 }
 
-// 2. Utilisation
-$email = EmailAddress::from('john@example.com');
+// 2. Utilisation avec constructeur direct
+$email = new EmailAddress('john@example.com');
 echo $email->value;           // 'john@example.com'
 echo $email->getDomain();     // 'example.com'
 
-// 3. Collection
-$emails = EmailAddress::collect([
-    'john@example.com',
-    'jane@example.com'
-]);
+// 3. Utilisation avec HydrationService
+$hydration = new HydrationService();
+$email = $hydration->hydrate(EmailAddress::class, 'john@example.com');
 
-// 4. Normalisation
+// 4. Collection simple
+$emails = [
+    new EmailAddress('john@example.com'),
+    new EmailAddress('jane@gmail.com'),
+    new EmailAddress('bob@yahoo.com')
+];
+
+// 5. Filtrage manuel
+$gmailEmails = array_filter($emails, fn($email) => $email->getDomain() === 'gmail.com');
+
+// 6. Normalisation
 $normalized = NormalizerChain::get()->normalize($email);
 // 'john@example.com'
+
+// 7. Égalité
+$email1 = new EmailAddress('john@example.com');
+$email2 = new EmailAddress('john@example.com');
+$email1->equals($email2); // true
 ```
 
 ---
-
-## Support
-
-- **Infrastructure (Value Objects, Records, Data)** : `andydefer/domain-structures`
-- **Value Objects réutilisables (Email, Money, etc.)** : `andydefer/php-vo`

@@ -30,20 +30,23 @@ La normalisation transforme une structure objet complexe en une représentation 
 
 ```php
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
+use AndyDefer\DomainStructures\Services\HydrationService;
+
+$hydration = new HydrationService();
 
 // Avant normalisation (objets complexes)
-$user = new UserRecord(
-    id: 123,
-    name: 'John Doe',
-    email: EmailValueObject::from('john@example.com'),
-    tags: new StringTypedCollection(['premium', 'vip'])
-);
+$user = $hydration->hydrate(UserRecord::class, [
+    'user_id' => 123,
+    'name' => 'John Doe',
+    'email' => 'john@example.com',
+    'tags' => ['premium', 'vip']
+]);
 
 // Après normalisation (structure simple)
 $normalized = NormalizerChain::get()->normalize($user);
 // Résultat :
 // [
-//     'id' => 123,
+//     'user_id' => 123,
 //     'name' => 'John Doe',
 //     'email' => 'john@example.com',
 //     'tags' => ['premium', 'vip']
@@ -67,21 +70,15 @@ $normalized = NormalizerChain::get()->normalize($user);
 ### 2.1. Le problème de la sérialisation
 
 ```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+
+$hydration = new HydrationService();
+
 // ❌ SANS normalisation - Sérialisation directe
-$user = new UserRecord(id: 123, name: 'John');
+$user = $hydration->hydrate(UserRecord::class, ['user_id' => 123, 'name' => 'John']);
 
 // Problème : json_encode ne gère pas les objets complexes
 $json = json_encode($user);  // {} ou erreur
-
-// Solution manuelle (répétitive)
-function toArray($user) {
-    return [
-        'id' => $user->id,
-        'name' => $user->name,
-        'email' => $user->email->getValue(),  // ValueObject
-        'tags' => $user->tags->toArray()       // Collection
-    ];
-}
 
 // ✅ AVEC normalisation - Automatique et récursif
 $normalized = NormalizerChain::get()->normalize($user);
@@ -104,60 +101,13 @@ $json = json_encode($normalized);  // Parfait !
 
 ## 3. Architecture du système
 
-### 3.1. Structure des classes
-
-```
-NormalizerInterface (contrat)
-    ↓
-AbstractNormalizer (implémentation de base)
-    ↓
-Normalizers spécifiques :
-    ├── NullNormalizer
-    ├── ScalarNormalizer
-    ├── EnumNormalizer
-    ├── RecordNormalizer
-    ├── ValueObjectNormalizer
-    ├── DataNormalizer
-    ├── TypedCollectionNormalizer
-    ├── DataObjectNormalizer
-    └── ArrayNormalizer
-    ↓
-RootNormalizer (normaliseur racine)
-    ↓
-NormalizerChain (point d'entrée unique)
-```
-
-### 3.2. Flux de traitement
-
-```
-Valeur d'entrée
-    ↓
-RootNormalizer
-    ↓
-Parcourt chaque normaliseur dans l'ordre
-    ↓
-Normaliseur.support(value)? → OUI → normalize(value) → résultat
-    ↓                            ↓
-    NON                          Fait appel à next() pour les sous-valeurs
-    ↓
-Normaliseur suivant
-    ↓
-Résultat final (array/scalaire/null)
-```
-
-### 3.3. Points d'entrée
+### 3.1. Point d'entrée unique
 
 ```php
 // Point d'entrée unique (recommandé)
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 
 $normalizer = NormalizerChain::get();
-$normalized = $normalizer->normalize($anyValue);
-
-// Accès direct au normaliseur racine (équivalent)
-use AndyDefer\DomainStructures\Normalizers\RootNormalizer;
-
-$normalizer = new RootNormalizer();
 $normalized = $normalizer->normalize($anyValue);
 ```
 
@@ -217,28 +167,28 @@ $normalized = $normalizer->normalize(Role::ADMIN);  // 'ADMIN'
 **Rôle** : Convertit les `AbstractRecord` en tableau avec conversion camelCase → snake_case
 
 ```php
-class UserRecord extends AbstractRecord
-{
-    public function __construct(
-        public readonly int $userId,
-        public readonly string $firstName,
-        public readonly string $lastName
-    ) {}
-}
+use AndyDefer\DomainStructures\Services\HydrationService;
 
-$user = new UserRecord(userId: 123, firstName: 'John', lastName: 'Doe');
+$hydration = new HydrationService();
+
+$user = $hydration->hydrate(UserRecord::class, [
+    'user_id' => 123,
+    'first_name' => 'John',
+    'last_name' => 'Doe'
+]);
+
 $normalized = $normalizer->normalize($user);
 
 // Résultat :
 // [
-//     'user_id' => 123,      // camelCase → snake_case
+//     'user_id' => 123,
 //     'first_name' => 'John',
 //     'last_name' => 'Doe'
 // ]
 ```
 
 **Ordre** : 4ème
-**Spécificité** : Seul normaliseur qui convertit camelCase → snake_case
+**Spécificité** : Les Records sont déjà en snake_case
 
 ### 4.5. ValueObjectNormalizer
 
@@ -266,36 +216,38 @@ $normalized = $normalizer->normalize($email);  // 'john@example.com'
 **Rôle** : Convertit les `AbstractData` en tableau (conserve camelCase)
 
 ```php
-class UserData extends AbstractData
-{
-    public function __construct(
-        public readonly int $userId,
-        public readonly string $firstName
-    ) {}
-}
+use AndyDefer\DomainStructures\Services\HydrationService;
 
-$data = new UserData(userId: 123, firstName: 'John');
+$hydration = new HydrationService();
+
+$data = $hydration->hydrate(UserData::class, [
+    'userId' => 123,
+    'firstName' => 'John'
+]);
+
 $normalized = $normalizer->normalize($data);
 
 // Résultat :
 // [
-//     'userId' => 123,      // camelCase conservé
+//     'userId' => 123,
 //     'firstName' => 'John'
 // ]
 ```
 
 **Ordre** : 6ème
-**Spécificité** : Conserve les noms de propriétés d'origine
+**Spécificité** : Conserve les noms de propriétés en camelCase
 
 ### 4.7. TypedCollectionNormalizer
 
 **Rôle** : Convertit les collections typées en tableau
 
 ```php
+use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+
 $tags = new StringTypedCollection(['php', 'laravel', 'typescript']);
 $normalized = $normalizer->normalize($tags);  // ['php', 'laravel', 'typescript']
 
-$users = new UserRecordCollection();
+$users = new UserCollection();
 $users->add($user1, $user2);
 $normalized = $normalizer->normalize($users);  
 // [
@@ -333,7 +285,7 @@ $normalized = $normalizer->normalize($data);
 
 ```php
 $data = [
-    'user' => new UserRecord(userId: 123, firstName: 'John'),
+    'user' => $userRecord,
     'tags' => new StringTypedCollection(['php', 'js'])
 ];
 
@@ -357,9 +309,9 @@ $normalizers = [
     $null,        // 1. Null
     $scalar,      // 2. Scalaires
     $enum,        // 3. Enums
-    $record,      // 4. Records (camelCase → snake_case)
+    $record,      // 4. Records (snake_case)
     $vo,          // 5. ValueObjects
-    $data,        // 6. Data (conserve camelCase)
+    $data,        // 6. Data (camelCase)
     $collection,  // 7. Collections
     $dataObject,  // 8. DataObject
     $array        // 9. Tableaux (doit être dernier)
@@ -374,20 +326,6 @@ $normalizers = [
 | **Enum avant Record** | Un Record peut contenir des enums |
 | **Record avant DataObject** | Détection spécifique avant DataObject |
 | **Array en dernier** | Capture tout ce qui reste et normalise récursivement |
-
-### 5.2. Importance de l'ordre
-
-```php
-// Si ArrayNormalizer était avant RecordNormalizer
-$arrayNormalizer->supports($record);  // false (ce n'est pas un array)
-// OK, pas de problème
-
-// Mais ArrayNormalizer DOIT être après les normaliseurs spécifiques
-// car il traite les tableaux qui contiennent des objets spécifiques
-$data = ['user' => new UserRecord(...)];
-// ArrayNormalizer doit normaliser récursivement le UserRecord
-// donc il doit appeler le normaliseur racine qui redescend dans la chaîne
-```
 
 ---
 
@@ -434,17 +372,6 @@ abstract class AbstractNormalizer
 }
 ```
 
-### 6.3. Configuration par RootNormalizer
-
-```php
-// RootNormalizer s'auto-configure comme normaliseur récursif
-foreach ($normalizers as $normalizer) {
-    if (method_exists($normalizer, 'setRecursiveNormalizer')) {
-        $normalizer->setRecursiveNormalizer($this);
-    }
-}
-```
-
 ---
 
 ## 7. Cas d'utilisation
@@ -452,8 +379,18 @@ foreach ($normalizers as $normalizer) {
 ### 7.1. Sérialisation JSON pour API
 
 ```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
+
 class UserController
 {
+    private HydrationService $hydration;
+    
+    public function __construct()
+    {
+        $this->hydration = new HydrationService();
+    }
+    
     public function show(int $id): JsonResponse
     {
         $user = $this->userRepository->find($id);
@@ -461,7 +398,6 @@ class UserController
         // Normalisation automatique
         $normalized = NormalizerChain::get()->normalize($user);
         
-        // Les clés sont en snake_case pour l'API
         return response()->json($normalized);
         // {
         //     "user_id": 123,
@@ -473,9 +409,41 @@ class UserController
 }
 ```
 
-### 7.2. Logging structuré
+### 7.2. Dans une Action
 
 ```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
+use AndyDefer\Actions\Http\ResponseFactory;
+
+final class ShowUserAction extends AbstractAction
+{
+    private HydrationService $hydration;
+    
+    public function __construct(
+        private readonly UserRepository $userRepository,
+    ) {
+        $this->hydration = new HydrationService();
+    }
+    
+    protected function handle(AbstractRecord $request): ResponseFactory
+    {
+        /** @var ShowUserRecord $request */
+        
+        $user = $this->userRepository->find($request->user_id);
+        
+        $userData = $this->hydration(UserData::class, $user->toArray())
+        
+        return ResponseFactory::json($userData);
+    }
+}
+```
+
+### 7.3. Logging structuré
+
+```php
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
+
 class Logger
 {
     public function logUserAction(UserRecord $user, string $action): void
@@ -489,39 +457,28 @@ class Logger
 }
 ```
 
-### 7.3. Stockage en base de données (NoSQL/JSON)
+### 7.4. Transformation Record → Data via HydrationService
 
 ```php
-class UserRepository
-{
-    public function save(UserRecord $user): void
-    {
-        $data = NormalizerChain::get()->normalize($user);
-        
-        // Stockage en MongoDB ou autre base JSON
-        $this->collection->insertOne($data);
-    }
-}
-```
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 
-### 7.4. Cache
-
-```php
-class CacheService
+class UserTransformer
 {
-    public function set(string $key, mixed $value, int $ttl = 3600): void
+    private HydrationService $hydration;
+    
+    public function __construct()
     {
-        $normalized = NormalizerChain::get()->normalize($value);
-        $serialized = serialize($normalized);
-        
-        $this->cache->set($key, $serialized, $ttl);
+        $this->hydration = new HydrationService();
     }
     
-    public function get(string $key): mixed
+    public function toData(UserRecord $record): UserData
     {
-        $serialized = $this->cache->get($key);
+        // Normalisation du Record (snake_case)
+        $normalized = NormalizerChain::get()->normalize($record);
         
-        return unserialize($serialized);
+        // Hydratation en Data (camelCase)
+        return $this->hydration->hydrate(UserData::class, $normalized);
     }
 }
 ```
@@ -530,38 +487,40 @@ class CacheService
 
 ## 8. Exemples concrets
 
-### 8.1. Structure complexe
+### 8.1. Structure complexe avec HydrationService
 
 ```php
-// Structure objet complexe
-$order = new OrderRecord(
-    id: 12345,
-    status: OrderStatus::PAID,  // Enum
-    customer: new CustomerRecord(
-        id: 789,
-        email: EmailValueObject::from('customer@example.com'),  // ValueObject
-        tags: new StringTypedCollection(['vip', 'premium'])      // Collection
-    ),
-    items: new TypedCollection(OrderItemRecord::class)
-);
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 
-$items = $order->items;
-$items->add(
-    new OrderItemRecord(productId: 1, quantity: 2, price: 49.99),
-    new OrderItemRecord(productId: 2, quantity: 1, price: 99.99)
-);
+$hydration = new HydrationService();
+
+// Hydratation d'une structure complexe
+$order = $hydration->hydrate(OrderRecord::class, [
+    'order_id' => 12345,
+    'order_status' => 'paid',
+    'customer' => [
+        'customer_id' => 789,
+        'email' => 'customer@example.com',
+        'tags' => ['vip', 'premium']
+    ],
+    'items' => [
+        ['product_id' => 1, 'quantity' => 2, 'price' => 49.99],
+        ['product_id' => 2, 'quantity' => 1, 'price' => 99.99]
+    ]
+]);
 
 // Normalisation
 $normalized = NormalizerChain::get()->normalize($order);
 
 // Résultat :
 // [
-//     'id' => 12345,
-//     'status' => 'paid',                    // BackedEnum
+//     'order_id' => 12345,
+//     'order_status' => 'paid',
 //     'customer' => [
-//         'id' => 789,
-//         'email' => 'customer@example.com', // ValueObject
-//         'tags' => ['vip', 'premium']        // Collection
+//         'customer_id' => 789,
+//         'email' => 'customer@example.com',
+//         'tags' => ['vip', 'premium']
 //     ],
 //     'items' => [
 //         ['product_id' => 1, 'quantity' => 2, 'price' => 49.99],
@@ -573,8 +532,18 @@ $normalized = NormalizerChain::get()->normalize($order);
 ### 8.2. Mix DataObject et Records
 
 ```php
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
+
+$hydration = new HydrationService();
+
+$user = $hydration->hydrate(UserRecord::class, [
+    'user_id' => 123,
+    'first_name' => 'John'
+]);
+
 $apiData = new DataObject([
-    'user' => new UserRecord(id: 123, firstName: 'John'),
+    'user' => $user,
     'metadata' => [
         'source' => 'api',
         'timestamp' => time()
@@ -586,7 +555,7 @@ $normalized = NormalizerChain::get()->normalize($apiData);
 
 // Résultat :
 // [
-//     'user' => ['id' => 123, 'first_name' => 'John'],
+//     'user' => ['user_id' => 123, 'first_name' => 'John'],
 //     'metadata' => ['source' => 'api', 'timestamp' => 1234567890],
 //     'tags' => ['php', 'laravel']
 // ]
@@ -595,9 +564,18 @@ $normalized = NormalizerChain::get()->normalize($apiData);
 ### 8.3. Surcharge personnalisée
 
 ```php
-// Normalisation conditionnelle
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
+
 class ApiNormalizer
 {
+    private HydrationService $hydration;
+    
+    public function __construct()
+    {
+        $this->hydration = new HydrationService();
+    }
+    
     public function normalizeForApi(UserRecord $user): array
     {
         $fullNormalized = NormalizerChain::get()->normalize($user);
@@ -608,8 +586,8 @@ class ApiNormalizer
         
         // Ajouter des métadonnées
         $fullNormalized['_links'] = [
-            'self' => "/api/users/{$user->id}",
-            'orders' => "/api/users/{$user->id}/orders"
+            'self' => "/api/users/{$user->user_id}",
+            'orders' => "/api/users/{$user->user_id}/orders"
         ];
         
         return $fullNormalized;
@@ -639,7 +617,6 @@ final class CustomObjectNormalizer extends AbstractNormalizer
             return $this->next($value);
         }
         
-        // Logique de normalisation personnalisée
         return [
             'custom_id' => $value->getId(),
             'custom_data' => $this->next($value->getData()),
@@ -655,12 +632,11 @@ final class CustomObjectNormalizer extends AbstractNormalizer
 // Dans RootNormalizer::initialize()
 $custom = new CustomObjectNormalizer;
 
-// L'ordre est important - Insérer au bon endroit
 $normalizers = [
     $null,
     $scalar,
     $enum,
-    $custom,  // Ajouter ici si CustomObject n'est ni Record ni DataObject
+    $custom,  // Ajouter ici
     $record,
     $vo,
     $data,
@@ -668,30 +644,6 @@ $normalizers = [
     $dataObject,
     $array
 ];
-```
-
-### 9.3. Normaliseur avec contexte
-
-```php
-class ContextualNormalizer extends AbstractNormalizer
-{
-    private array $context = [];
-    
-    public function setContext(array $context): void
-    {
-        $this->context = $context;
-    }
-    
-    public function normalize(mixed $value): mixed
-    {
-        // Utiliser le contexte pour modifier la normalisation
-        if ($this->context['format'] === 'api') {
-            return $this->normalizeForApi($value);
-        }
-        
-        return $this->next($value);
-    }
-}
 ```
 
 ---
@@ -726,7 +678,6 @@ $normalized2 = NormalizerChain::get()->normalize($normalized1);  // Inutile
 try {
     $normalized = NormalizerChain::get()->normalize($complexObject);
 } catch (RuntimeException $e) {
-    // Aucun normaliseur trouvé
     Log::error('Normalization failed', ['error' => $e->getMessage()]);
     throw $e;
 }
@@ -764,7 +715,7 @@ $data2 = $normalizer->normalize($object2);
 | `null` | → null |
 | Scalaires | → valeur inchangée |
 | `UnitEnum` | → valeur du backed enum ou nom |
-| `AbstractRecord` | → tableau (camelCase → snake_case) |
+| `AbstractRecord` | → tableau (snake_case) |
 | `AbstractValueObject` | → valeur brute (getValue()) |
 | `AbstractData` | → tableau (conserve camelCase) |
 | `AbstractTypedCollection` | → tableau indexé |
@@ -788,41 +739,65 @@ Null → Scalar → Enum → Record → ValueObject → Data → Collection → 
 - Export de données
 
 ❌ **À ne pas utiliser pour :**
-- Hydratation (c'est l'inverse)
+- Hydratation (c'est l'inverse - utilisez HydrationService)
 - Transformation métier (utilisez des mappers)
 - Affichage direct (utilisez des présentateurs)
 
 ---
 
-## 12. Annexe : Équivalences
-
-### 12.1. Avant/Après normalisation
-
-| Avant | Après |
-|-------|-------|
-| `new UserRecord(id: 123)` | `['id' => 123]` |
-| `EmailValueObject::from('test@ex.com')` | `'test@ex.com'` |
-| `Status::ACTIVE` (BackedEnum) | `'active'` |
-| `Role::ADMIN` (PureEnum) | `'ADMIN'` |
-| `new StringTypedCollection(['a','b'])` | `['a','b']` |
-| `new DataObject(['key' => 'value'])` | `['key' => 'value']` |
-
-### 12.2. Conversion camelCase → snake_case
+## 12. Flux complet avec HydrationService
 
 ```php
-// RecordNormalizer convertit :
-'userId'     → 'user_id'
-'firstName'  → 'first_name'
-'emailVerifiedAt' → 'email_verified_at'
-'XMLHttpRequest'  → 'xml_http_request'  (géré mais rare)
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
+
+// 1. Hydratation (source → objet)
+$hydration = new HydrationService();
+
+$user = $hydration->hydrate(UserRecord::class, [
+    'user_id' => 123,
+    'first_name' => 'John',
+    'last_name' => 'Doe',
+    'email' => 'john@example.com'
+]);
+
+// 2. Normalisation (objet → tableau)
+$normalized = NormalizerChain::get()->normalize($user);
+
+// 3. Sérialisation JSON
+$json = json_encode($normalized);
+
+// Résultat final :
+// {
+//     "user_id": 123,
+//     "first_name": "John",
+//     "last_name": "Doe",
+//     "email": "john@example.com"
+// }
 ```
 
-### 12.3. Valeurs préservées
+### 12.2. Conversion Record → Data
 
 ```php
-$normalizer->normalize(null);      // null
-$normalizer->normalize(0);         // 0
-$normalizer->normalize('');        // ''
-$normalizer->normalize(false);     // false
-$normalizer->normalize([]);        // []
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
+
+$hydration = new HydrationService();
+
+// Record (interne, snake_case)
+$record = $hydration->hydrate(UserRecord::class, [
+    'user_id' => 123,
+    'first_name' => 'John',
+    'last_name' => 'Doe'
+]);
+
+// Normalisation
+$normalized = NormalizerChain::get()->normalize($record);
+
+// Data (API, camelCase)
+$data = $hydration->hydrate(UserData::class, $normalized);
+
+echo $data->userId;     // 123
+echo $data->firstName;  // John
 ```
+---

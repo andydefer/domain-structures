@@ -1,120 +1,86 @@
 <?php
+// src/Services/HydrationService.php
 
 declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Services;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
-use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
-use AndyDefer\DomainStructures\Hydration\Hydrator;
-use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use InvalidArgumentException;
 use RuntimeException;
 
 /**
- * Service d'hydratation pour les objets du domaine.
+ * Service d'hydratation principal.
  * 
- * Remplace le trait Hydratable et le singleton Hydrator.
- * 
- * ✅ Pas d'état interne
- * ✅ Dépendances injectées dans le constructeur
- * ✅ Toutes les données arrivent en paramètres
- * ✅ Testable et mockable
+ * Ce service compose ItemHydrationService et CollectionHydrationService
+ * pour offrir une interface unifiée pour toutes les opérations d'hydratation.
  * 
  * @author Andy Defer
  */
 final class HydrationService
 {
+    private ItemHydrationService $itemHydration;
+    private CollectionHydrationService $collectionHydration;
+
+    public function __construct()
+    {
+        $this->itemHydration = new ItemHydrationService();
+        $this->collectionHydration = new CollectionHydrationService($this->itemHydration);
+    }
+
     /**
-     * Creates an instance from a source.
-     *
-     * @param  mixed  $source  The source data (string, array, object, DataObject, or JSON)
+     * Hydrate un seul item.
+     * 
+     * @param class-string $className
+     * @param mixed $source
+     * @return object|string|int|float|bool|null
+     * @throws InvalidArgumentException|RuntimeException
+     */
+    public function hydrate(string $className, mixed $source): object|string|int|float|bool|null
+    {
+        return $this->itemHydration->hydrate($className, $source);
+    }
+
+    /**
+     * Hydrate un seul item depuis du JSON.
+     * 
+     * @param class-string $className
+     * @param string $json
+     * @return object|string|int|float|bool|null
      * @throws RuntimeException|InvalidArgumentException
      */
-    public function hydrate(string $className, mixed $source): object
+    public function hydrateFromJson(string $className, string $json): object|string|int|float|bool|null
     {
-        return Hydrator::hydrate($className, $source);
+        return $this->itemHydration->hydrateFromJson($className, $json);
     }
 
     /**
-     * Creates an instance from a JSON string.
-     *
-     * @param  string  $json  JSON string
-     * @throws RuntimeException If JSON is invalid
-     */
-    public function hydrateFromJson(string $className, string $json): object
-    {
-        $data = json_decode($json, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new RuntimeException(sprintf('Invalid JSON: %s', json_last_error_msg()));
-        }
-
-        return $this->hydrate($className, $data);
-    }
-
-    /**
-     * Hydrates a collection of sources into a typed collection.
-     *
-     * @template TCollection of AbstractTypedCollection
-     *
-     * @param  string  $itemClass
-     * @param  iterable<mixed>  $sources
-     * @param  class-string<TCollection>  $collectionClass
-     * @return TCollection
-     *
+     * Hydrate une collection d'items.
+     * 
+     * @param iterable $sources
+     * @param class-string<AbstractTypedCollection> $collectionClass
+     * @return AbstractTypedCollection
      * @throws InvalidArgumentException
      */
     public function collect(
-        string $itemClass,
         iterable $sources,
-        string $collectionClass = TypedCollection::class
+        string $collectionClass = AbstractTypedCollection::class
     ): AbstractTypedCollection {
-        if (!is_subclass_of($collectionClass, AbstractTypedCollection::class)) {
-            throw new InvalidArgumentException(sprintf(
-                'Collection class "%s" must extend %s',
-                $collectionClass,
-                AbstractTypedCollection::class
-            ));
-        }
-
-        $allowedTypes = method_exists($itemClass, 'getAllowedTypes')
-            ? $itemClass::getAllowedTypes()
-            : [$itemClass];
-
-        $collection = new $collectionClass(...$allowedTypes);
-
-        foreach ($sources as $source) {
-            $collection->add($this->hydrate($itemClass, $source));
-        }
-
-        return $collection;
+        return $this->collectionHydration->collect($sources, $collectionClass);
     }
 
     /**
-     * Hydrates a collection from a JSON string.
-     *
-     * @template TCollection of AbstractTypedCollection
-     *
-     * @param  string  $itemClass
-     * @param  string  $json
-     * @param  class-string<TCollection>  $collectionClass
-     * @return TCollection
-     *
-     * @throws RuntimeException If JSON is invalid
-     * @throws InvalidArgumentException
+     * Hydrate une collection depuis du JSON.
+     * 
+     * @param string $json
+     * @param class-string<AbstractTypedCollection> $collectionClass
+     * @return AbstractTypedCollection
+     * @throws RuntimeException|InvalidArgumentException
      */
     public function collectFromJson(
-        string $itemClass,
         string $json,
-        string $collectionClass = TypedCollection::class
+        string $collectionClass = AbstractTypedCollection::class
     ): AbstractTypedCollection {
-        $data = json_decode($json, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new RuntimeException(sprintf('Invalid JSON: %s', json_last_error_msg()));
-        }
-
-        return $this->collect($itemClass, $data, $collectionClass);
+        return $this->collectionHydration->collectFromJson($json, $collectionClass);
     }
 }

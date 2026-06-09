@@ -53,6 +53,7 @@ final class ItemHydrationServiceTest extends TestCase
             'name' => 'John Doe',
             'email' => 'john@example.com',
             'status' => 'active',
+            'price' => 'active',
             'role' => 'user',
             'grade' => 1,
         ];
