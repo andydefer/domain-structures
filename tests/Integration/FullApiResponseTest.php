@@ -8,6 +8,7 @@ use AndyDefer\DomainStructures\Collections\Core\DataCollection;
 use AndyDefer\DomainStructures\Collections\Core\RecordCollection;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
+use AndyDefer\DomainStructures\Services\HydrationService;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestProductDataCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestProductRecordCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestUserRoleCollection;
@@ -27,18 +28,18 @@ use AndyDefer\DomainStructures\Tests\TestCase;
 
 final class FullApiResponseTest extends TestCase
 {
+    private HydrationService $hydration;
     private TestIso8601DateTime $now;
-
     private TestEmailAddress $testEmail;
-
     private StringTypedCollection $tags;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->now = TestIso8601DateTime::from('2024-01-01T12:00:00+00:00');
-        $this->testEmail = TestEmailAddress::from('john.doe@example.com');
+        $this->hydration = new HydrationService();
+        $this->now = new TestIso8601DateTime('2024-01-01T12:00:00+00:00');
+        $this->testEmail = new TestEmailAddress('john.doe@example.com');
         $this->tags = new StringTypedCollection;
         $this->tags->add('premium', 'vip', 'early_adopter');
     }
@@ -79,10 +80,6 @@ final class FullApiResponseTest extends TestCase
         $this->assertSame(['premium', 'vip', 'early_adopter'], $normalized['tags']);
     }
 
-    /**
-     * Test that user record transforms to data DTO for API response.
-     * CORRIGÉ: L'enum int retourne une valeur int, pas une string
-     */
     public function test_user_record_transforms_to_data_dto_for_api_response(): void
     {
         $userRecord = new TestUserRecord(
@@ -96,7 +93,17 @@ final class FullApiResponseTest extends TestCase
             createdAt: $this->now
         );
 
-        $userData = TestUserData::from($userRecord);
+        $userData = $this->hydration->hydrate(TestUserData::class, [
+            'id' => $userRecord->id,
+            'name' => $userRecord->name,
+            'email' => $userRecord->email->getValue(),
+            'status' => $userRecord->status->value,
+            'role' => $userRecord->role->value,
+            'grade' => $userRecord->grade->value,
+            'tags' => $userRecord->tags->toArray(),
+            'createdAt' => $userRecord->createdAt->getValue()
+        ]);
+
         $apiResponse = NormalizerChain::get()->normalize($userData);
 
         $this->assertInstanceOf(TestUserData::class, $userData);
@@ -115,7 +122,6 @@ final class FullApiResponseTest extends TestCase
         $this->assertSame('john.doe@example.com', $apiResponse['email']);
         $this->assertSame('active', $apiResponse['status']);
         $this->assertSame('admin', $apiResponse['role']);
-        // CORRIGÉ: TestUserGrade::GOLD a la valeur 3 (int), pas 'gold'
         $this->assertSame(3, $apiResponse['grade']);
     }
 
@@ -145,14 +151,24 @@ final class FullApiResponseTest extends TestCase
     {
         $recordCollection = new RecordCollection(TestUserRecord::class);
         $recordCollection->add(
-            new TestUserRecord(id: 1, name: 'John Doe', email: TestEmailAddress::from('john@example.com')),
-            new TestUserRecord(id: 2, name: 'Jane Doe', email: TestEmailAddress::from('jane@example.com')),
-            new TestUserRecord(id: 3, name: 'Bob Smith', email: TestEmailAddress::from('bob@example.com'))
+            new TestUserRecord(id: 1, name: 'John Doe', email: new TestEmailAddress('john@example.com')),
+            new TestUserRecord(id: 2, name: 'Jane Doe', email: new TestEmailAddress('jane@example.com')),
+            new TestUserRecord(id: 3, name: 'Bob Smith', email: new TestEmailAddress('bob@example.com'))
         );
 
         $dataCollection = new DataCollection(TestUserData::class);
         foreach ($recordCollection->all() as $record) {
-            $dataCollection->add(TestUserData::from($record));
+            $userData = $this->hydration->hydrate(TestUserData::class, [
+                'id' => $record->id,
+                'name' => $record->name,
+                'email' => $record->email->getValue(),
+                'status' => $record->status?->value ?? TestUserStatus::ACTIVE->value,
+                'role' => $record->role?->value ?? TestUserRole::USER->value,
+                'grade' => $record->grade?->value ?? TestUserGrade::BRONZE->value,
+                'tags' => $record->tags?->toArray(),
+                'createdAt' => $record->createdAt?->getValue()
+            ]);
+            $dataCollection->add($userData);
         }
 
         $apiResponse = NormalizerChain::get()->normalize($dataCollection);
@@ -335,7 +351,7 @@ final class FullApiResponseTest extends TestCase
                 new TestUserRecord(
                     id: $i,
                     name: "User {$i}",
-                    email: TestEmailAddress::from("user{$i}@example.com")
+                    email: new TestEmailAddress("user{$i}@example.com")
                 )
             );
         }
@@ -351,7 +367,15 @@ final class FullApiResponseTest extends TestCase
 
         $userDataCollection = new DataCollection(TestUserData::class);
         foreach ($paginated as $userRecord) {
-            $userDataCollection->add(TestUserData::from($userRecord));
+            $userData = $this->hydration->hydrate(TestUserData::class, [
+                'id' => $userRecord->id,
+                'name' => $userRecord->name,
+                'email' => $userRecord->email->getValue(),
+                'status' => TestUserStatus::ACTIVE->value,
+                'role' => TestUserRole::USER->value,
+                'grade' => TestUserGrade::BRONZE->value
+            ]);
+            $userDataCollection->add($userData);
         }
 
         $apiResponse = NormalizerChain::get()->normalize($userDataCollection);
@@ -374,11 +398,17 @@ final class FullApiResponseTest extends TestCase
             new TestProductRecord(id: 5, name: 'Desk', price: 499, isFeatured: true)
         );
 
-        $featuredProducts = $allProducts->filter(fn ($product) => $product->isFeatured === true);
+        $featuredProducts = $allProducts->filter(fn($product) => $product->isFeatured === true);
 
         $productDataCollection = new TestProductDataCollection;
         foreach ($featuredProducts->all() as $product) {
-            $productDataCollection->add(TestProductData::from($product));
+            $productData = $this->hydration->hydrate(TestProductData::class, [
+                'id' => $product->id,
+                'name' => $product->name,
+                'price' => $product->price,
+                'isFeatured' => $product->isFeatured
+            ]);
+            $productDataCollection->add($productData);
         }
 
         $apiResponse = NormalizerChain::get()->normalize($productDataCollection);
@@ -392,9 +422,6 @@ final class FullApiResponseTest extends TestCase
         $this->assertTrue($apiResponse[2]['isFeatured']);
     }
 
-    /**
-     * Test that API response can be sorted using collection methods.
-     */
     public function test_api_response_can_be_sorted_using_collection_methods(): void
     {
         $allProducts = new TestProductRecordCollection;
@@ -405,7 +432,6 @@ final class FullApiResponseTest extends TestCase
             new TestProductRecord(id: 4, name: 'Keyboard', price: 89)
         );
 
-        // Trier par nom
         $sortedProducts = $allProducts
             ->all()
             ->sortBy('name')
@@ -416,10 +442,9 @@ final class FullApiResponseTest extends TestCase
         $this->assertSame('Laptop', $sortedProducts[2]->name);
         $this->assertSame('Mouse', $sortedProducts[3]->name);
 
-        // Ou avec usort
         $sortedByPrice = $allProducts
             ->all()
-            ->usort(fn ($a, $b) => $a->price <=> $b->price)
+            ->usort(fn($a, $b) => $a->price <=> $b->price)
             ->toArray();
 
         $this->assertSame('Mouse', $sortedByPrice[0]->name);
@@ -432,16 +457,24 @@ final class FullApiResponseTest extends TestCase
     {
         $dbRecords = new RecordCollection(TestUserRecord::class);
         $dbRecords->add(
-            new TestUserRecord(id: 1, name: 'Alice', email: TestEmailAddress::from('alice@example.com'), status: TestUserStatus::ACTIVE),
-            new TestUserRecord(id: 2, name: 'Bob', email: TestEmailAddress::from('bob@example.com'), status: TestUserStatus::ACTIVE),
-            new TestUserRecord(id: 3, name: 'Charlie', email: TestEmailAddress::from('charlie@example.com'), status: TestUserStatus::INACTIVE)
+            new TestUserRecord(id: 1, name: 'Alice', email: new TestEmailAddress('alice@example.com'), status: TestUserStatus::ACTIVE),
+            new TestUserRecord(id: 2, name: 'Bob', email: new TestEmailAddress('bob@example.com'), status: TestUserStatus::ACTIVE),
+            new TestUserRecord(id: 3, name: 'Charlie', email: new TestEmailAddress('charlie@example.com'), status: TestUserStatus::INACTIVE)
         );
 
-        $activeUsers = $dbRecords->filter(fn (TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
+        $activeUsers = $dbRecords->filter(fn(TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
 
         $apiData = new DataCollection(TestUserData::class);
         foreach ($activeUsers->all() as $record) {
-            $apiData->add(TestUserData::from($record));
+            $userData = $this->hydration->hydrate(TestUserData::class, [
+                'id' => $record->id,
+                'name' => $record->name,
+                'email' => $record->email->getValue(),
+                'status' => $record->status->value,
+                'role' => TestUserRole::USER->value,
+                'grade' => TestUserGrade::BRONZE->value
+            ]);
+            $apiData->add($userData);
         }
 
         $jsonResponse = json_encode(NormalizerChain::get()->normalize($apiData));
@@ -474,13 +507,23 @@ final class FullApiResponseTest extends TestCase
 
         $userRecords = new RecordCollection(TestUserRecord::class);
         $userRecords->add(
-            new TestUserRecord(id: 1, name: 'Alice', email: TestEmailAddress::from('alice@example.com'), products: $aliceProducts),
-            new TestUserRecord(id: 2, name: 'Bob', email: TestEmailAddress::from('bob@example.com'), products: $bobProducts)
+            new TestUserRecord(id: 1, name: 'Alice', email: new TestEmailAddress('alice@example.com'), products: $aliceProducts),
+            new TestUserRecord(id: 2, name: 'Bob', email: new TestEmailAddress('bob@example.com'), products: $bobProducts)
         );
 
         $fullUserData = new DataCollection(TestFullUserData::class);
         foreach ($userRecords->all() as $record) {
-            $fullUserData->add(TestFullUserData::from($record));
+            $userData = $this->hydration->hydrate(TestFullUserData::class, [
+                'id' => $record->id,
+                'name' => $record->name,
+                'email' => $record->email->getValue(),
+                'status' => TestUserStatus::ACTIVE->value,
+                'role' => TestUserRole::USER->value,
+                'grade' => TestUserGrade::BRONZE->value,
+                'tags' => [], // Ajout du paramètre tags requis
+                'products' => $record->products->all()->toArray()
+            ]);
+            $fullUserData->add($userData);
         }
 
         $apiResponse = NormalizerChain::get()->normalize($fullUserData);
@@ -519,7 +562,15 @@ final class FullApiResponseTest extends TestCase
             status: TestUserStatus::ACTIVE
         );
 
-        $userData = TestUserData::from($userRecord);
+        $userData = $this->hydration->hydrate(TestUserData::class, [
+            'id' => $userRecord->id,
+            'name' => $userRecord->name,
+            'email' => $userRecord->email->getValue(),
+            'status' => $userRecord->status->value,
+            'role' => TestUserRole::USER->value,
+            'grade' => TestUserGrade::BRONZE->value
+        ]);
+
         $apiResponse = [
             'success' => true,
             'data' => NormalizerChain::get()->normalize($userData),
@@ -537,11 +588,19 @@ final class FullApiResponseTest extends TestCase
         $createdRecord = new TestUserRecord(
             id: 42,
             name: 'New User',
-            email: TestEmailAddress::from('new@example.com'),
+            email: new TestEmailAddress('new@example.com'),
             status: TestUserStatus::ACTIVE
         );
 
-        $createdData = TestUserData::from($createdRecord);
+        $createdData = $this->hydration->hydrate(TestUserData::class, [
+            'id' => $createdRecord->id,
+            'name' => $createdRecord->name,
+            'email' => $createdRecord->email->getValue(),
+            'status' => $createdRecord->status->value,
+            'role' => TestUserRole::USER->value,
+            'grade' => TestUserGrade::BRONZE->value
+        ]);
+
         $apiResponse = [
             'success' => true,
             'message' => 'Resource created successfully',
@@ -563,7 +622,15 @@ final class FullApiResponseTest extends TestCase
             status: TestUserStatus::ACTIVE
         );
 
-        $updatedData = TestUserData::from($updatedRecord);
+        $updatedData = $this->hydration->hydrate(TestUserData::class, [
+            'id' => $updatedRecord->id,
+            'name' => $updatedRecord->name,
+            'email' => $updatedRecord->email->getValue(),
+            'status' => $updatedRecord->status->value,
+            'role' => TestUserRole::USER->value,
+            'grade' => TestUserGrade::BRONZE->value
+        ]);
+
         $apiResponse = [
             'success' => true,
             'message' => 'Resource updated successfully',
@@ -628,7 +695,15 @@ final class FullApiResponseTest extends TestCase
             email: $this->testEmail
         );
 
-        $userData = TestUserData::from($userRecord);
+        $userData = $this->hydration->hydrate(TestUserData::class, [
+            'id' => $userRecord->id,
+            'name' => $userRecord->name,
+            'email' => $userRecord->email->getValue(),
+            'status' => TestUserStatus::ACTIVE->value,
+            'role' => TestUserRole::USER->value,
+            'grade' => TestUserGrade::BRONZE->value
+        ]);
+
         $response = [
             'success' => true,
             'data' => NormalizerChain::get()->normalize($userData),
@@ -648,13 +723,26 @@ final class FullApiResponseTest extends TestCase
     {
         $collection = new RecordCollection(TestUserRecord::class);
         $collection->add(
-            new TestUserRecord(id: 1, name: 'User 1', email: TestEmailAddress::from('user1@example.com')),
-            new TestUserRecord(id: 2, name: 'User 2', email: TestEmailAddress::from('user2@example.com'))
+            new TestUserRecord(id: 1, name: 'User 1', email: new TestEmailAddress('user1@example.com')),
+            new TestUserRecord(id: 2, name: 'User 2', email: new TestEmailAddress('user2@example.com'))
         );
+
+        $dataCollection = new DataCollection(TestUserData::class);
+        foreach ($collection->all() as $record) {
+            $userData = $this->hydration->hydrate(TestUserData::class, [
+                'id' => $record->id,
+                'name' => $record->name,
+                'email' => $record->email->getValue(),
+                'status' => TestUserStatus::ACTIVE->value,
+                'role' => TestUserRole::USER->value,
+                'grade' => TestUserGrade::BRONZE->value
+            ]);
+            $dataCollection->add($userData);
+        }
 
         $response = [
             'success' => true,
-            'data' => NormalizerChain::get()->normalize($collection),
+            'data' => NormalizerChain::get()->normalize($dataCollection),
             'total' => $collection->count(),
         ];
         $jsonResponse = json_encode($response, JSON_THROW_ON_ERROR);
@@ -668,10 +756,6 @@ final class FullApiResponseTest extends TestCase
         $this->assertEquals(2, $decoded['total']);
     }
 
-    /**
-     * Test that API response preserves data types correctly.
-     * CORRIGÉ: grade est un int (BackedEnum), pas une string
-     */
     public function test_api_response_preserves_data_types_correctly(): void
     {
         $userRecord = new TestUserRecord(
@@ -681,13 +765,20 @@ final class FullApiResponseTest extends TestCase
             grade: TestUserGrade::PLATINUM
         );
 
-        $userData = TestUserData::from($userRecord);
+        $userData = $this->hydration->hydrate(TestUserData::class, [
+            'id' => $userRecord->id,
+            'name' => $userRecord->name,
+            'email' => $userRecord->email->getValue(),
+            'status' => TestUserStatus::ACTIVE->value,
+            'role' => TestUserRole::USER->value,
+            'grade' => $userRecord->grade->value
+        ]);
+
         $apiResponse = NormalizerChain::get()->normalize($userData);
 
         $this->assertIsInt($apiResponse['id']);
         $this->assertIsString($apiResponse['name']);
         $this->assertIsString($apiResponse['email']);
-        // CORRIGÉ: TestUserGrade::PLATINUM a la valeur 4 (int)
         $this->assertIsInt($apiResponse['grade']);
         $this->assertIsArray($apiResponse['tags']);
     }

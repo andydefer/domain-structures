@@ -433,7 +433,7 @@ final class StringTypedCollection extends AbstractTypedCollection
         $suffix = $suffix ?? $prefix;
         $result = new self;
         foreach ($this->items as $item) {
-            $result->add($prefix.$item.$suffix);
+            $result->add($prefix . $item . $suffix);
         }
 
         return $result;
