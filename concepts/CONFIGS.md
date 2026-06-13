@@ -10,11 +10,12 @@
 6. [Types de retour autorisés](#6-types-de-retour-autorisés)
 7. [Méthodes utilitaires](#7-méthodes-utilitaires)
 8. [Chargement depuis l'environnement](#8-chargement-depuis-lenvironnement)
-9. [Avantages architecturaux](#9-avantages-architecturaux)
-10. [Exemples concrets](#10-exemples-concrets)
-11. [Bonnes pratiques](#11-bonnes-pratiques)
-12. [Récapitulatif](#12-récapitulatif)
-13. [Règle d'or](#13-règle-dor)
+9. [Intégration avec Laravel](#9-intégration-avec-laravel)
+10. [Avantages architecturaux](#10-avantages-architecturaux)
+11. [Exemples concrets](#11-exemples-concrets)
+12. [Bonnes pratiques](#12-bonnes-pratiques)
+13. [Récapitulatif](#13-récapitulatif)
+14. [Règle d'or](#14-règle-dor)
 
 ---
 
@@ -74,21 +75,6 @@ Interface Config → Contrat → Implémentations concrètes → Découplage tot
 | Impossible de changer de source de config | Multiples implémentations possibles |
 | Tests difficiles (véritable classe chargée) | Tests faciles (mock de l'interface) |
 | Héritage unique bloqué | Une classe peut implémenter plusieurs interfaces |
-
-### 3.2. Interface de base (optionnelle)
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace App\Contracts\Configs;
-
-interface ConfigInterface
-{
-    // Interface marker - toutes les configs peuvent implémenter cette interface
-}
-```
 
 ---
 
@@ -643,9 +629,242 @@ final class EnvDatabaseConfig implements DatabaseConfigInterface
 
 ---
 
-## 9. Avantages architecturaux
+## 9. Intégration avec Laravel
 
-### 9.1. Testabilité parfaite
+> **⚠️ IMPORTANT : Dans Laravel, on injecte le `ConfigRepository` (ou `Illuminate\Contracts\Config\Repository`) dans l'implémentation concrète de la Config pour accéder aux valeurs du fichier de configuration.**
+
+### 9.1. Structure des fichiers
+
+```
+app/
+├── Contracts/
+│   └── Configs/
+│       └── JsonlConfigInterface.php
+├── Configs/
+│   └── JsonlConfig.php
+└── ServiceProviders/
+    └── JsonlServiceProvider.php
+
+config/
+└── jsonl.php
+```
+
+### 9.2. Définir l'interface
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Contracts\Configs;
+
+use AndyDefer\PhpServices\Enums\PermissionMode;
+
+interface JsonlConfigInterface
+{
+    public function basePath(): string;
+    public function bufferSize(): ?int;
+    public function directoryPermission(): PermissionMode;
+    public function isBufferEnabled(): bool;
+}
+```
+
+### 9.3. Implémenter avec injection du ConfigRepository Laravel
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Configs;
+
+use App\Contracts\Configs\JsonlConfigInterface;
+use AndyDefer\PhpServices\Enums\PermissionMode;
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
+
+/**
+ * Implémentation de la configuration JSONL pour Laravel
+ * 
+ * ⚠️ IMPORTANT : On injecte le ConfigRepository de Laravel
+ * pour accéder aux valeurs du fichier config/jsonl.php
+ */
+final class JsonlConfig implements JsonlConfigInterface
+{
+    public function __construct(
+        private readonly ConfigRepository $config,  // ← Injection du ConfigRepository Laravel
+    ) {}
+
+    public function basePath(): string
+    {
+        // Récupère la valeur depuis config/jsonl.php
+        return $this->config->get('jsonl.base_path', storage_path('jsonl'));
+    }
+
+    public function bufferSize(): ?int
+    {
+        $size = $this->config->get('jsonl.buffer_size');
+        
+        if ($size === null) {
+            return null;
+        }
+        
+        $intSize = (int) $size;
+        
+        return $intSize > 0 ? $intSize : null;
+    }
+
+    public function directoryPermission(): PermissionMode
+    {
+        $permission = $this->config->get('jsonl.directory_permission', 755);
+        
+        return match ($permission) {
+            755 => PermissionMode::DIRECTORY,
+            750 => PermissionMode::TEAM_DIRECTORY,
+            700 => PermissionMode::PRIVATE_DIRECTORY,
+            600 => PermissionMode::PRIVATE,
+            644 => PermissionMode::PUBLIC_FILE,
+            640 => PermissionMode::SHARED_CONFIG,
+            default => PermissionMode::DIRECTORY,
+        };
+    }
+
+    public function isBufferEnabled(): bool
+    {
+        return $this->bufferSize() !== null && $this->bufferSize() > 0;
+    }
+}
+```
+
+### 9.4. Enregistrer dans un ServiceProvider
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\ServiceProviders;
+
+use App\Contracts\Configs\JsonlConfigInterface;
+use App\Configs\JsonlConfig;
+use Illuminate\Support\ServiceProvider;
+
+final class JsonlServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        // Enregistrement de la Config avec injection automatique du ConfigRepository
+        $this->app->singleton(JsonlConfigInterface::class, function ($app) {
+            return new JsonlConfig(
+                $app->make(ConfigRepository::class)  // ← Injection explicite
+            );
+        });
+        
+        // Alternative plus courte (injection automatique par Laravel)
+        // $this->app->singleton(JsonlConfigInterface::class, JsonlConfig::class);
+    }
+
+    public function boot(): void
+    {
+        $this->publishes([
+            __DIR__ . '/../../config/jsonl.php' => config_path('jsonl.php'),
+        ], 'jsonl-config');
+    }
+}
+```
+
+### 9.5. Fichier de configuration Laravel
+
+```php
+<?php
+// config/jsonl.php
+
+declare(strict_types=1);
+
+return [
+    'base_path' => env('JSONL_BASE_PATH', storage_path('jsonl')),
+    'buffer_size' => env('JSONL_BUFFER_SIZE', null),
+    'directory_permission' => (int) (env('JSONL_DIRECTORY_PERMISSION', 755)),
+];
+```
+
+### 9.6. Utilisation dans un Service Laravel
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use App\Contracts\Configs\JsonlConfigInterface;
+
+final class JsonlService
+{
+    public function __construct(
+        private readonly JsonlConfigInterface $config,  // ← Dépend de l'interface
+    ) {}
+    
+    public function getStoragePath(): string
+    {
+        return $this->config->basePath();
+    }
+    
+    public function write(array $data): void
+    {
+        $bufferSize = $this->config->bufferSize();
+        $permission = $this->config->directoryPermission();
+        
+        // Logique d'écriture...
+    }
+}
+```
+
+### 9.7. Avantage de l'injection du ConfigRepository
+
+| Avantage | Explication |
+|----------|-------------|
+| **Respect du DIP** | Le Service dépend de l'interface, pas du framework |
+| **Testabilité** | On peut mocker l'interface sans toucher au ConfigRepository |
+| **Découplage** | La Config est une abstraction, l'implémentation utilise Laravel |
+| **Portabilité** | On peut remplacer l'implémentation sans changer le Service |
+
+### 9.8. Test unitaire avec Mock
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit\Services;
+
+use App\Contracts\Configs\JsonlConfigInterface;
+use App\Services\JsonlService;
+use AndyDefer\PhpServices\Enums\PermissionMode;
+use Mockery;
+use Tests\TestCase;
+
+final class JsonlServiceTest extends TestCase
+{
+    public function test_get_storage_path_returns_configured_path(): void
+    {
+        // ✅ Mock de l'interface - PAS besoin du vrai ConfigRepository
+        $mockConfig = Mockery::mock(JsonlConfigInterface::class);
+        $mockConfig->shouldReceive('basePath')
+            ->once()
+            ->andReturn('/custom/storage/path');
+        
+        $service = new JsonlService($mockConfig);
+        
+        $this->assertEquals('/custom/storage/path', $service->getStoragePath());
+    }
+}
+```
+
+---
+
+## 10. Avantages architecturaux
+
+### 10.1. Testabilité parfaite
 
 ```php
 // Test unitaire d'un Service qui dépend d'une Config
@@ -667,7 +886,7 @@ final class DatabaseServiceTest extends TestCase
 }
 ```
 
-### 9.2. Faible couplage
+### 10.2. Faible couplage
 
 ```php
 // ✅ Le Service ne connaît PAS l'implémentation concrète
@@ -689,7 +908,7 @@ $service = new DatabaseService(new FileDatabaseConfig('/client/config.php'));
 $service = new DatabaseService(new TestDatabaseConfig());
 ```
 
-### 9.3. Ségrégation des interfaces (ISP)
+### 10.3. Ségrégation des interfaces (ISP)
 
 ```php
 // ✅ Une grosse classe peut implémenter plusieurs interfaces
@@ -711,44 +930,7 @@ $mailService = new MailService($appConfig);        // ← Ne voit QUE MailConfig
 $apiService = new ApiService($appConfig);          // ← Ne voit QUE ApiConfigInterface
 ```
 
-### 9.4. Portabilité entre frameworks
-
-```php
-// ✅ La même Config fonctionne PARTOUT
-final class PortableConfig implements DatabaseConfigInterface
-{
-    private array $values;
-    
-    public function __construct(array $values)  // ✅ Injection des valeurs
-    {
-        $this->values = $values;
-    }
-    
-    public function host(): string
-    {
-        return $this->values['host'] ?? getenv('DB_HOST') ?: 'localhost';
-    }
-}
-
-// Dans Laravel
-$config = new PortableConfig([
-    'host' => config('database.connections.mysql.host'),
-]);
-
-// Dans Symfony
-$config = new PortableConfig([
-    'host' => $this->getParameter('database.host'),
-]);
-
-// Dans un test
-$config = new PortableConfig([
-    'host' => 'test-host',
-]);
-
-// ✅ La même classe fonctionne partout !
-```
-
-### 9.5. Résumé des avantages
+### 10.4. Résumé des avantages
 
 | Avantage | Explication |
 |----------|-------------|
@@ -763,9 +945,9 @@ $config = new PortableConfig([
 
 ---
 
-## 10. Exemples concrets
+## 11. Exemples concrets
 
-### 10.1. Interface ségréguée pour application complète
+### 11.1. Interface ségréguée pour application complète
 
 ```php
 // Interfaces
@@ -834,7 +1016,7 @@ $dbService = new DatabaseService($config);      // ✅ Ne voit que DatabaseConfi
 $cacheService = new CacheService($config);      // ✅ Ne voit que CacheConfigInterface
 ```
 
-### 10.2. Test avec mock
+### 11.2. Test avec mock
 
 ```php
 final class DatabaseServiceTest extends TestCase
@@ -857,9 +1039,9 @@ final class DatabaseServiceTest extends TestCase
 
 ---
 
-## 11. Bonnes pratiques
+## 12. Bonnes pratiques
 
-### 11.1. Nommage des méthodes
+### 12.1. Nommage des méthodes
 
 ```php
 // ✅ BON - Noms clairs et explicites
@@ -872,7 +1054,7 @@ public function get(): string { ... }
 public function val(): int { ... }
 ```
 
-### 11.2. Nommage des interfaces
+### 12.2. Nommage des interfaces
 
 ```php
 // ✅ BON - Suffixe Interface
@@ -881,7 +1063,7 @@ interface ApiConfigInterface { ... }
 interface CacheConfigInterface { ... }
 ```
 
-### 11.3. Regrouper par domaine, mais ségréguer les interfaces
+### 12.3. Regrouper par domaine, mais ségréguer les interfaces
 
 ```php
 // ✅ BON - Interfaces séparées par domaine
@@ -893,7 +1075,7 @@ interface MailConfigInterface { ... }
 interface AppConfigInterface { ... }  // 50 méthodes mélangées
 ```
 
-### 11.4. Injection dans les Services
+### 12.4. Injection dans les Services
 
 ```php
 // ✅ BON - Injection de l'interface spécifique
@@ -913,40 +1095,54 @@ final class BadService
 }
 ```
 
-### 11.5. Pas de fonctions framework
+### 12.5. Dans Laravel - Injection du ConfigRepository
 
 ```php
-// ❌ MAUVAIS - Dépendance au framework
-final class BadConfig implements DatabaseConfigInterface
+// ✅ BON - Injection du ConfigRepository
+final class JsonlConfig implements JsonlConfigInterface
 {
-    public function host(): string
+    public function __construct(
+        private readonly ConfigRepository $config,  // ← Injection du ConfigRepository Laravel
+    ) {}
+    
+    public function basePath(): string
     {
-        return config('database.host');  // ❌ Helper Laravel
+        return $this->config->get('jsonl.base_path', storage_path('jsonl'));
     }
 }
 
-// ✅ BON - Valeur injectée ou getenv()
-final class GoodConfig implements DatabaseConfigInterface
+// ❌ MAUVAIS - Appel direct du helper config()
+final class BadConfig implements JsonlConfigInterface
 {
-    private string $host;
-    
-    public function __construct(string $host)
+    public function basePath(): string
     {
-        $this->host = $host;
+        return config('jsonl.base_path');  // ❌ Pas testable, dépend du framework
     }
-    
-    public function host(): string
-    {
-        return $this->host;
-    }
+}
+```
+
+### 12.6. Pas de fonctions framework dans l'interface
+
+```php
+// ❌ MAUVAIS - Dépendance au framework dans l'interface
+interface BadConfigInterface{
+    public function host(): string;
+    public function config(): ConfigRepository;  // ❌ Framework leak
+}
+
+// ✅ BON - Pas de framework dans l'interface
+interface GoodConfigInterface
+{
+    public function host(): string;
+    public function basePath(): string;  // ✅ Simple string
 }
 ```
 
 ---
 
-## 12. Récapitulatif
+## 13. Récapitulatif
 
-### 12.1. Caractéristiques principales
+### 13.1. Caractéristiques principales
 
 | Caractéristique | Règle |
 |-----------------|-------|
@@ -959,7 +1155,7 @@ final class GoodConfig implements DatabaseConfigInterface
 | **Logique métier** | ❌ INTERDITE |
 | **Effets de bord** | ❌ INTERDITS |
 
-### 12.2. Types de retour autorisés
+### 13.2. Types de retour autorisés
 
 | Type | Exemple |
 |------|---------|
@@ -969,7 +1165,7 @@ final class GoodConfig implements DatabaseConfigInterface
 | Record | `public function dsn(): DsnRecord` |
 | **Tableau brut** | ❌ **INTERDIT** |
 
-### 12.3. Récapitulatif des contraintes
+### 13.3. Récapitulatif des contraintes
 
 | Action | Autorisé |
 |--------|----------|
@@ -983,6 +1179,7 @@ final class GoodConfig implements DatabaseConfigInterface
 | Avoir des méthodes utilitaires | ✅ |
 | Injecter l'interface spécifique dans un Service | ✅ |
 | Avoir un constructeur pour la source (fichier, URL) | ✅ |
+| **Dans Laravel : Injecter ConfigRepository** | ✅ |
 | Avoir des propriétés pour stocker des valeurs | ❌ |
 | Stocker de l'état interne | ❌ |
 | Avoir des effets de bord | ❌ |
@@ -991,10 +1188,11 @@ final class GoodConfig implements DatabaseConfigInterface
 | Contenir de la validation | ❌ |
 | Injecter l'implémentation concrète | ❌ |
 | Faire dépendre un Service d'une grosse interface | ❌ |
+| **Appeler `config()` helper dans l'implémentation** | ❌ |
 
 ---
 
-## 13. Règle d'or
+## 14. Règle d'or
 
 > **Une Config est une INTERFACE qui sert de contrat. Les Services dépendent de l'interface spécifique, jamais de l'implémentation concrète ni d'une grosse interface.**
 >
@@ -1009,6 +1207,7 @@ final class GoodConfig implements DatabaseConfigInterface
 > - ✅ Implémenter plusieurs interfaces (ISP)
 > - ✅ Lire les variables d'environnement (getenv)
 > - ✅ Lire des fichiers de configuration
+> - ✅ **Dans Laravel : Injecter et utiliser `ConfigRepository`**
 > - ✅ Avoir un constructeur pour configurer la SOURCE des données
 > - ✅ Retourner des scalaires, enums, Value Objects, Records
 > - ✅ Avoir des méthodes utilitaires (formatage, transformation, questions)
@@ -1047,6 +1246,19 @@ final class EnvAppConfig implements DatabaseConfigInterface, CacheConfigInterfac
     public function cachePort(): int { return (int) (getenv('REDIS_PORT') ?: 6379); }
 }
 
+// ✅ Dans Laravel - Implémentation avec ConfigRepository
+final class LaravelDatabaseConfig implements DatabaseConfigInterface
+{
+    public function __construct(
+        private readonly ConfigRepository $config,  // ← Injection Laravel
+    ) {}
+    
+    public function host(): string 
+    { 
+        return $this->config->get('database.connections.mysql.host'); 
+    }
+}
+
 // ✅ Services - Chacun ne prend que SON interface
 final class DatabaseService
 {
@@ -1076,5 +1288,19 @@ $mockConfig = $this->createMock(DatabaseConfigInterface::class);
 $service = new DatabaseService($mockConfig);
 
 // ✅ La même Config fonctionne PARTOUT, SANS framework !
+// ✅ Dans Laravel, on injecte ConfigRepository DANS l'implémentation
+// ✅ Le Service ne dépend JAMAIS du framework, seulement de l'interface
 ```
+
+---
+
+## Points clés pour Laravel
+
+| Règle | Explication |
+|-------|-------------|
+| **Injecter ConfigRepository** | L'implémentation concrète reçoit `ConfigRepository` dans son constructeur |
+| **Ne pas appeler `config()` helper** | `config('key')` n'est pas testable, utilisez `$this->config->get('key')` |
+| **L'interface ne dépend pas de Laravel** | L'interface ne contient aucun type de Laravel |
+| **Le Service dépend de l'interface** | Le Service ne connaît ni `ConfigRepository` ni `config()` |
+| **Testable sans Laravel** | On peut mocker l'interface dans les tests unitaires |
 ---
