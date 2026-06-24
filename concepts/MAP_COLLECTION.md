@@ -1,6 +1,3 @@
-## ✅ **EXCUSE-MOI, VOICI DES EXEMPLES AVEC DES RECORDS, VALUE OBJECTS ET MODÈLES**
-
----
 
 # MapCollection - Référence Technique (Version Complète)
 
