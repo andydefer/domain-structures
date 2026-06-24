@@ -91,29 +91,8 @@ use InvalidArgumentException;
  */
 trait HasPropertiesAccess
 {
-    /**
-     * Magic getter for accessing properties.
-     *
-     * @deprecated L'utilisation du magic __get() est dépréciée.
-     *             Utilisez des getters explicites ou des Records.
-     *
-     * @param  string  $name  Property name
-     *
-     * @throws InvalidArgumentException
-     */
     public function __get(string $name): mixed
     {
-        // Déclencher une erreur de dépréciation
-        @trigger_error(
-            sprintf(
-                'L\'utilisation du magic __get() dans %s est dépréciée depuis la version 2.0.0. '.
-                    'Cette méthode sera supprimée dans la version 3.0.0. '.
-                    'Utilisez des getters explicites (ex: get%s()) ou utilisez un Record PHP 8.0+.',
-                static::class,
-                ucfirst($name)
-            ),
-            E_USER_DEPRECATED
-        );
 
         // Get flattened data
         $flatData = NormalizerChain::get()->normalize($this);
@@ -150,22 +129,8 @@ trait HasPropertiesAccess
         return $rawValue;
     }
 
-    /**
-     * Check if a property exists.
-     *
-     * @deprecated L'utilisation du magic __isset() est dépréciée.
-     *             Utilisez des méthodes hasXXX() explicites.
-     */
     public function __isset(string $name): bool
     {
-        @trigger_error(
-            sprintf(
-                'L\'utilisation du magic __isset() dans %s est dépréciée depuis la version 2.0.0. '.
-                    'Cette méthode sera supprimée dans la version 3.0.0.',
-                static::class
-            ),
-            E_USER_DEPRECATED
-        );
 
         $flatData = NormalizerChain::get()->normalize($this);
         $dataObject = DataObject::from($flatData);
@@ -173,12 +138,6 @@ trait HasPropertiesAccess
         return isset($dataObject[$name]);
     }
 
-    /**
-     * Get property type using reflection.
-     *
-     * @deprecated La réflexion pour accéder aux propriétés privées est dépréciée.
-     *             Les propriétés doivent être directement accessibles via getters publics.
-     */
     private function getPropertyType(string $propertyName): ?\ReflectionNamedType
     {
         try {

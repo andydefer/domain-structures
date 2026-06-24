@@ -50,15 +50,6 @@ final class RecordCollection extends AbstractTypedCollection
 {
     public function __construct(string ...$allowedConcreteTypes)
     {
-        @trigger_error(
-            sprintf(
-                'La classe %s est dépréciée depuis la version 2.0.0. '.
-                    'Créez une classe de collection spécialisée pour vos Records. '.
-                    'Elle sera supprimée dans la version 3.0.0.',
-                self::class
-            ),
-            E_USER_DEPRECATED
-        );
 
         if (empty($allowedConcreteTypes)) {
             throw new \InvalidArgumentException('At least one concrete Record class must be provided');

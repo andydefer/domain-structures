@@ -56,15 +56,6 @@ final class CollectionContainer extends AbstractTypedCollection
 {
     public function __construct(string ...$allowedCollectionTypes)
     {
-        @trigger_error(
-            sprintf(
-                'La classe %s est dépréciée depuis la version 2.0.0. '.
-                    'Créez une classe de collection conteneur spécialisée. '.
-                    'Elle sera supprimée dans la version 3.0.0.',
-                self::class
-            ),
-            E_USER_DEPRECATED
-        );
 
         if (empty($allowedCollectionTypes)) {
             throw new InvalidArgumentException('At least one concrete Collection class must be provided');
@@ -85,10 +76,6 @@ final class CollectionContainer extends AbstractTypedCollection
 
     public function flatten(): array
     {
-        @trigger_error(
-            'La méthode flatten() est dépréciée. Utilisez un Service dédié à la place.',
-            E_USER_DEPRECATED
-        );
 
         $result = [];
         foreach ($this->items as $collection) {
@@ -102,10 +89,6 @@ final class CollectionContainer extends AbstractTypedCollection
 
     public function flattenDeep(): array
     {
-        @trigger_error(
-            'La méthode flattenDeep() est dépréciée. Utilisez un Service dédié à la place.',
-            E_USER_DEPRECATED
-        );
 
         $result = [];
         foreach ($this->items as $collection) {
