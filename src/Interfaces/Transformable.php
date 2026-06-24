@@ -7,7 +7,7 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Interfaces;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
-use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
+use AndyDefer\DomainStructures\Utils\StrictSequential;
 
 /**
  * Interface for objects that can be hydrated from a source and normalized.
@@ -43,5 +43,5 @@ interface Transformable
      *
      * @throws \InvalidArgumentException
      */
-    public static function collect(iterable $sources, string $collectionClass = TypedCollection::class): AbstractTypedCollection;
+    public static function collect(iterable $sources, string $collectionClass = StrictSequential::class);
 }
