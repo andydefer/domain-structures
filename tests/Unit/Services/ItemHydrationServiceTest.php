@@ -1,4 +1,5 @@
 <?php
+
 // tests/Unit/Services/ItemHydrationServiceTest.php
 
 declare(strict_types=1);
@@ -6,25 +7,24 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Tests\Unit\Services;
 
 use AndyDefer\DomainStructures\Services\ItemHydrationService;
-use AndyDefer\DomainStructures\Tests\TestCase;
-use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
-use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestRequiredRecord;
-use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestMoneyRecord;
-use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserNullableRecord;
-use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestSimpleUserData;
-use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestProductData;
-use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
-use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestMoney;
-use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
-use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestPostalCode;
-use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
-use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserRole;
-use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
-use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestCurrency;
-use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestBackedStringEnum;
+use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestBackedIntEnum;
+use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestBackedStringEnum;
+use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestCurrency;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestPureEnum;
+use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
+use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserRole;
+use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
+use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestMoneyRecord;
+use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestRequiredRecord;
+use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserNullableRecord;
+use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
+use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
+use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
+use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestMoney;
+use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestPostalCode;
+use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\DataObject;
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
 use InvalidArgumentException;
@@ -33,13 +33,15 @@ use RuntimeException;
 final class ItemHydrationServiceTest extends TestCase
 {
     private ItemHydrationService $service;
+
     private TestIso8601DateTime $now;
+
     private TestEmailAddress $testEmail;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new ItemHydrationService();
+        $this->service = new ItemHydrationService;
         $this->now = new TestIso8601DateTime('2024-01-01T12:00:00+00:00');
         $this->testEmail = new TestEmailAddress('test@example.com');
     }

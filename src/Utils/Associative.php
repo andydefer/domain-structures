@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Utils;
 
-use AndyDefer\DomainStructures\Abstracts\AbstractAssociative;
-
 /**
  * Associative - Normalise les clés en camelCase.
  *
@@ -16,16 +14,4 @@ use AndyDefer\DomainStructures\Abstracts\AbstractAssociative;
  *
  * @template T
  */
-class Associative extends AbstractAssociative
-{
-    /**
-     * Normalise une clé string en camelCase.
-     *
-     * @param  string  $key  La clé à normaliser
-     * @return string La clé normalisée en camelCase
-     */
-    protected function normalizeKey(string $key): string
-    {
-        return $this->snakeToCamel($key);
-    }
-}
+class Associative extends DataObject {}

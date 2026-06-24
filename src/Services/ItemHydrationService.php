@@ -1,4 +1,5 @@
 <?php
+
 // src/Services/ItemHydrationService.php
 
 declare(strict_types=1);
@@ -20,9 +21,8 @@ final class ItemHydrationService
     /**
      * Hydrate un item à partir d'une source.
      *
-     * @param class-string<AbstractRecord|AbstractValueObject|AbstractData|AbstractDataObject|UnitEnum|string|int|float|bool> $className
-     * @param mixed $source
-     * @return object|string|int|float|bool|null
+     * @param  class-string<AbstractRecord|AbstractValueObject|AbstractData|AbstractDataObject|UnitEnum|string|int|float|bool>  $className
+     *
      * @throws InvalidArgumentException|RuntimeException
      */
     public function hydrate(string $className, mixed $source): object|string|int|float|bool|null

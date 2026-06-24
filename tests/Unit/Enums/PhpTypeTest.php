@@ -500,10 +500,10 @@ final class PhpTypeTest extends TestCase
         $this->assertTrue(PhpType::ABSTRACT_VALUE_OBJECT->isDomainAbstractType());
         $this->assertTrue(PhpType::ABSTRACT_DATA->isDomainAbstractType());
         $this->assertTrue(PhpType::ABSTRACT_TYPED_COLLECTION->isDomainAbstractType());
+        $this->assertTrue(PhpType::ABSTRACT_DATA_OBJECT->isDomainAbstractType());
 
         $this->assertFalse(PhpType::INTEGER->isDomainAbstractType());
         $this->assertFalse(PhpType::UNIT_ENUM->isDomainAbstractType());
-        $this->assertFalse(PhpType::ABSTRACT_DATA_OBJECT->isDomainAbstractType());
     }
 
     // ==================== GET_SCALAR_TYPES TESTS ====================
@@ -547,7 +547,7 @@ final class PhpTypeTest extends TestCase
     {
         $allowedTypes = PhpType::getAllowedTypesList();
 
-        $this->assertCount(11, $allowedTypes);
+        $this->assertCount(13, $allowedTypes);
         $this->assertContains('int', $allowedTypes);
         $this->assertContains('string', $allowedTypes);
         $this->assertContains('float', $allowedTypes);

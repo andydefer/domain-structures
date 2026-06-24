@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Traits;
 
+use AndyDefer\DomainStructures\Services\EnumService;
+
 /**
  * Provides common utility methods for PHP 8.1+ Enums.
  *
  * @deprecated 2.0.0 Use EnumService instead. This trait will be removed in future versions.
- * @see \AndyDefer\DomainStructures\Services\EnumService
+ * @see EnumService
  *
  * Ce trait est déprécié car il impose une approche par héritage.
  * La nouvelle approche privilégie la composition via EnumService.
@@ -36,7 +38,7 @@ trait Enumable
      */
     public static function values(): array
     {
-        return (new \AndyDefer\DomainStructures\Services\EnumService())->values(static::class);
+        return (new EnumService)->values(static::class);
     }
 
     /**
@@ -44,7 +46,7 @@ trait Enumable
      */
     public static function names(): array
     {
-        return (new \AndyDefer\DomainStructures\Services\EnumService())->names(static::class);
+        return (new EnumService)->names(static::class);
     }
 
     /**
@@ -52,7 +54,7 @@ trait Enumable
      */
     public static function typesInOrder(): array
     {
-        return (new \AndyDefer\DomainStructures\Services\EnumService())->cases(static::class);
+        return (new EnumService)->cases(static::class);
     }
 
     /**
@@ -60,7 +62,7 @@ trait Enumable
      */
     public static function isValid(string|int $value): bool
     {
-        return (new \AndyDefer\DomainStructures\Services\EnumService())->isValid(static::class, $value);
+        return (new EnumService)->isValid(static::class, $value);
     }
 
     /**
@@ -68,7 +70,7 @@ trait Enumable
      */
     public static function fromValue(string|int $value): ?self
     {
-        return (new \AndyDefer\DomainStructures\Services\EnumService())->fromValue(static::class, $value);
+        return (new EnumService)->fromValue(static::class, $value);
     }
 
     /**
@@ -76,6 +78,6 @@ trait Enumable
      */
     public static function from(mixed $source): self
     {
-        return (new \AndyDefer\DomainStructures\Services\EnumService())->from(static::class, $source);
+        return (new EnumService)->from(static::class, $source);
     }
 }

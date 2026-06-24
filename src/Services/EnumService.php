@@ -16,7 +16,7 @@ final class EnumService
      * For backed enums (string|int), returns the backing values.
      * For pure enums (without values), returns the case names.
      *
-     * @param class-string<UnitEnum> $enumClass
+     * @param  class-string<UnitEnum>  $enumClass
      * @return array<int, string|int>
      */
     public function values(string $enumClass): array
@@ -33,7 +33,7 @@ final class EnumService
     /**
      * Returns all case names from the enum.
      *
-     * @param class-string<UnitEnum> $enumClass
+     * @param  class-string<UnitEnum>  $enumClass
      * @return array<int, string>
      */
     public function names(string $enumClass): array
@@ -46,7 +46,7 @@ final class EnumService
     /**
      * Returns all enum cases in their defined order.
      *
-     * @param class-string<UnitEnum> $enumClass
+     * @param  class-string<UnitEnum>  $enumClass
      * @return array<int, UnitEnum>
      */
     public function cases(string $enumClass): array
@@ -59,9 +59,7 @@ final class EnumService
     /**
      * Checks if a given value exists in the enum.
      *
-     * @param class-string<UnitEnum> $enumClass
-     * @param string|int $value
-     * @return bool
+     * @param  class-string<UnitEnum>  $enumClass
      */
     public function isValid(string $enumClass, string|int $value): bool
     {
@@ -77,9 +75,7 @@ final class EnumService
     /**
      * Retrieves the enum case corresponding to a value.
      *
-     * @param class-string<UnitEnum> $enumClass
-     * @param string|int $value
-     * @return UnitEnum|null
+     * @param  class-string<UnitEnum>  $enumClass
      */
     public function fromValue(string $enumClass, string|int $value): ?UnitEnum
     {
@@ -111,9 +107,7 @@ final class EnumService
     /**
      * Creates an enum instance from any source for hydration.
      *
-     * @param class-string<UnitEnum> $enumClass
-     * @param mixed $source
-     * @return UnitEnum
+     * @param  class-string<UnitEnum>  $enumClass
      *
      * @throws InvalidArgumentException
      */
@@ -183,12 +177,13 @@ final class EnumService
     }
 
     /**
-     * @param class-string<UnitEnum> $enumClass
+     * @param  class-string<UnitEnum>  $enumClass
+     *
      * @throws InvalidArgumentException
      */
     private function validateEnumClass(string $enumClass): void
     {
-        if (!is_subclass_of($enumClass, UnitEnum::class)) {
+        if (! is_subclass_of($enumClass, UnitEnum::class)) {
             throw new InvalidArgumentException(sprintf(
                 'Class %s is not a valid Enum',
                 $enumClass

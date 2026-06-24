@@ -6,18 +6,9 @@ namespace AndyDefer\DomainStructures\Utils;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractDataObject;
 
-/**
- * DataObject - Normalise les clés en camelCase.
- *
- * Une fois construit, on ne peut pas le modifier.
- * Pour "modifier", on crée une nouvelle instance avec with(), merge() ou without().
- * Supporte l'accès par propriété (->) et par tableau ([]).
- * Supporte camelCase et snake_case (convertis en camelCase).
- *
- * @template T
- */
 class DataObject extends AbstractDataObject
 {
+    // Alias de Associative pour rétrocompatibilité
     /**
      * Normalise une clé string en camelCase.
      *

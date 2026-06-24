@@ -1,4 +1,5 @@
 <?php
+
 // tests/Fixtures/Collections/EmptyTypesCollection.php
 declare(strict_types=1);
 

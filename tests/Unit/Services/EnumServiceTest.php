@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace AndyDefer\DomainStructures\Tests\Unit\Services;
 
 use AndyDefer\DomainStructures\Services\EnumService;
-use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestBackedEnum;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestBackedIntEnum;
-use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestBackedStringEnum;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestCurrency;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestLifeStage;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestPureEnum;
@@ -16,7 +14,6 @@ use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserRole;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
 use AndyDefer\DomainStructures\Tests\TestCase;
-use AndyDefer\DomainStructures\Tests\UnitTestCase;
 use InvalidArgumentException;
 
 final class EnumServiceTest extends TestCase
@@ -26,7 +23,7 @@ final class EnumServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->enumService = new EnumService();
+        $this->enumService = new EnumService;
     }
 
     public function test_values_returns_backing_values_for_backed_string_enum(): void
@@ -196,7 +193,8 @@ final class EnumServiceTest extends TestCase
 
     public function test_from_converts_object_with_value_property_to_backed_enum(): void
     {
-        $source = new class {
+        $source = new class
+        {
             public string $value = 'active';
         };
 
@@ -216,7 +214,8 @@ final class EnumServiceTest extends TestCase
 
     public function test_from_converts_object_with_name_property_to_pure_enum(): void
     {
-        $source = new class {
+        $source = new class
+        {
             public string $name = 'VALUE_ONE';
         };
 

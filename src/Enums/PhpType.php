@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Enums;
 
+use AndyDefer\DomainStructures\Abstracts\AbstractAssociative;
 use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\DomainStructures\Abstracts\AbstractDataObject;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
+use AndyDefer\DomainStructures\Abstracts\AbstractSequential;
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 use UnitEnum;
@@ -26,13 +28,15 @@ enum PhpType: string
     case BOOLEAN = 'boolean';
     case NULL = 'NULL';
 
-        // Domain-specific abstract types
+    // Domain-specific abstract types
     case UNIT_ENUM = UnitEnum::class;
     case ABSTRACT_VALUE_OBJECT = AbstractValueObject::class;
     case ABSTRACT_DATA = AbstractData::class;
     case ABSTRACT_RECORD = AbstractRecord::class;
     case ABSTRACT_DATA_OBJECT = AbstractDataObject::class;
     case ABSTRACT_TYPED_COLLECTION = AbstractTypedCollection::class;
+    case ABSTRACT_ASSOCIATIVE = AbstractAssociative::class;
+    case ABSTRACT_SEQUENTIAL = AbstractSequential::class;
 
     /**
      * Get the normalized short name for the PHP type.
@@ -51,6 +55,8 @@ enum PhpType: string
             self::ABSTRACT_DATA => AbstractData::class,
             self::ABSTRACT_TYPED_COLLECTION => AbstractTypedCollection::class,
             self::ABSTRACT_DATA_OBJECT => AbstractDataObject::class,
+            self::ABSTRACT_ASSOCIATIVE => AbstractAssociative::class,
+            self::ABSTRACT_SEQUENTIAL => AbstractSequential::class,
         };
     }
 
@@ -85,7 +91,8 @@ enum PhpType: string
 
     public function isTransformable(): bool
     {
-        return $this->isRecord() || $this->isValueObject() || $this->isData() || $this->isCollection();
+        return $this->isRecord() || $this->isValueObject() || $this->isData() || $this->isCollection()
+            || $this->isAssociative() || $this->isSequential();
     }
 
     /**
@@ -146,6 +153,8 @@ enum PhpType: string
             self::ABSTRACT_DATA,
             self::ABSTRACT_TYPED_COLLECTION,
             self::ABSTRACT_DATA_OBJECT,
+            self::ABSTRACT_ASSOCIATIVE,
+            self::ABSTRACT_SEQUENTIAL,
         ]);
     }
 
@@ -179,6 +188,16 @@ enum PhpType: string
         return $this === self::ABSTRACT_DATA_OBJECT;
     }
 
+    public function isAssociative(): bool
+    {
+        return $this === self::ABSTRACT_ASSOCIATIVE;
+    }
+
+    public function isSequential(): bool
+    {
+        return $this === self::ABSTRACT_SEQUENTIAL;
+    }
+
     public function isDomainAbstractType(): bool
     {
         return in_array($this, [
@@ -186,6 +205,10 @@ enum PhpType: string
             self::ABSTRACT_VALUE_OBJECT,
             self::ABSTRACT_DATA,
             self::ABSTRACT_TYPED_COLLECTION,
+            self::ABSTRACT_DATA_OBJECT,
+            self::ABSTRACT_ASSOCIATIVE,
+            self::ABSTRACT_SEQUENTIAL,
+
         ]);
     }
 
@@ -217,6 +240,14 @@ enum PhpType: string
 
         if ($value instanceof AbstractDataObject) {
             return self::ABSTRACT_DATA_OBJECT;
+        }
+
+        if ($value instanceof AbstractAssociative) {
+            return self::ABSTRACT_ASSOCIATIVE;
+        }
+
+        if ($value instanceof AbstractSequential) {
+            return self::ABSTRACT_SEQUENTIAL;
         }
 
         // Scalar types
@@ -270,7 +301,7 @@ enum PhpType: string
      */
     public static function getScalarTypeNames(): array
     {
-        return array_map(fn($type) => $type->getNormalizedName(), self::getScalarTypes());
+        return array_map(fn ($type) => $type->getNormalizedName(), self::getScalarTypes());
     }
 
     /**
@@ -287,6 +318,8 @@ enum PhpType: string
             AbstractData::class,
             AbstractTypedCollection::class,
             AbstractDataObject::class,
+            AbstractAssociative::class,
+            AbstractSequential::class,
         ];
     }
 
@@ -295,7 +328,7 @@ enum PhpType: string
      */
     public static function getAllowedTypeDescription(): string
     {
-        return 'scalar (int, string, float, bool, null) or concrete class extending UnitEnum, AbstractRecord, AbstractValueObject, AbstractData, AbstractTypedCollection, or AbstractDataObject';
+        return 'scalar (int, string, float, bool, null) or concrete class extending UnitEnum, AbstractRecord, AbstractValueObject, AbstractData, AbstractTypedCollection, AbstractDataObject, AbstractAssociative, or AbstractSequential';
     }
 
     /**
@@ -317,6 +350,8 @@ enum PhpType: string
             self::ABSTRACT_DATA->getClassString(),
             self::ABSTRACT_TYPED_COLLECTION->getClassString(),
             self::ABSTRACT_DATA_OBJECT->getClassString(),
+            self::ABSTRACT_ASSOCIATIVE->getClassString(),
+            self::ABSTRACT_SEQUENTIAL->getClassString(),
         ];
     }
 
@@ -343,9 +378,9 @@ enum PhpType: string
             is_subclass_of($type, AbstractValueObject::class) ||
             is_subclass_of($type, AbstractData::class) ||
             is_subclass_of($type, AbstractTypedCollection::class) ||
-            is_subclass_of($type, AbstractDataObject::class);
-
-        return false;
+            is_subclass_of($type, AbstractDataObject::class) ||
+            is_subclass_of($type, AbstractAssociative::class) ||
+            is_subclass_of($type, AbstractSequential::class);
     }
 
     /**
@@ -376,6 +411,8 @@ enum PhpType: string
             AbstractData::class => self::ABSTRACT_DATA,
             AbstractTypedCollection::class => self::ABSTRACT_TYPED_COLLECTION,
             AbstractDataObject::class => self::ABSTRACT_DATA_OBJECT,
+            AbstractAssociative::class => self::ABSTRACT_ASSOCIATIVE,
+            AbstractSequential::class => self::ABSTRACT_SEQUENTIAL,
         ];
 
         if (isset($classMapping[$type])) {
@@ -399,9 +436,14 @@ enum PhpType: string
             if (is_subclass_of($type, AbstractTypedCollection::class)) {
                 return self::ABSTRACT_TYPED_COLLECTION;
             }
-            // AJOUT : Gérer les sous-classes de AbstractDataObject
             if (is_subclass_of($type, AbstractDataObject::class)) {
                 return self::ABSTRACT_DATA_OBJECT;
+            }
+            if (is_subclass_of($type, AbstractAssociative::class)) {
+                return self::ABSTRACT_ASSOCIATIVE;
+            }
+            if (is_subclass_of($type, AbstractSequential::class)) {
+                return self::ABSTRACT_SEQUENTIAL;
             }
         }
 

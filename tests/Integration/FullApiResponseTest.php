@@ -29,15 +29,18 @@ use AndyDefer\DomainStructures\Tests\TestCase;
 final class FullApiResponseTest extends TestCase
 {
     private HydrationService $hydration;
+
     private TestIso8601DateTime $now;
+
     private TestEmailAddress $testEmail;
+
     private StringTypedCollection $tags;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->hydration = new HydrationService();
+        $this->hydration = new HydrationService;
         $this->now = new TestIso8601DateTime('2024-01-01T12:00:00+00:00');
         $this->testEmail = new TestEmailAddress('john.doe@example.com');
         $this->tags = new StringTypedCollection;
@@ -101,7 +104,7 @@ final class FullApiResponseTest extends TestCase
             'role' => $userRecord->role->value,
             'grade' => $userRecord->grade->value,
             'tags' => $userRecord->tags->toArray(),
-            'createdAt' => $userRecord->createdAt->getValue()
+            'createdAt' => $userRecord->createdAt->getValue(),
         ]);
 
         $apiResponse = NormalizerChain::get()->normalize($userData);
@@ -166,7 +169,7 @@ final class FullApiResponseTest extends TestCase
                 'role' => $record->role?->value ?? TestUserRole::USER->value,
                 'grade' => $record->grade?->value ?? TestUserGrade::BRONZE->value,
                 'tags' => $record->tags?->toArray(),
-                'createdAt' => $record->createdAt?->getValue()
+                'createdAt' => $record->createdAt?->getValue(),
             ]);
             $dataCollection->add($userData);
         }
@@ -373,7 +376,7 @@ final class FullApiResponseTest extends TestCase
                 'email' => $userRecord->email->getValue(),
                 'status' => TestUserStatus::ACTIVE->value,
                 'role' => TestUserRole::USER->value,
-                'grade' => TestUserGrade::BRONZE->value
+                'grade' => TestUserGrade::BRONZE->value,
             ]);
             $userDataCollection->add($userData);
         }
@@ -398,7 +401,7 @@ final class FullApiResponseTest extends TestCase
             new TestProductRecord(id: 5, name: 'Desk', price: 499, isFeatured: true)
         );
 
-        $featuredProducts = $allProducts->filter(fn($product) => $product->isFeatured === true);
+        $featuredProducts = $allProducts->filter(fn ($product) => $product->isFeatured === true);
 
         $productDataCollection = new TestProductDataCollection;
         foreach ($featuredProducts->all() as $product) {
@@ -406,7 +409,7 @@ final class FullApiResponseTest extends TestCase
                 'id' => $product->id,
                 'name' => $product->name,
                 'price' => $product->price,
-                'isFeatured' => $product->isFeatured
+                'isFeatured' => $product->isFeatured,
             ]);
             $productDataCollection->add($productData);
         }
@@ -444,7 +447,7 @@ final class FullApiResponseTest extends TestCase
 
         $sortedByPrice = $allProducts
             ->all()
-            ->usort(fn($a, $b) => $a->price <=> $b->price)
+            ->usort(fn ($a, $b) => $a->price <=> $b->price)
             ->toArray();
 
         $this->assertSame('Mouse', $sortedByPrice[0]->name);
@@ -462,7 +465,7 @@ final class FullApiResponseTest extends TestCase
             new TestUserRecord(id: 3, name: 'Charlie', email: new TestEmailAddress('charlie@example.com'), status: TestUserStatus::INACTIVE)
         );
 
-        $activeUsers = $dbRecords->filter(fn(TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
+        $activeUsers = $dbRecords->filter(fn (TestUserRecord $record) => $record->status === TestUserStatus::ACTIVE);
 
         $apiData = new DataCollection(TestUserData::class);
         foreach ($activeUsers->all() as $record) {
@@ -472,7 +475,7 @@ final class FullApiResponseTest extends TestCase
                 'email' => $record->email->getValue(),
                 'status' => $record->status->value,
                 'role' => TestUserRole::USER->value,
-                'grade' => TestUserGrade::BRONZE->value
+                'grade' => TestUserGrade::BRONZE->value,
             ]);
             $apiData->add($userData);
         }
@@ -521,7 +524,7 @@ final class FullApiResponseTest extends TestCase
                 'role' => TestUserRole::USER->value,
                 'grade' => TestUserGrade::BRONZE->value,
                 'tags' => [], // Ajout du paramètre tags requis
-                'products' => $record->products->all()->toArray()
+                'products' => $record->products->all()->toArray(),
             ]);
             $fullUserData->add($userData);
         }
@@ -568,7 +571,7 @@ final class FullApiResponseTest extends TestCase
             'email' => $userRecord->email->getValue(),
             'status' => $userRecord->status->value,
             'role' => TestUserRole::USER->value,
-            'grade' => TestUserGrade::BRONZE->value
+            'grade' => TestUserGrade::BRONZE->value,
         ]);
 
         $apiResponse = [
@@ -598,7 +601,7 @@ final class FullApiResponseTest extends TestCase
             'email' => $createdRecord->email->getValue(),
             'status' => $createdRecord->status->value,
             'role' => TestUserRole::USER->value,
-            'grade' => TestUserGrade::BRONZE->value
+            'grade' => TestUserGrade::BRONZE->value,
         ]);
 
         $apiResponse = [
@@ -628,7 +631,7 @@ final class FullApiResponseTest extends TestCase
             'email' => $updatedRecord->email->getValue(),
             'status' => $updatedRecord->status->value,
             'role' => TestUserRole::USER->value,
-            'grade' => TestUserGrade::BRONZE->value
+            'grade' => TestUserGrade::BRONZE->value,
         ]);
 
         $apiResponse = [
@@ -701,7 +704,7 @@ final class FullApiResponseTest extends TestCase
             'email' => $userRecord->email->getValue(),
             'status' => TestUserStatus::ACTIVE->value,
             'role' => TestUserRole::USER->value,
-            'grade' => TestUserGrade::BRONZE->value
+            'grade' => TestUserGrade::BRONZE->value,
         ]);
 
         $response = [
@@ -735,7 +738,7 @@ final class FullApiResponseTest extends TestCase
                 'email' => $record->email->getValue(),
                 'status' => TestUserStatus::ACTIVE->value,
                 'role' => TestUserRole::USER->value,
-                'grade' => TestUserGrade::BRONZE->value
+                'grade' => TestUserGrade::BRONZE->value,
             ]);
             $dataCollection->add($userData);
         }
@@ -771,7 +774,7 @@ final class FullApiResponseTest extends TestCase
             'email' => $userRecord->email->getValue(),
             'status' => TestUserStatus::ACTIVE->value,
             'role' => TestUserRole::USER->value,
-            'grade' => $userRecord->grade->value
+            'grade' => $userRecord->grade->value,
         ]);
 
         $apiResponse = NormalizerChain::get()->normalize($userData);

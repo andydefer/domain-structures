@@ -24,7 +24,7 @@ use AndyDefer\DomainStructures\Utils\Sequential;
  *
  * @template T
  */
-abstract class AbstractSequential implements \ArrayAccess, \Countable, \IteratorAggregate, Transformable
+abstract class AbstractSequential implements \ArrayAccess, \Countable, \IteratorAggregate, \JsonSerializable, Transformable
 {
     /**
      * @var array<int, mixed> Les éléments de la séquence
@@ -36,7 +36,11 @@ abstract class AbstractSequential implements \ArrayAccess, \Countable, \Iterator
      */
     public function __construct(array $items = [])
     {
-        $this->items = array_values($items);
+        $normalizedItems = [];
+        foreach ($items as $item) {
+            $normalizedItems[] = $this->normalize($item);
+        }
+        $this->items = array_values($normalizedItems);
     }
 
     /**
@@ -267,7 +271,9 @@ abstract class AbstractSequential implements \ArrayAccess, \Countable, \Iterator
      */
     public function slice(int $start, ?int $length = null): static
     {
-        return new static(array_slice($this->items, $start, $length));
+        $items = array_slice($this->items, $start, $length);
+
+        return new static($items);
     }
 
     /**
@@ -292,15 +298,9 @@ abstract class AbstractSequential implements \ArrayAccess, \Countable, \Iterator
         return new static(array_slice($this->items, $n));
     }
 
-    /**
-     * Filtre les éléments.
-     *
-     * @param  callable  $callback  Fonction qui retourne true pour garder l'élément
-     * @return static Nouvelle instance avec les éléments filtrés
-     */
     public function filter(callable $callback): static
     {
-        return new static(array_filter($this->items, $callback));
+        return new static(array_values(array_filter($this->items, $callback)));
     }
 
     /**
@@ -311,7 +311,7 @@ abstract class AbstractSequential implements \ArrayAccess, \Countable, \Iterator
      */
     public function map(callable $callback): static
     {
-        return new static(array_map($callback, $this->items));
+        return new static(array_values(array_map($callback, $this->items)));
     }
 
     /**
@@ -451,14 +451,6 @@ abstract class AbstractSequential implements \ArrayAccess, \Countable, \Iterator
 
     // ========== TRANSFORMABLE ==========
 
-    /**
-     * Crée une instance à partir d'une source.
-     *
-     * @param  mixed  $source  La source (array, objet, etc.)
-     * @return static Nouvelle instance
-     *
-     * @throws \InvalidArgumentException Si la source ne peut pas être convertie
-     */
     public static function from(mixed $source): static
     {
         if ($source instanceof static) {
@@ -470,11 +462,46 @@ abstract class AbstractSequential implements \ArrayAccess, \Countable, \Iterator
         }
 
         if (is_object($source)) {
-            return new static(get_object_vars($source));
+            if ($source instanceof Transformable) {
+                $normalized = NormalizerChain::get()->normalize($source);
+                if (is_array($normalized)) {
+                    return new static($normalized);
+                }
+
+                return new static([$normalized]);
+            }
+
+            $vars = get_object_vars($source);
+            if (empty($vars)) {
+                throw new \InvalidArgumentException(sprintf(
+                    'Cannot create %s from %s. Object has no public properties.',
+                    static::class,
+                    get_class($source)
+                ));
+            }
+
+            $items = [];
+            foreach ($vars as $value) {
+                $items[] = NormalizerChain::get()->normalize($value);
+            }
+            $flattened = [];
+            foreach ($items as $item) {
+                if (is_array($item)) {
+                    $flattened = array_merge($flattened, $item);
+                } else {
+                    $flattened[] = $item;
+                }
+            }
+
+            return new static($flattened);
+        }
+
+        if (is_scalar($source) || $source instanceof \UnitEnum) {
+            return new static([$source]);
         }
 
         throw new \InvalidArgumentException(sprintf(
-            'Cannot create %s from %s. Expected array or object.',
+            'Cannot create %s from %s. Expected array, Transformable object, scalar, enum, or iterable.',
             static::class,
             gettype($source)
         ));
@@ -507,15 +534,32 @@ abstract class AbstractSequential implements \ArrayAccess, \Countable, \Iterator
     }
 
     /**
-     * Hydrate une collection de sources en une séquence.
+     * Collecte des sources et les transforme en une séquence.
      *
-     * @param  iterable<mixed>  $sources  Les sources à hydrater
+     * Cette méthode prend un itérable de sources et les convertit en une séquence
+     * où chaque source devient un élément distinct.
+     *
+     * @param  iterable  $sources  Les sources à collecter
      * @param  class-string<AbstractSequential>  $sequentialClass  La classe de séquence à utiliser
-     * @return AbstractSequential La séquence hydratée
+     * @return static La séquence contenant les sources collectées
      *
-     * @throws \InvalidArgumentException Si la classe de séquence est invalide
+     * @throws \InvalidArgumentException Si la classe séquentielle est invalide ou si un objet sans propriétés est fourni
+     *
+     * @example
+     * // Collecter des tableaux
+     * $collection = Sequential::collect([[1, 2], [3, 4]]);
+     * // Résultat : [[1, 2], [3, 4]]
+     * @example
+     * // Collecter des objets transformables
+     * $record = new TestUserRecord(name: 'John');
+     * $collection = Sequential::collect([$record]);
+     * // Résultat : [['name' => 'John']]
+     * @example
+     * // Collecter des scalaires
+     * $collection = Sequential::collect([1, 2, 3]);
+     * // Résultat : [1, 2, 3]
      */
-    public static function collect(iterable $sources, string $sequentialClass = Sequential::class): AbstractSequential
+    public static function collect(iterable $sources, string $sequentialClass = Sequential::class)
     {
         if (! is_subclass_of($sequentialClass, AbstractSequential::class)) {
             throw new \InvalidArgumentException(sprintf(
@@ -528,11 +572,25 @@ abstract class AbstractSequential implements \ArrayAccess, \Countable, \Iterator
         $items = [];
         foreach ($sources as $source) {
             if ($source instanceof static) {
-                $items[] = $source;
+                $items = array_merge($items, $source->toArray());
+            } elseif ($source instanceof Transformable) {
+                $normalized = NormalizerChain::get()->normalize($source);
+                if (is_array($normalized)) {
+                    $items[] = $normalized;
+                } else {
+                    $items[] = $normalized;
+                }
             } elseif (is_array($source)) {
                 $items[] = new static($source);
             } elseif (is_object($source)) {
-                $items[] = new static(get_object_vars($source));
+                $vars = get_object_vars($source);
+                if (empty($vars)) {
+                    throw new \InvalidArgumentException(sprintf(
+                        'Cannot collect %s. Object has no public properties.',
+                        get_class($source)
+                    ));
+                }
+                $items[] = new static($vars);
             } else {
                 $items[] = $source;
             }
@@ -542,12 +600,27 @@ abstract class AbstractSequential implements \ArrayAccess, \Countable, \Iterator
     }
 
     /**
+     * Convertit la séquence en chaîne JSON.
+     *
+     * @return string La représentation JSON de la séquence
+     */
+    public function toJson(): string
+    {
+        return json_encode($this->toArray(), JSON_THROW_ON_ERROR);
+    }
+
+    /**
      * Représentation JSON.
      *
      * @return string La représentation JSON
      */
     public function __toString(): string
     {
-        return json_encode($this->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        return $this->toJson();
+    }
+
+    public function jsonSerialize(): mixed
+    {
+        return $this->toArray();
     }
 }

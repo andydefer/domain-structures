@@ -1,4 +1,5 @@
 <?php
+
 // tests/Fixtures/Collections/MixedDataCollection.php
 
 declare(strict_types=1);

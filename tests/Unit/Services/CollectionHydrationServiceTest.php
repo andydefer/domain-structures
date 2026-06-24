@@ -1,38 +1,39 @@
 <?php
+
 // tests/Unit/Services/CollectionHydrationServiceTest.php
 
 declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Tests\Unit\Services;
 
-use AndyDefer\DomainStructures\Services\CollectionHydrationService;
-use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
-use AndyDefer\DomainStructures\Collections\Utility\IntTypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\BoolTypedCollection;
-use AndyDefer\DomainStructures\Collections\Utility\FloatTypedCollection;
 use AndyDefer\DomainStructures\Collections\Utility\DataObjectCollection;
-use AndyDefer\DomainStructures\Tests\TestCase;
-use AndyDefer\DomainStructures\Tests\Fixtures\Collections\EnumCollection;
-use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ValueObjectCollection;
-use AndyDefer\DomainStructures\Tests\Fixtures\Collections\MixedValueObjectCollection;
-use AndyDefer\DomainStructures\Tests\Fixtures\Collections\MixedScalarCollection;
-use AndyDefer\DomainStructures\Tests\Fixtures\Collections\MixedDataRecordCollection;
+use AndyDefer\DomainStructures\Collections\Utility\FloatTypedCollection;
+use AndyDefer\DomainStructures\Collections\Utility\IntTypedCollection;
+use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\DomainStructures\Services\CollectionHydrationService;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\EmptyTypesCollection;
+use AndyDefer\DomainStructures\Tests\Fixtures\Collections\EnumCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\MixedDataCollection;
+use AndyDefer\DomainStructures\Tests\Fixtures\Collections\MixedDataRecordCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\MixedRecordCollection;
+use AndyDefer\DomainStructures\Tests\Fixtures\Collections\MixedScalarCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\MixedScalarDataCollection;
-use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
-use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestProductRecord;
-use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
-use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestProductData;
-use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestUserRoleCollection;
+use AndyDefer\DomainStructures\Tests\Fixtures\Collections\MixedValueObjectCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestProductRecordCollection;
+use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestUserRoleCollection;
+use AndyDefer\DomainStructures\Tests\Fixtures\Collections\ValueObjectCollection;
+use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestProductData;
+use AndyDefer\DomainStructures\Tests\Fixtures\Data\TestUserData;
+use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserRole;
 use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserStatus;
-use AndyDefer\DomainStructures\Tests\Fixtures\Enums\TestUserGrade;
+use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestProductRecord;
+use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
-use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestMoney;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
+use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestMoney;
+use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\DataObject;
 use InvalidArgumentException;
 use RuntimeException;
@@ -44,7 +45,7 @@ final class CollectionHydrationServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new CollectionHydrationService();
+        $this->service = new CollectionHydrationService;
     }
 
     // ==================== SCALAR COLLECTION TESTS ====================
@@ -85,7 +86,7 @@ final class CollectionHydrationServiceTest extends TestCase
     public function test_collect_booleans(): void
     {
         $sources = [true, false, true];
-        /** @var BoolTypedCollection  */
+        /** @var BoolTypedCollection */
         $collection = $this->service->collect($sources, BoolTypedCollection::class);
 
         $this->assertInstanceOf(BoolTypedCollection::class, $collection);
@@ -344,7 +345,7 @@ final class CollectionHydrationServiceTest extends TestCase
 
     public function test_collect_returns_same_instance_if_source_is_already_collection(): void
     {
-        $original = new StringTypedCollection();
+        $original = new StringTypedCollection;
         $original->add('a', 'b', 'c');
 
         $result = $this->service->collect($original, StringTypedCollection::class);

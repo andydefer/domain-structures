@@ -39,7 +39,6 @@ interface Transformable
      *
      * @param  iterable<mixed>  $sources
      * @param  class-string<TCollection>  $collectionClass
-     * @return TCollection
      *
      * @throws \InvalidArgumentException
      */

@@ -1,4 +1,5 @@
 <?php
+
 // tests/Fixtures/Collections/MixedValueObjectCollection.php
 
 declare(strict_types=1);
@@ -7,8 +8,8 @@ namespace AndyDefer\DomainStructures\Tests\Fixtures\Collections;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
-use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestMoney;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIso8601DateTime;
+use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestMoney;
 
 /**
  * Collection qui accepte différents types de Value Objects (même famille)

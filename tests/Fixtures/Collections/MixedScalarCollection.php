@@ -1,4 +1,5 @@
 <?php
+
 // tests/Fixtures/Collections/MixedScalarCollection.php
 declare(strict_types=1);
 

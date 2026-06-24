@@ -1,4 +1,5 @@
 <?php
+
 // tests/Fixtures/Collections/MixedRecordCollection.php
 
 declare(strict_types=1);

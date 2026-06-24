@@ -105,7 +105,7 @@ abstract class AbstractDataObject implements \ArrayAccess, Transformable
      */
     public function __set(string $name, mixed $value): void
     {
-        throw new \RuntimeException(get_class($this) . ' is immutable. Use with() or merge() to create a new instance.');
+        throw new \RuntimeException(get_class($this).' is immutable. Use with() or merge() to create a new instance.');
     }
 
     // ========== ARRAYACCESS (READ ONLY) ==========
@@ -141,7 +141,7 @@ abstract class AbstractDataObject implements \ArrayAccess, Transformable
      */
     public function offsetSet(mixed $offset, mixed $value): void
     {
-        throw new \RuntimeException(get_class($this) . ' is immutable. Use with() or merge() to create a new instance.');
+        throw new \RuntimeException(get_class($this).' is immutable. Use with() or merge() to create a new instance.');
     }
 
     /**
@@ -151,7 +151,7 @@ abstract class AbstractDataObject implements \ArrayAccess, Transformable
      */
     public function offsetUnset(mixed $offset): void
     {
-        throw new \RuntimeException(get_class($this) . ' is immutable. Use without() to create a new instance.');
+        throw new \RuntimeException(get_class($this).' is immutable. Use without() to create a new instance.');
     }
 
     // ========== MÉTHODES PROTECTED ==========
@@ -170,7 +170,7 @@ abstract class AbstractDataObject implements \ArrayAccess, Transformable
                 return new static($value);
             }
 
-            return array_map(fn($item) => $this->convertValue($item), $value);
+            return array_map(fn ($item) => $this->convertValue($item), $value);
         }
 
         return $value;
@@ -221,8 +221,8 @@ abstract class AbstractDataObject implements \ArrayAccess, Transformable
     {
         @trigger_error(
             sprintf(
-                '%s::from() est dépréciée depuis la version 2.0.0. ' .
-                    'Cette méthode sera supprimée dans la version 3.0.0. ' .
+                '%s::from() est dépréciée depuis la version 2.0.0. '.
+                    'Cette méthode sera supprimée dans la version 3.0.0. '.
                     'Utilisez le constructeur "new %s()" à la place.',
                 static::class,
                 static::class
@@ -280,8 +280,8 @@ abstract class AbstractDataObject implements \ArrayAccess, Transformable
     {
         @trigger_error(
             sprintf(
-                '%s::fromJson() est dépréciée depuis la version 2.0.0. ' .
-                    'Cette méthode sera supprimée dans la version 3.0.0. ' .
+                '%s::fromJson() est dépréciée depuis la version 2.0.0. '.
+                    'Cette méthode sera supprimée dans la version 3.0.0. '.
                     'Utilisez "new %s(json_decode($json, true))" à la place.',
                 static::class,
                 static::class
@@ -313,8 +313,8 @@ abstract class AbstractDataObject implements \ArrayAccess, Transformable
     {
         @trigger_error(
             sprintf(
-                '%s::collect() est dépréciée depuis la version 2.0.0. ' .
-                    'Cette méthode sera supprimée dans la version 3.0.0. ' .
+                '%s::collect() est dépréciée depuis la version 2.0.0. '.
+                    'Cette méthode sera supprimée dans la version 3.0.0. '.
                     'Utilisez CollectionHydrationService::collect() à la place.',
                 static::class
             ),

@@ -1,4 +1,5 @@
 <?php
+
 // src/Services/CollectionHydrationService.php
 
 declare(strict_types=1);
@@ -14,19 +15,20 @@ use RuntimeException;
 final class CollectionHydrationService
 {
     private ItemHydrationService $itemHydrationService;
+
     private CollectionFamilyConfig $familyConfig;
 
     public function __construct()
     {
-        $this->itemHydrationService = new ItemHydrationService();
-        $this->familyConfig = new CollectionFamilyConfig();
+        $this->itemHydrationService = new ItemHydrationService;
+        $this->familyConfig = new CollectionFamilyConfig;
     }
 
     public function collect(
         iterable $sources,
         string $collectionClass = AbstractTypedCollection::class
     ): AbstractTypedCollection {
-        if (!is_subclass_of($collectionClass, AbstractTypedCollection::class)) {
+        if (! is_subclass_of($collectionClass, AbstractTypedCollection::class)) {
             throw new InvalidArgumentException(sprintf(
                 'Collection class "%s" must extend %s',
                 $collectionClass,
@@ -39,7 +41,7 @@ final class CollectionHydrationService
         }
 
         try {
-            $tempCollection = new $collectionClass();
+            $tempCollection = new $collectionClass;
         } catch (\ArgumentCountError $e) {
             throw new InvalidArgumentException(sprintf(
                 'Collection class "%s" cannot be instantiated. It may require constructor arguments.',
@@ -59,7 +61,7 @@ final class CollectionHydrationService
         // Vérifier la cohérence des familles (incluant les scalaires)
         $this->validateFamilyConsistency($allowedTypes);
 
-        $collection = new $collectionClass();
+        $collection = new $collectionClass;
 
         foreach ($sources as $item) {
             // INTERDIRE LES COLLECTIONS IMBRIQUÉES
@@ -86,7 +88,7 @@ final class CollectionHydrationService
             throw new RuntimeException(sprintf('Invalid JSON: %s', json_last_error_msg()));
         }
 
-        if (!is_array($data) && !is_object($data)) {
+        if (! is_array($data) && ! is_object($data)) {
             throw new InvalidArgumentException('JSON must decode to an array or object for collection hydration');
         }
 
@@ -101,7 +103,8 @@ final class CollectionHydrationService
      * Valide que tous les types autorisés appartiennent à la même famille
      * Pour les scalaires, ils doivent être du même type exact
      *
-     * @param array<string> $allowedTypes
+     * @param  array<string>  $allowedTypes
+     *
      * @throws InvalidArgumentException
      */
     private function validateFamilyConsistency(array $allowedTypes): void
@@ -146,9 +149,6 @@ final class CollectionHydrationService
 
     /**
      * Détermine la famille d'un type
-     *
-     * @param string $type
-     * @return string
      */
     private function getFamily(string $type): string
     {
@@ -191,7 +191,7 @@ final class CollectionHydrationService
         if (is_array($item) && isset($item['_type'])) {
             $explicitType = $item['_type'];
 
-            if (!in_array($explicitType, $allowedTypes, true)) {
+            if (! in_array($explicitType, $allowedTypes, true)) {
                 throw new InvalidArgumentException(sprintf(
                     'Type "%s" specified in "_type" is not allowed. Allowed: %s',
                     $explicitType,
@@ -231,6 +231,7 @@ final class CollectionHydrationService
                 return $this->itemHydrationService->hydrate($allowedType, $item);
             } catch (\Exception $e) {
                 $lastException = $e;
+
                 continue;
             }
         }

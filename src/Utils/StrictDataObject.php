@@ -11,18 +11,14 @@ use AndyDefer\DomainStructures\Abstracts\AbstractDataObject;
  *
  * Contrairement à DataObject qui normalise en camelCase,
  * cette classe garde les clés exactement comme fournies.
+ *
+ * @deprecated Utilisez StrictAssociative à la place. Cette classe sera supprimée dans la version 3.0.0.
  */
 class StrictDataObject extends AbstractDataObject
 {
-    /**
-     * Normalise une clé en la laissant inchangée.
-     *
-     * @param  string  $key  La clé à normaliser
-     * @return string La clé inchangée
-     */
-    protected function normalizeKey(string $key): string
+    // Alias de StrictAssociative pour rétrocompatibilité
+    public function normalizeKey(string $key): string
     {
-        // Préserve la casse originale
         return $key;
     }
 }

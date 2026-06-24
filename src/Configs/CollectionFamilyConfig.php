@@ -1,14 +1,15 @@
 <?php
+
 // src/Configs/CollectionFamilyConfig.php
 
 declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Configs;
 
-use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 use AndyDefer\DomainStructures\Abstracts\AbstractData;
-use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Abstracts\AbstractDataObject;
+use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
+use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 use UnitEnum;
 
 /**

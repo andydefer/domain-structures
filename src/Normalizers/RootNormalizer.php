@@ -37,6 +37,7 @@ final class RootNormalizer implements NormalizerInterface
         $data = new DataNormalizer;
         $collection = new TypedCollectionNormalizer;
         $dataObject = new DataObjectNormalizer;
+        $sequential = new SequentialNormalizer;
         $array = new ArrayNormalizer;
 
         $normalizers = [
@@ -49,6 +50,7 @@ final class RootNormalizer implements NormalizerInterface
             $data,
             $collection,
             $dataObject,
+            $sequential,
             $array,
         ];
 
