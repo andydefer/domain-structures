@@ -27,13 +27,19 @@ final class SetCollection implements \ArrayAccess, \Countable, \IteratorAggregat
     private array $items = [];
 
     /**
+     * @var array<string|int, class-string|null>
+     */
+    private array $itemTypes = [];
+
+    /**
      * @param  array<int, T>  $items
      */
     public function __construct(array $items = [])
     {
         foreach ($items as $item) {
-            $normalized = $this->normalize($item);
-            $this->items[$this->getKey($normalized)] = $normalized;
+            $key = $this->getKey($item);
+            $this->items[$key] = $item;
+            $this->itemTypes[$key] = $this->detectType($item);
         }
     }
 
@@ -42,11 +48,32 @@ final class SetCollection implements \ArrayAccess, \Countable, \IteratorAggregat
         return NormalizerChain::get()->normalize($value);
     }
 
+    private function detectType(mixed $item): ?string
+    {
+        if (is_object($item)) {
+            return get_class($item);
+        }
+
+        return null;
+    }
+
+    private function hydrate(mixed $item, ?string $type): mixed
+    {
+        if ($type !== null && class_exists($type) && method_exists($type, 'from')) {
+            try {
+                return $type::from($item);
+            } catch (\Throwable $e) {
+                return $item;
+            }
+        }
+
+        return $item;
+    }
+
     /**
      * Génère une clé unique pour un élément.
      *
-     * Les floats sont convertis en strings pour éviter les dépréciations.
-     * Les tableaux sont sérialisés pour éviter les warnings "Array to string conversion".
+     * Pour les ValueObjects, on utilise la valeur normalisée + le type.
      */
     private function getKey(mixed $item): string|int
     {
@@ -60,14 +87,22 @@ final class SetCollection implements \ArrayAccess, \Countable, \IteratorAggregat
             return 'array_'.md5(serialize($item));
         }
 
+        // Objets Transformable → on utilise la valeur normalisée + le type
+        if (is_object($item) && $item instanceof Transformable) {
+            $normalized = $this->normalize($item);
+            $type = get_class($item);
+
+            return $type.'_'.(string) $normalized;
+        }
+
+        // Autres objets → hash d'objet
+        if (is_object($item)) {
+            return spl_object_hash($item);
+        }
+
         // Scalaires et null → string
         if (is_scalar($item) || $item === null) {
             return (string) $item;
-        }
-
-        // Objets → hash d'objet
-        if (is_object($item)) {
-            return spl_object_hash($item);
         }
 
         // Fallback (ressource, etc.)
@@ -90,7 +125,6 @@ final class SetCollection implements \ArrayAccess, \Countable, \IteratorAggregat
             if ($source instanceof Transformable) {
                 $normalized = NormalizerChain::get()->normalize($source);
 
-                // ✅ Garder comme un seul élément
                 return new self([$normalized]);
             }
 
@@ -182,6 +216,34 @@ final class SetCollection implements \ArrayAccess, \Countable, \IteratorAggregat
 
     public function toArray(): array
     {
+        $result = [];
+        foreach ($this->items as $key => $item) {
+            $result[] = $this->hydrate($item, $this->itemTypes[$key] ?? null);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Retourne les données brutes normalisées (scalaires)
+     * Utilisé pour le débogage et l'export
+     */
+    public function toRawArray(): array
+    {
+        $result = [];
+        foreach ($this->items as $item) {
+            $result[] = $this->normalize($item);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Retourne les données brutes avec préservation des types
+     * Utilisé pour les opérations internes
+     */
+    public function toRawTypedArray(): array
+    {
         return array_values($this->items);
     }
 
@@ -189,15 +251,15 @@ final class SetCollection implements \ArrayAccess, \Countable, \IteratorAggregat
 
     public function add(mixed $item): self
     {
-        $normalized = $this->normalize($item);
-        $key = $this->getKey($normalized);
+        $key = $this->getKey($item);
 
         if (array_key_exists($key, $this->items)) {
             return $this;
         }
 
         $new = clone $this;
-        $new->items[$key] = $normalized;
+        $new->items[$key] = $item;
+        $new->itemTypes[$key] = $this->detectType($item);
 
         return $new;
     }
@@ -214,15 +276,14 @@ final class SetCollection implements \ArrayAccess, \Countable, \IteratorAggregat
 
     public function contains(mixed $item): bool
     {
-        $normalized = $this->normalize($item);
+        $key = $this->getKey($item);
 
-        return array_key_exists($this->getKey($normalized), $this->items);
+        return array_key_exists($key, $this->items);
     }
 
     public function remove(mixed $item): self
     {
-        $normalized = $this->normalize($item);
-        $key = $this->getKey($normalized);
+        $key = $this->getKey($item);
 
         if (! array_key_exists($key, $this->items)) {
             return $this;
@@ -230,6 +291,7 @@ final class SetCollection implements \ArrayAccess, \Countable, \IteratorAggregat
 
         $new = clone $this;
         unset($new->items[$key]);
+        unset($new->itemTypes[$key]);
 
         return $new;
     }
@@ -238,19 +300,51 @@ final class SetCollection implements \ArrayAccess, \Countable, \IteratorAggregat
 
     public function filter(callable $callback): self
     {
-        return new static(array_values(array_filter($this->items, $callback)));
+        $filtered = [];
+        $types = [];
+        foreach ($this->items as $key => $item) {
+            $hydrated = $this->hydrate($item, $this->itemTypes[$key] ?? null);
+            if ($callback($hydrated, $key)) {
+                $filtered[$key] = $item;
+                $types[$key] = $this->itemTypes[$key];
+            }
+        }
+
+        $new = clone $this;
+        $new->items = $filtered;
+        $new->itemTypes = $types;
+
+        return $new;
     }
 
     public function map(callable $callback): self
     {
-        $mapped = array_map($callback, $this->items);
+        $mapped = [];
+        $types = [];
+        foreach ($this->items as $key => $item) {
+            $hydrated = $this->hydrate($item, $this->itemTypes[$key] ?? null);
+            $result = $callback($hydrated, $key);
+            $newKey = $this->getKey($result);
+            $mapped[$newKey] = $result;
+            $types[$newKey] = $this->detectType($result);
+        }
 
-        return new static(array_values($mapped));
+        $new = clone $this;
+        $new->items = $mapped;
+        $new->itemTypes = $types;
+
+        return $new;
     }
 
     public function reduce(callable $callback, mixed $initial = null): mixed
     {
-        return array_reduce($this->items, $callback, $initial);
+        $carry = $initial;
+        foreach ($this->items as $key => $item) {
+            $hydrated = $this->hydrate($item, $this->itemTypes[$key] ?? null);
+            $carry = $callback($carry, $hydrated, $key);
+        }
+
+        return $carry;
     }
 
     // ==================== SET OPERATIONS ====================
@@ -261,6 +355,7 @@ final class SetCollection implements \ArrayAccess, \Countable, \IteratorAggregat
         foreach ($other->items as $key => $value) {
             if (! array_key_exists($key, $new->items)) {
                 $new->items[$key] = $value;
+                $new->itemTypes[$key] = $other->itemTypes[$key] ?? null;
             }
         }
 
@@ -270,25 +365,37 @@ final class SetCollection implements \ArrayAccess, \Countable, \IteratorAggregat
     public function intersect(self $other): self
     {
         $result = [];
+        $types = [];
         foreach ($this->items as $key => $value) {
             if (array_key_exists($key, $other->items)) {
-                $result[] = $value;
+                $result[$key] = $value;
+                $types[$key] = $this->itemTypes[$key];
             }
         }
 
-        return new static($result);
+        $new = clone $this;
+        $new->items = $result;
+        $new->itemTypes = $types;
+
+        return $new;
     }
 
     public function diff(self $other): self
     {
         $result = [];
+        $types = [];
         foreach ($this->items as $key => $value) {
             if (! array_key_exists($key, $other->items)) {
-                $result[] = $value;
+                $result[$key] = $value;
+                $types[$key] = $this->itemTypes[$key];
             }
         }
 
-        return new static($result);
+        $new = clone $this;
+        $new->items = $result;
+        $new->itemTypes = $types;
+
+        return $new;
     }
 
     // ==================== UTILITY ====================
@@ -312,12 +419,22 @@ final class SetCollection implements \ArrayAccess, \Countable, \IteratorAggregat
 
     public function toJson(): string
     {
-        return json_encode($this->toArray(), JSON_THROW_ON_ERROR);
+        $normalized = [];
+        foreach ($this->items as $item) {
+            $normalized[] = $this->normalize($item);
+        }
+
+        return json_encode($normalized, JSON_THROW_ON_ERROR);
     }
 
     public function jsonSerialize(): mixed
     {
-        return $this->toArray();
+        $normalized = [];
+        foreach ($this->items as $item) {
+            $normalized[] = $this->normalize($item);
+        }
+
+        return $normalized;
     }
 
     public function __toString(): string
@@ -329,7 +446,12 @@ final class SetCollection implements \ArrayAccess, \Countable, \IteratorAggregat
 
     public function getIterator(): \ArrayIterator
     {
-        return new \ArrayIterator($this->toArray());
+        $hydrated = [];
+        foreach ($this->items as $key => $item) {
+            $hydrated[] = $this->hydrate($item, $this->itemTypes[$key] ?? null);
+        }
+
+        return new \ArrayIterator($hydrated);
     }
 
     // ==================== ARRAY ACCESS ====================
@@ -349,9 +471,15 @@ final class SetCollection implements \ArrayAccess, \Countable, \IteratorAggregat
         if (! is_int($offset)) {
             return null;
         }
-        $values = array_values($this->items);
+        $values = array_keys($this->items);
+        if (! isset($values[$offset])) {
+            return null;
+        }
+        $key = $values[$offset];
+        $item = $this->items[$key] ?? null;
+        $type = $this->itemTypes[$key] ?? null;
 
-        return $values[$offset] ?? null;
+        return $this->hydrate($item, $type);
     }
 
     public function offsetSet(mixed $offset, mixed $value): void

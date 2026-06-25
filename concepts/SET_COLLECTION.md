@@ -2,9 +2,7 @@
 
 ## Description
 
-`SetCollection` est une collection **immutable** qui représente un ensemble d'éléments uniques. Ici, l'ordre n'est plus la question centrale. Ce qui compte, c'est l'existence. L'important n'est pas "où est l'élément", mais "est-il présent ou absent ?". C'est une structure de vérité simple : oui ou non, présent ou non.
-
-**Elle peut contenir n'importe quel type de données :** scalaires, tableaux, objets, `AbstractRecord`, `AbstractValueObject`, `Eloquent\Model`, enums, etc. Les doublons sont automatiquement supprimés.
+`SetCollection` est une collection **immutable** qui stocke des éléments **uniques** sans ordre défini. La question centrale n'est pas "où est l'élément ?" mais "est-il présent ou absent ?". Les doublons sont automatiquement éliminés.
 
 ## Hiérarchie
 
@@ -18,7 +16,11 @@ SetCollection
 
 ## Rôle principal
 
-`SetCollection` est une collection **non-typée** qui garantit l'unicité des éléments. Elle utilise une clé unique générée par `getKey()` pour identifier chaque élément. Elle est **immutable** : chaque opération retourne une nouvelle instance.
+`SetCollection` est une collection **non-typée** qui garantit l'unicité des éléments en utilisant une clé générée à partir de la valeur normalisée. Elle est **immutable** : chaque opération retourne une nouvelle instance.
+
+### Particularité de l'unicité
+
+Pour les `ValueObjects` (objets implémentant `Transformable`), l'unicité est basée sur **la valeur normalisée + le type**, ce qui permet de considérer deux instances différentes comme égales si elles ont la même valeur.
 
 ## Installation
 
@@ -32,399 +34,549 @@ use AndyDefer\DomainStructures\Utils\SetCollection;
 
 ---
 
-## Cas d'utilisation avancés avec Records, Value Objects et Modèles
+## API / Méthodes publiques
 
-### Cas 1 : Set de Notifications (Records)
+### `__construct(array $items = [])`
 
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$items` | `array<int, mixed>` | Éléments initiaux (les doublons sont ignorés) |
+
+**Retourne :** `void`
+
+**Exemple :**
 ```php
-use AndyDefer\LaravelNotification\Records\NotificationRecord;
-use AndyDefer\LaravelNotification\Enums\NotificationStatus;
-use AndyDefer\LaravelNotification\ValueObjects\UuidVO;
-
-// Création - les doublons sont automatiquement supprimés
-$notifications = new SetCollection([
-    new NotificationRecord(
-        id: UuidVO::generate(),
-        status: NotificationStatus::PENDING,
-        message: 'Bienvenue'
-    ),
-    new NotificationRecord(
-        id: UuidVO::generate(),
-        status: NotificationStatus::SENT,
-        message: 'Commande confirmée'
-    ),
-    new NotificationRecord(
-        id: UuidVO::generate(),
-        status: NotificationStatus::PENDING,
-        message: 'Bienvenue' // Doublon - sera ignoré (même contenu)
-    ),
-]);
-
-// ✅ Ajouter une notification
-$notifications = $notifications->add(
-    new NotificationRecord(
-        id: UuidVO::generate(),
-        status: NotificationStatus::FAILED,
-        message: 'Erreur de paiement'
-    )
-);
-
-// ✅ Vérifier si une notification existe
-$target = new NotificationRecord(
-    id: UuidVO::generate(),
-    status: NotificationStatus::PENDING,
-    message: 'Bienvenue'
-);
-if ($notifications->contains($target)) {
-    echo 'La notification existe';
-}
-
-// ✅ Supprimer une notification
-$toRemove = new NotificationRecord(
-    id: UuidVO::generate(),
-    status: NotificationStatus::SENT,
-    message: 'Commande confirmée'
-);
-$notifications = $notifications->remove($toRemove);
-
-// ✅ Filtrer les notifications en attente
-$pending = $notifications->filter(
-    fn(NotificationRecord $record) => $record->status === NotificationStatus::PENDING
-);
-
-// ✅ Transformer en messages
-$messages = $notifications->map(
-    fn(NotificationRecord $record) => $record->message
-);
-
-// ✅ Union de deux sets de notifications
-$otherNotifications = new SetCollection([
-    new NotificationRecord(
-        id: UuidVO::generate(),
-        status: NotificationStatus::SENT,
-        message: 'Nouvelle notification'
-    ),
-]);
-$all = $notifications->union($otherNotifications);
-
-// ✅ Intersection (notifications communes)
-$common = $notifications->intersect($otherNotifications);
-
-// ✅ Différence (notifications uniques)
-$unique = $notifications->diff($otherNotifications);
+$set = new SetCollection([1, 2, 2, 3]);
+// Résultat : [1, 2, 3]
 ```
 
 ---
 
-### Cas 2 : Set de Value Objects
+### `add(mixed $item): self`
+
+Ajoute un élément au set s'il n'existe pas déjà.
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$item` | `mixed` | Élément à ajouter |
+
+**Retourne :** `self` - Nouvelle instance avec l'élément ajouté (ou l'original si déjà présent)
+
+**Exemple :**
+```php
+$set = new SetCollection([1, 2, 3]);
+$newSet = $set->add(4); // [1, 2, 3, 4]
+$unchanged = $set->add(2); // [1, 2, 3] (inchangé)
+```
+
+---
+
+### `addAll(array $items): self`
+
+Ajoute plusieurs éléments au set.
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$items` | `array<int, mixed>` | Éléments à ajouter |
+
+**Retourne :** `self` - Nouvelle instance avec les éléments ajoutés
+
+**Exemple :**
+```php
+$set = new SetCollection([1, 2, 3]);
+$newSet = $set->addAll([2, 3, 4, 5]);
+// Résultat : [1, 2, 3, 4, 5]
+```
+
+---
+
+### `contains(mixed $item): bool`
+
+Vérifie si un élément est présent dans le set.
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$item` | `mixed` | Élément à vérifier |
+
+**Retourne :** `bool` - `true` si présent, `false` sinon
+
+**Exemple :**
+```php
+$set = new SetCollection([1, 2, 3]);
+$set->contains(2); // true
+$set->contains(5); // false
+```
+
+---
+
+### `remove(mixed $item): self`
+
+Retire un élément du set s'il existe.
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$item` | `mixed` | Élément à retirer |
+
+**Retourne :** `self` - Nouvelle instance sans l'élément (ou l'original si non trouvé)
+
+**Exemple :**
+```php
+$set = new SetCollection([1, 2, 3]);
+$newSet = $set->remove(2); // [1, 3]
+$unchanged = $set->remove(5); // [1, 2, 3] (inchangé)
+```
+
+---
+
+### `first(): mixed|null`
+
+Récupère le premier élément (ordre non garanti).
+
+**Retourne :** `mixed|null` - Le premier élément ou `null` si vide
+
+**Exemple :**
+```php
+$set = new SetCollection([1, 2, 3]);
+$first = $set->first(); // 1 (ordre non garanti)
+```
+
+---
+
+### `last(): mixed|null`
+
+Récupère le dernier élément (ordre non garanti).
+
+**Retourne :** `mixed|null` - Le dernier élément ou `null` si vide
+
+**Exemple :**
+```php
+$set = new SetCollection([1, 2, 3]);
+$last = $set->last(); // 3 (ordre non garanti)
+```
+
+---
+
+### `get(int $index): mixed|null`
+
+Récupère un élément par son index (ordre non garanti).
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$index` | `int` | Position (0-based) |
+
+**Retourne :** `mixed|null` - L'élément ou `null` si non trouvé
+
+**Exemple :**
+```php
+$set = new SetCollection([1, 2, 3]);
+$value = $set->get(0); // 1
+$notFound = $set->get(5); // null
+```
+
+---
+
+### `filter(callable $callback): self`
+
+Filtre les éléments selon un critère.
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$callback` | `callable` | Fonction qui retourne `true` pour garder l'élément |
+
+**Retourne :** `self` - Nouvelle instance avec les éléments filtrés
+
+**Exemple :**
+```php
+$set = new SetCollection([1, 2, 3, 4, 5, 6]);
+$even = $set->filter(fn($n) => $n % 2 === 0);
+// Résultat : [2, 4, 6]
+```
+
+---
+
+### `map(callable $callback): self`
+
+Transforme chaque élément et garantit l'unicité du résultat.
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$callback` | `callable` | Fonction de transformation |
+
+**Retourne :** `self` - Nouvelle instance avec les éléments transformés (doublons éliminés)
+
+**Exemple :**
+```php
+$set = new SetCollection([-1, 1, -2, 2]);
+$absolute = $set->map(fn($n) => abs($n));
+// Résultat : [1, 2] (les doublons sont éliminés)
+```
+
+---
+
+### `reduce(callable $callback, mixed $initial = null): mixed`
+
+Réduit le set à une seule valeur.
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$callback` | `callable` | Fonction de réduction `(carry, item) => newCarry` |
+| `$initial` | `mixed` | Valeur initiale |
+
+**Retourne :** `mixed` - La valeur réduite
+
+**Exemple :**
+```php
+$set = new SetCollection([1, 2, 3, 4, 5]);
+$sum = $set->reduce(fn($carry, $n) => $carry + $n, 0);
+// Résultat : 15
+```
+
+---
+
+### `union(self $other): self`
+
+Fusionne deux sets (union ensembliste).
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$other` | `self` | L'autre set |
+
+**Retourne :** `self` - Nouvelle instance avec l'union des deux sets
+
+**Exemple :**
+```php
+$set1 = new SetCollection([1, 2, 3]);
+$set2 = new SetCollection([3, 4, 5]);
+$union = $set1->union($set2);
+// Résultat : [1, 2, 3, 4, 5]
+```
+
+---
+
+### `intersect(self $other): self`
+
+Intersection de deux sets (éléments communs).
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$other` | `self` | L'autre set |
+
+**Retourne :** `self` - Nouvelle instance avec l'intersection
+
+**Exemple :**
+```php
+$set1 = new SetCollection([1, 2, 3, 4]);
+$set2 = new SetCollection([3, 4, 5, 6]);
+$intersect = $set1->intersect($set2);
+// Résultat : [3, 4]
+```
+
+---
+
+### `diff(self $other): self`
+
+Différence de deux sets (éléments dans le premier mais pas dans le second).
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$other` | `self` | L'autre set |
+
+**Retourne :** `self` - Nouvelle instance avec la différence
+
+**Exemple :**
+```php
+$set1 = new SetCollection([1, 2, 3, 4]);
+$set2 = new SetCollection([3, 4, 5, 6]);
+$diff = $set1->diff($set2);
+// Résultat : [1, 2]
+```
+
+---
+
+### `isEmpty(): bool`
+
+Vérifie si le set est vide.
+
+**Retourne :** `bool` - `true` si vide, `false` sinon
+
+---
+
+### `isNotEmpty(): bool`
+
+Vérifie si le set n'est pas vide.
+
+**Retourne :** `bool` - `true` si non vide, `false` sinon
+
+---
+
+### `count(): int`
+
+Compte les éléments uniques.
+
+**Retourne :** `int` - Nombre d'éléments uniques
+
+---
+
+### `toArray(): array`
+
+Retourne tous les éléments (hydratés).
+
+**Retourne :** `array<int, mixed>` - Tableau des éléments
+
+---
+
+### `toRawArray(): array`
+
+Retourne les données brutes normalisées (scalaires). Utilisé pour le débogage et l'export.
+
+**Retourne :** `array<int, mixed>` - Tableau des données normalisées
+
+**Exemple :**
+```php
+$set = new SetCollection([TestIntVO::from(42)]);
+$raw = $set->toRawArray(); // [42]
+```
+
+---
+
+### `toRawTypedArray(): array`
+
+Retourne les données brutes avec préservation des types. Utilisé pour les opérations internes.
+
+**Retourne :** `array<int, mixed>` - Tableau des données brutes (objets préservés)
+
+**Exemple :**
+```php
+$set = new SetCollection([TestIntVO::from(42)]);
+$rawTyped = $set->toRawTypedArray(); // [TestIntVO(42)]
+```
+
+---
+
+### `toJson(): string`
+
+Convertit le set en chaîne JSON.
+
+**Retourne :** `string` - Représentation JSON
+
+**Exemple :**
+```php
+$set = new SetCollection([1, 2, 3]);
+echo $set->toJson(); // '[1,2,3]'
+```
+
+---
+
+### `keys(): ListCollection`
+
+Retourne les clés du set sous forme de `ListCollection`.
+
+**Retourne :** `ListCollection` - Les clés du set
+
+---
+
+### `values(): ListCollection`
+
+Retourne les valeurs du set sous forme de `ListCollection`.
+
+**Retourne :** `ListCollection` - Les valeurs du set
+
+---
+
+### `__toString(): string`
+
+Représentation JSON.
+
+**Retourne :** `string` - La représentation JSON
+
+---
+
+### `jsonSerialize(): mixed`
+
+Interface `JsonSerializable`.
+
+**Retourne :** `mixed` - Les données à sérialiser
+
+---
+
+### `getIterator(): ArrayIterator`
+
+Interface `IteratorAggregate`.
+
+**Retourne :** `\ArrayIterator<int, mixed>` - Itérateur sur les éléments hydratés
+
+---
+
+### `from(mixed $source): static`
+
+Crée une instance à partir d'une source.
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$source` | `mixed` | Source (array, objet, scalaire, enum) |
+
+**Retourne :** `static` - Nouvelle instance
+
+**Exceptions :** `InvalidArgumentException` - Si la source ne peut pas être convertie
+
+**Exemple :**
+```php
+$set = SetCollection::from([1, 2, 3]);
+```
+
+---
+
+### `fromJson(string $json): static`
+
+Crée une instance à partir de JSON.
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$json` | `string` | Chaîne JSON |
+
+**Retourne :** `static` - Nouvelle instance
+
+**Exceptions :** `InvalidArgumentException` - Si le JSON est invalide
+
+---
+
+### `collect(iterable $sources): static`
+
+Collecte des sources et les transforme en un set.
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$sources` | `iterable` | Les sources à collecter |
+
+**Retourne :** `static` - Le set contenant les sources collectées
+
+**Exceptions :** `InvalidArgumentException` - Si un objet sans propriétés est fourni
+
+---
+
+## Cas d'utilisation
+
+### Cas 1 : Set de Tags (ValueObjects)
 
 ```php
-use AndyDefer\LaravelNotification\ValueObjects\UuidVO;
-use AndyDefer\LaravelNotification\ValueObjects\MessageBodyVO;
 use AndyDefer\DomainStructures\Utils\SetCollection;
+use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
 
-// Création - les doublons sont supprimés
-$messages = new SetCollection([
-    new MessageBodyVO('Bienvenue sur notre plateforme'),
-    new MessageBodyVO('Votre commande est confirmée'),
-    new MessageBodyVO('Bienvenue sur notre plateforme'), // Doublon - ignoré
+// Création d'un set de tags uniques
+$tags = new SetCollection([
+    StringVO::from('php'),
+    StringVO::from('laravel'),
+    StringVO::from('php'), // Doublon ignoré
 ]);
 
-// ✅ Ajouter un message
-$messages = $messages->add(new MessageBodyVO('Erreur de paiement'));
+// Ajout d'un tag
+$tags = $tags->add(StringVO::from('docker'));
 
-// ✅ Vérifier si un message existe
-$search = new MessageBodyVO('Bienvenue sur notre plateforme');
-if ($messages->contains($search)) {
-    echo 'Message trouvé';
+// Vérification
+if ($tags->contains(StringVO::from('php'))) {
+    echo 'Tag PHP présent';
 }
 
-// ✅ Filtrer les messages longs
-$longMessages = $messages->filter(
-    fn(MessageBodyVO $body) => strlen($body->getValue()) > 20
+// Filtrage
+$longTags = $tags->filter(
+    fn(StringVO $tag) => strlen($tag->getValue()) > 3
 );
 
-// ✅ Transformer en majuscules
-$uppercase = $messages->map(
-    fn(MessageBodyVO $body) => strtoupper($body->getValue())
-);
-
-// ✅ Set d'UUIDs
-$uuids = new SetCollection([
-    UuidVO::generate(),
-    UuidVO::generate(),
-    UuidVO::generate(),
-]);
-
-// ✅ Vérifier si un UUID existe
-$targetUuid = UuidVO::generate();
-if ($uuids->contains($targetUuid)) {
-    echo 'UUID présent';
-}
+// Export
+$tagList = $tags->toArray();
 ```
 
 ---
 
-### Cas 3 : Set d'Utilisateurs (Modèles Eloquent)
+### Cas 2 : Set d'Utilisateurs Uniques
 
 ```php
 use App\Models\User;
+use AndyDefer\DomainStructures\Utils\SetCollection;
 
-// Création
-$users = new SetCollection([
-    User::find(1),
-    User::find(2),
-    User::find(3),
-]);
+// Récupération des utilisateurs
+$users = User::where('active', true)->get();
+$userSet = new SetCollection($users->toArray());
 
-// ✅ Ajouter un utilisateur
-$users = $users->add(User::find(4));
+// Ajout d'un utilisateur
+$userSet = $userSet->add($newUser);
 
-// ✅ Vérifier si un utilisateur existe
-$targetUser = User::find(2);
-if ($users->contains($targetUser)) {
+// Vérification de présence
+if ($userSet->contains($targetUser)) {
     echo 'Utilisateur présent';
 }
 
-// ✅ Filtrer les utilisateurs actifs
-$activeUsers = $users->filter(
-    fn(User $user) => $user->is_active === true
-);
-
-// ✅ Filtrer par âge
-$adults = $users->filter(
-    fn(User $user) => $user->age >= 18
-);
-
-// ✅ Extraire les emails (set unique d'emails)
-$emails = $users->map(
-    fn(User $user) => $user->email
-);
-
-// ✅ Union de deux sets d'utilisateurs
-$otherUsers = new SetCollection([User::find(4), User::find(5)]);
-$allUsers = $users->union($otherUsers);
+// Union avec un autre set
+$admins = new SetCollection(User::where('role', 'admin')->get());
+$allUsers = $userSet->union($admins);
 ```
 
 ---
 
-### Cas 4 : Set de Tags (Strings)
+### Cas 3 : Opérations Ensemblistes sur des IDs
 
 ```php
-// Tags uniques pour une application
-$tags = new SetCollection(['php', 'laravel', 'php', 'vuejs', 'javascript']);
+use AndyDefer\DomainStructures\Utils\SetCollection;
 
-// Résultat : ['php', 'laravel', 'vuejs', 'javascript']
+// Set des IDs autorisés
+$allowed = new SetCollection([1, 2, 3, 4, 5]);
 
-// ✅ Ajouter un tag
-$tags = $tags->add('react');
+// Set des IDs traités
+$processed = new SetCollection([2, 4, 6]);
 
-// ✅ Ajouter plusieurs tags
-$tags = $tags->addAll(['angular', 'nodejs', 'vuejs']); // 'vuejs' déjà présent
+// IDs non encore traités (différence)
+$pending = $allowed->diff($processed);
+// Résultat : [1, 3, 5]
 
-// ✅ Vérifier si un tag existe
-if ($tags->contains('php')) {
-    echo 'Tag php présent';
-}
+// IDs communs (intersection)
+$common = $allowed->intersect($processed);
+// Résultat : [2, 4]
 
-// ✅ Supprimer un tag
-$tags = $tags->remove('javascript');
-
-// ✅ Union de tags
-$otherTags = new SetCollection(['python', 'django', 'laravel']);
-$allTags = $tags->union($otherTags);
-
-// ✅ Intersection (tags communs)
-$commonTags = $tags->intersect($otherTags);
-
-// ✅ Différence (tags uniques)
-$uniqueTags = $tags->diff($otherTags);
+// Tous les IDs (union)
+$all = $allowed->union($processed);
+// Résultat : [1, 2, 3, 4, 5, 6]
 ```
 
 ---
 
-### Cas 5 : Set de Clés Mixtes (Plusieurs Types)
+### Cas 4 : Set avec Chaînage
 
 ```php
-use AndyDefer\LaravelNotification\Records\NotificationRecord;
-use AndyDefer\LaravelNotification\ValueObjects\UuidVO;
-
-// Set avec différents types d'éléments
-$mixed = new SetCollection([
-    'string value',
-    123,
-    45.67,
-    true,
-    new NotificationRecord(...),
-    ['nested' => 'array'],
-    UuidVO::generate(),
-]);
-
-// ✅ Les doublons sont supprimés, même entre types différents
-$mixed = new SetCollection([
-    '123',  // string
-    123,    // int - considéré comme différent
-    'true', // string
-    true,   // bool - considéré comme différent
-]);
-
-// Résultat : ['123', 123, 'true', true]
-
-// ✅ Vérifier si un élément existe
-if ($mixed->contains('123')) {
-    echo 'Présent';
-}
+$result = (new SetCollection([1, 2, 3, 4, 5]))
+    ->filter(fn($n) => $n % 2 === 0)   // [2, 4]
+    ->map(fn($n) => $n * 2)             // [4, 8]
+    ->add(10)                           // [4, 8, 10]
+    ->addAll([8, 12, 14])               // [4, 8, 10, 12, 14]
+    ->remove(8);                        // [4, 10, 12, 14]
 ```
 
 ---
 
-### Cas 6 : Set de Collections
+## Flux d'exécution
+
+```
+Création
+    ↓
+Génération des clés uniques (getKey)
+    ↓
+Stockage en array associatif (clé → valeur)
+    ↓
+Opération (add, remove, filter, map, etc.)
+    ↓
+Création d'une nouvelle instance (clone)
+    ↓
+Résultat disponible
+```
+
+**Immutable :** Chaque opération retourne une **nouvelle instance**.
 
 ```php
-use AndyDefer\DomainStructures\Utils\ListCollection;
-use AndyDefer\LaravelNotification\Records\NotificationRecord;
+$set = new SetCollection([1, 2, 3]);
+$newSet = $set->add(4);
 
-// Set de ListCollection
-$sets = new SetCollection([
-    new ListCollection([1, 2, 3]),
-    new ListCollection(['a', 'b', 'c']),
-    new ListCollection([1, 2, 3]), // Doublon - ignoré
-]);
-
-// ✅ Ajouter une ListCollection
-$sets = $sets->add(new ListCollection(['x', 'y', 'z']));
-
-// ✅ Vérifier si une liste existe
-$search = new ListCollection([1, 2, 3]);
-if ($sets->contains($search)) {
-    echo 'Liste trouvée';
-}
-
-// ✅ Filtrer les listes vides
-$nonEmpty = $sets->filter(
-    fn(ListCollection $list) => $list->isNotEmpty()
-);
+$set->toArray();    // [1, 2, 3] - inchangé
+$newSet->toArray(); // [1, 2, 3, 4] - nouvelle instance
 ```
-
----
-
-### Cas 7 : Set de Records avec `collect()`
-
-```php
-// Collecter depuis un itérable de records
-$records = [
-    new NotificationRecord(id: UuidVO::generate(), status: NotificationStatus::PENDING),
-    new NotificationRecord(id: UuidVO::generate(), status: NotificationStatus::SENT),
-    new NotificationRecord(id: UuidVO::generate(), status: NotificationStatus::PENDING), // Doublon - ignoré
-];
-
-$collection = SetCollection::collect($records);
-
-// Collecter depuis des value objects
-$uuids = [
-    UuidVO::generate(),
-    UuidVO::generate(),
-    UuidVO::generate(), // Si doublon, ignoré
-];
-
-$uuidSet = SetCollection::collect($uuids);
-
-// Collecter depuis des utilisateurs
-$users = [
-    User::find(1),
-    User::find(2),
-    User::find(1), // Doublon - ignoré (même instance)
-];
-
-$userSet = SetCollection::collect($users);
-```
-
----
-
-### Cas 8 : Chaining avec des Records
-
-```php
-// ✅ Chaînage puissant avec des records
-$result = $notifications
-    ->filter(fn(NotificationRecord $r) => $r->status === NotificationStatus::PENDING)
-    ->map(fn(NotificationRecord $r) => $r->message)
-    ->filter(fn($message) => strlen($message) > 10)
-    ->add('Nouveau message') // Ajout d'un string
-    ->filter(fn($item) => is_string($item)); // Garder que les strings
-
-// Résultat : Set des messages uniques de plus de 10 caractères
-```
-
----
-
-### Cas 9 : Opérations Ensemblistes avec des Records
-
-```php
-// Set A : Notifications du jour
-$today = new SetCollection([
-    new NotificationRecord(id: UuidVO::generate(), status: NotificationStatus::SENT),
-    new NotificationRecord(id: UuidVO::generate(), status: NotificationStatus::PENDING),
-]);
-
-// Set B : Notifications importantes
-$important = new SetCollection([
-    new NotificationRecord(id: UuidVO::generate(), status: NotificationStatus::SENT),
-    new NotificationRecord(id: UuidVO::generate(), status: NotificationStatus::FAILED),
-]);
-
-// ✅ Union : toutes les notifications
-$all = $today->union($important);
-
-// ✅ Intersection : notifications communes
-$common = $today->intersect($important);
-
-// ✅ Différence : notifications uniques à aujourd'hui
-$unique = $today->diff($important);
-
-// ✅ Différence symétrique : notifications qui ne sont pas dans les deux
-$symmetricDiff = $today->union($important)->diff($today->intersect($important));
-```
-
----
-
-### Cas 10 : Set avec `from()`
-
-```php
-// Créer un set depuis un tableau de records
-$set = SetCollection::from([
-    new NotificationRecord(...),
-    new NotificationRecord(...),
-]);
-
-// Créer depuis un objet transformable
-$record = new TestUserRecord(name: 'John', email: $this->testEmail);
-$set = SetCollection::from($record);
-// Résultat : [['name' => 'John', 'email' => 'test@example.com']]
-
-// Créer depuis un objet standard
-$obj = new stdClass();
-$obj->name = 'John';
-$obj->age = 30;
-$set = SetCollection::from($obj);
-// Résultat : ['John', 30]
-
-// Créer depuis des scalaires
-$set = SetCollection::from('hello');
-// Résultat : ['hello']
-```
-
----
-
-## Pourquoi utiliser SetCollection ?
-
-| Avantage | Explication |
-|----------|-------------|
-| **Unicité garantie** | Les doublons sont automatiquement éliminés |
-| **Immutabilité** | Les modifications créent de nouvelles instances |
-| **Vérification rapide** | `contains()` est en O(1) pour les scalaires |
-| **Opérations ensemblistes** | `union()`, `intersect()`, `diff()` disponibles |
-| **Normalisation** | Les objets sont normalisés via `NormalizerChain` |
-| **Chaînage** | Les opérations s'enchaînent de manière fluide |
 
 ---
 
@@ -440,19 +592,29 @@ $set = SetCollection::from('hello');
 
 ---
 
+## Intégration
+
+`SetCollection` s'intègre avec :
+
+- **`ListCollection`** : via `keys()`, `values()`, `toArray()`
+- **`Transformable`** : pour la normalisation et l'hydratation
+- **`NormalizerChain`** : pour la normalisation automatique
+- **`ValueObjects`** : via `from()` et la préservation des types
+
+---
+
 ## Performance
 
 | Opération | Complexité | Notes |
 |-----------|------------|-------|
-| `add()` | O(1) | Ajout direct (hash) |
-| `contains()` | O(1) | Recherche directe (hash) |
-| `remove()` | O(1) | Suppression directe (hash) |
+| `contains()` | O(1) | Accès direct par clé |
+| `add()` | O(1) | Insertion directe |
+| `remove()` | O(1) | Suppression directe |
 | `filter()` | O(n) | Parcours complet |
 | `map()` | O(n) | Parcours complet |
-| `reduce()` | O(n) | Parcours complet |
 | `union()` | O(n) | Fusion des sets |
-| `intersect()` | O(n) | Recherche dans l'autre set |
-| `diff()` | O(n) | Recherche dans l'autre set |
+| `intersect()` | O(n) | Comparaison des clés |
+| `diff()` | O(n) | Comparaison des clés |
 
 **Mémoire :** Chaque opération crée une nouvelle instance O(n).
 
@@ -464,7 +626,6 @@ $set = SetCollection::from('hello');
 |-------------|---------|-------|
 | PHP 8.1+ | ✅ Complet | Types union, mixed, etc. |
 | PHP 8.0 | ✅ Complet | Supporté |
-| PHP 7.4 | ❌ Non | Nécessite PHP 8.0+ |
 
 ---
 
@@ -476,88 +637,44 @@ $set = SetCollection::from('hello');
 declare(strict_types=1);
 
 use AndyDefer\DomainStructures\Utils\SetCollection;
-use AndyDefer\LaravelNotification\Records\NotificationRecord;
-use AndyDefer\LaravelNotification\Enums\NotificationStatus;
-use AndyDefer\LaravelNotification\ValueObjects\UuidVO;
+use AndyDefer\PhpVo\ValueObjects\Types\IntVO;
+use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
 
-// Création
-$notifications = new SetCollection([
-    new NotificationRecord(
-        id: UuidVO::generate(),
-        status: NotificationStatus::PENDING,
-        message: 'Bienvenue'
-    ),
-    new NotificationRecord(
-        id: UuidVO::generate(),
-        status: NotificationStatus::SENT,
-        message: 'Commande confirmée'
-    ),
-    new NotificationRecord(
-        id: UuidVO::generate(),
-        status: NotificationStatus::PENDING,
-        message: 'Bienvenue' // Doublon - ignoré
-    ),
+// Création avec des ValueObjects
+$set = new SetCollection([
+    IntVO::from(1),
+    IntVO::from(2),
+    IntVO::from(1), // Doublon ignoré
+    StringVO::from('Hello'),
 ]);
 
-// Ajout
-$notifications = $notifications->add(
-    new NotificationRecord(
-        id: UuidVO::generate(),
-        status: NotificationStatus::FAILED,
-        message: 'Erreur de paiement'
-    )
-);
+// Chaînage d'opérations
+$result = $set
+    ->filter(fn($item) => $item instanceof IntVO) // Garder les IntVO
+    ->map(fn(IntVO $item) => $item->multiply(2))  // Doubler les valeurs
+    ->add(IntVO::from(10))                        // Ajouter un nouvel élément
+    ->remove(IntVO::from(2));                     // Retirer un élément
+
+// Accès
+$first = $result->first();
+$last = $result->last();
 
 // Vérification
-$target = new NotificationRecord(
-    id: UuidVO::generate(),
-    status: NotificationStatus::PENDING,
-    message: 'Bienvenue'
-);
-if ($notifications->contains($target)) {
-    echo 'Notification trouvée';
+if ($result->contains(IntVO::from(10))) {
+    echo '10 est présent';
 }
 
-// Filtrage
-$pending = $notifications->filter(
-    fn(NotificationRecord $r) => $r->status === NotificationStatus::PENDING
-);
-
-// Transformation
-$messages = $notifications->map(
-    fn(NotificationRecord $r) => $r->message
-);
-
-// Suppression
-$toRemove = new NotificationRecord(
-    id: UuidVO::generate(),
-    status: NotificationStatus::SENT,
-    message: 'Commande confirmée'
-);
-$notifications = $notifications->remove($toRemove);
-
-// Opérations ensemblistes
-$other = new SetCollection([
-    new NotificationRecord(
-        id: UuidVO::generate(),
-        status: NotificationStatus::SENT,
-        message: 'Nouvelle notification'
-    ),
-]);
-
-$all = $notifications->union($other);
-$common = $notifications->intersect($other);
-$unique = $notifications->diff($other);
-
 // Itération
-foreach ($notifications as $notification) {
-    echo $notification->message . "\n";
+foreach ($result as $item) {
+    echo $item->getValue(); // 2, 6, 10
 }
 
 // Export
-$array = $notifications->toArray();
-$json = $notifications->toJson();
-echo $notifications; // JSON
+$array = $result->toArray();
+$json = $result->toJson();
+$raw = $result->toRawArray();
+
+echo $result; // JSON
 ```
 
 ---
@@ -568,4 +685,4 @@ echo $notifications; // JSON
 - `MapCollection` - Collection clé → valeur
 - `Sequential` - Classe de base pour les séquences
 - `NormalizerChain` - Système de normalisation
-- `Transformable` - Interface pour les objets transformabless
+- `Transformable` - Interface pour les objets transformables

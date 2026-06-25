@@ -6,6 +6,8 @@ namespace AndyDefer\DomainStructures\Tests\Unit\Collections\Utility;
 
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
+use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIntVO;
+use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestStringVO;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\SetCollection;
 
@@ -45,13 +47,195 @@ final class SetCollectionTest extends TestCase
         $this->assertSame(['a', 'b', 'c'], $set->toArray());
     }
 
-    public function test_normalizes_items_on_construction(): void
-    {
-        $email = TestEmailAddress::from('test@example.com');
-        $set = new SetCollection([$email]);
+    // ==================== TYPE PRESERVATION TESTS ====================
 
+    public function test_preserves_types_of_value_objects(): void
+    {
+        $intVO = TestIntVO::from(42);
+        $stringVO = TestStringVO::from('Hello');
+
+        $set = new SetCollection([$intVO, $stringVO]);
+
+        $array = $set->toArray();
+        $this->assertInstanceOf(TestIntVO::class, $array[0]);
+        $this->assertInstanceOf(TestStringVO::class, $array[1]);
+        $this->assertSame(42, $array[0]->getValue());
+        $this->assertSame('Hello', $array[1]->getValue());
+    }
+
+    public function test_preserves_types_after_add(): void
+    {
+        $set = new SetCollection;
+        $intVO = TestIntVO::from(42);
+        $stringVO = TestStringVO::from('Hello');
+
+        $new = $set->add($intVO)->add($stringVO);
+
+        $array = $new->toArray();
+        $this->assertInstanceOf(TestIntVO::class, $array[0]);
+        $this->assertInstanceOf(TestStringVO::class, $array[1]);
+    }
+
+    public function test_contains_works_with_value_objects(): void
+    {
+        $intVO = TestIntVO::from(42);
+        $set = new SetCollection([$intVO]);
+
+        $this->assertTrue($set->contains($intVO));
+        $this->assertTrue($set->contains(TestIntVO::from(42)));
+        $this->assertFalse($set->contains(TestIntVO::from(99)));
+        $this->assertFalse($set->contains(42));
+    }
+
+    public function test_remove_works_with_value_objects(): void
+    {
+        $intVO = TestIntVO::from(42);
+        $set = new SetCollection([$intVO]);
+
+        $new = $set->remove(TestIntVO::from(42));
+
+        $this->assertTrue($new->isEmpty());
         $this->assertCount(1, $set);
-        $this->assertSame('test@example.com', $set[0]);
+    }
+
+    public function test_preserves_types_after_filter(): void
+    {
+        $set = new SetCollection([
+            TestIntVO::from(1),
+            TestStringVO::from('Hello'),
+            TestIntVO::from(2),
+        ]);
+
+        $filtered = $set->filter(fn ($item) => $item instanceof TestIntVO);
+
+        $array = $filtered->toArray();
+        $this->assertCount(2, $array);
+        $this->assertInstanceOf(TestIntVO::class, $array[0]);
+        $this->assertInstanceOf(TestIntVO::class, $array[1]);
+        $this->assertEquals(1, $array[0]->getValue());
+        $this->assertEquals(2, $array[1]->getValue());
+    }
+
+    public function test_preserves_types_after_map(): void
+    {
+        $set = new SetCollection([
+            TestIntVO::from(1),
+            TestIntVO::from(2),
+            TestIntVO::from(3),
+        ]);
+
+        $mapped = $set->map(fn ($item) => $item->multiply(2));
+
+        $array = $mapped->toArray();
+        $this->assertCount(3, $array);
+        $this->assertInstanceOf(TestIntVO::class, $array[0]);
+        $this->assertInstanceOf(TestIntVO::class, $array[1]);
+        $this->assertInstanceOf(TestIntVO::class, $array[2]);
+        $this->assertEquals(2, $array[0]->getValue());
+        $this->assertEquals(4, $array[1]->getValue());
+        $this->assertEquals(6, $array[2]->getValue());
+    }
+
+    public function test_preserves_types_in_iterator(): void
+    {
+        $set = new SetCollection([
+            TestIntVO::from(1),
+            TestStringVO::from('Hello'),
+            TestIntVO::from(2),
+        ]);
+
+        $types = [];
+        foreach ($set as $item) {
+            $types[] = get_class($item);
+        }
+
+        $this->assertContains(TestIntVO::class, $types);
+        $this->assertContains(TestStringVO::class, $types);
+    }
+
+    public function test_preserves_types_in_array_access(): void
+    {
+        $set = new SetCollection([
+            TestIntVO::from(1),
+            TestStringVO::from('Hello'),
+        ]);
+
+        $this->assertInstanceOf(TestIntVO::class, $set[0]);
+        $this->assertInstanceOf(TestStringVO::class, $set[1]);
+    }
+
+    public function test_union_preserves_types(): void
+    {
+        $set1 = new SetCollection([TestIntVO::from(1)]);
+        $set2 = new SetCollection([TestStringVO::from('Hello')]);
+
+        $union = $set1->union($set2);
+
+        $array = $union->toArray();
+        $this->assertInstanceOf(TestIntVO::class, $array[0]);
+        $this->assertInstanceOf(TestStringVO::class, $array[1]);
+    }
+
+    public function test_intersect_preserves_types(): void
+    {
+        $set1 = new SetCollection([
+            TestIntVO::from(1),
+            TestStringVO::from('Hello'),
+        ]);
+        $set2 = new SetCollection([
+            TestIntVO::from(1),
+            TestIntVO::from(2),
+        ]);
+
+        $intersect = $set1->intersect($set2);
+
+        $array = $intersect->toArray();
+        $this->assertCount(1, $array);
+        $this->assertInstanceOf(TestIntVO::class, $array[0]);
+        $this->assertEquals(1, $array[0]->getValue());
+    }
+
+    public function test_diff_preserves_types(): void
+    {
+        $set1 = new SetCollection([
+            TestIntVO::from(1),
+            TestStringVO::from('Hello'),
+        ]);
+        $set2 = new SetCollection([
+            TestIntVO::from(1),
+        ]);
+
+        $diff = $set1->diff($set2);
+
+        $array = $diff->toArray();
+        $this->assertCount(1, $array);
+        $this->assertInstanceOf(TestStringVO::class, $array[0]);
+        $this->assertEquals('Hello', $array[0]->getValue());
+    }
+
+    public function test_to_raw_array_returns_raw_data(): void
+    {
+        $set = new SetCollection([
+            TestIntVO::from(42),
+            TestStringVO::from('Hello'),
+        ]);
+
+        $raw = $set->toRawArray();
+
+        $this->assertContains(42, $raw);
+        $this->assertContains('Hello', $raw);
+    }
+
+    public function test_to_json_normalizes_value_objects(): void
+    {
+        $set = new SetCollection([
+            TestIntVO::from(42),
+            TestStringVO::from('Hello'),
+        ]);
+
+        $json = $set->toJson();
+        $this->assertStringContainsString('42', $json);
+        $this->assertStringContainsString('Hello', $json);
     }
 
     // ==================== TRANSFORMABLE TESTS ====================
@@ -164,16 +348,6 @@ final class SetCollectionTest extends TestCase
         $this->assertNotSame($set, $new);
         $this->assertCount(4, $new);
         $this->assertSame([1, 2, 3, 4], $new->toArray());
-    }
-
-    public function test_add_normalizes_item(): void
-    {
-        $set = new SetCollection([1, 2]);
-        $email = TestEmailAddress::from('test@example.com');
-        $new = $set->add($email);
-
-        $this->assertCount(3, $new);
-        $this->assertSame('test@example.com', $new[2]);
     }
 
     public function test_add_all_adds_multiple_items_without_duplicates(): void

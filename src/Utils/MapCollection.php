@@ -29,15 +29,23 @@ final class MapCollection implements \ArrayAccess, \Countable, \IteratorAggregat
     private array $items;
 
     /**
+     * @var array<TKey, class-string|null>
+     */
+    private array $itemTypes;
+
+    /**
      * @param  array<TKey, TValue>  $items
      */
     public function __construct(array $items = [])
     {
-        $normalized = [];
+        $this->items = [];
+        $this->itemTypes = [];
+
         foreach ($items as $key => $value) {
-            $normalized[$this->normalizeKey($key)] = $this->normalize($value);
+            $normalizedKey = $this->normalizeKey($key);
+            $this->items[$normalizedKey] = $value;
+            $this->itemTypes[$normalizedKey] = $this->detectType($value);
         }
-        $this->items = $normalized;
     }
 
     /**
@@ -60,6 +68,28 @@ final class MapCollection implements \ArrayAccess, \Countable, \IteratorAggregat
     private function normalize(mixed $value): mixed
     {
         return NormalizerChain::get()->normalize($value);
+    }
+
+    private function detectType(mixed $item): ?string
+    {
+        if (is_object($item)) {
+            return get_class($item);
+        }
+
+        return null;
+    }
+
+    private function hydrate(mixed $item, ?string $type): mixed
+    {
+        if ($type !== null && class_exists($type) && method_exists($type, 'from')) {
+            try {
+                return $type::from($item);
+            } catch (\Throwable $e) {
+                return $item;
+            }
+        }
+
+        return $item;
     }
 
     // ==================== TRANSFORMABLE ====================
@@ -159,15 +189,31 @@ final class MapCollection implements \ArrayAccess, \Countable, \IteratorAggregat
 
     public function toArray(): array
     {
-        return $this->items;
+        $result = [];
+        foreach ($this->items as $key => $item) {
+            $result[$key] = $this->hydrate($item, $this->itemTypes[$key] ?? null);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Retourne les données brutes (non hydratées)
+     */
+    public function toRawArray(): array
+    {
+        return NormalizerChain::get()->normalize($this->items);
+
     }
 
     // ==================== BASIC METHODS ====================
 
     public function put(mixed $key, mixed $value): self
     {
+        $normalizedKey = $this->normalizeKey($key);
         $new = clone $this;
-        $new->items[$this->normalizeKey($key)] = $this->normalize($value);
+        $new->items[$normalizedKey] = $value;
+        $new->itemTypes[$normalizedKey] = $this->detectType($value);
 
         return $new;
     }
@@ -176,7 +222,9 @@ final class MapCollection implements \ArrayAccess, \Countable, \IteratorAggregat
     {
         $new = clone $this;
         foreach ($items as $key => $value) {
-            $new->items[$this->normalizeKey($key)] = $this->normalize($value);
+            $normalizedKey = $this->normalizeKey($key);
+            $new->items[$normalizedKey] = $value;
+            $new->itemTypes[$normalizedKey] = $this->detectType($value);
         }
 
         return $new;
@@ -184,7 +232,11 @@ final class MapCollection implements \ArrayAccess, \Countable, \IteratorAggregat
 
     public function get(mixed $key): mixed
     {
-        return $this->items[$this->normalizeKey($key)] ?? null;
+        $normalizedKey = $this->normalizeKey($key);
+        $item = $this->items[$normalizedKey] ?? null;
+        $type = $this->itemTypes[$normalizedKey] ?? null;
+
+        return $this->hydrate($item, $type);
     }
 
     public function hasKey(mixed $key): bool
@@ -207,6 +259,7 @@ final class MapCollection implements \ArrayAccess, \Countable, \IteratorAggregat
 
         $new = clone $this;
         unset($new->items[$normalizedKey]);
+        unset($new->itemTypes[$normalizedKey]);
 
         return $new;
     }
@@ -220,7 +273,12 @@ final class MapCollection implements \ArrayAccess, \Countable, \IteratorAggregat
 
     public function values(): ListCollection
     {
-        return new ListCollection(array_values($this->items));
+        $values = [];
+        foreach ($this->items as $key => $item) {
+            $values[] = $this->hydrate($item, $this->itemTypes[$key] ?? null);
+        }
+
+        return new ListCollection($values);
     }
 
     // ==================== TRANSFORMATIONS ====================
@@ -228,30 +286,46 @@ final class MapCollection implements \ArrayAccess, \Countable, \IteratorAggregat
     public function filter(callable $callback): self
     {
         $filtered = [];
-        foreach ($this->items as $key => $value) {
-            if ($callback($value, $key)) {
-                $filtered[$key] = $value;
+        $types = [];
+        foreach ($this->items as $key => $item) {
+            $hydrated = $this->hydrate($item, $this->itemTypes[$key] ?? null);
+            if ($callback($hydrated, $key)) {
+                $filtered[$key] = $item;
+                $types[$key] = $this->itemTypes[$key];
             }
         }
 
-        return new static($filtered);
+        $new = clone $this;
+        $new->items = $filtered;
+        $new->itemTypes = $types;
+
+        return $new;
     }
 
     public function map(callable $callback): self
     {
         $mapped = [];
-        foreach ($this->items as $key => $value) {
-            $mapped[$key] = $callback($value, $key);
+        $types = [];
+        foreach ($this->items as $key => $item) {
+            $hydrated = $this->hydrate($item, $this->itemTypes[$key] ?? null);
+            $result = $callback($hydrated, $key);
+            $mapped[$key] = $result;
+            $types[$key] = $this->detectType($result);
         }
 
-        return new static($mapped);
+        $new = clone $this;
+        $new->items = $mapped;
+        $new->itemTypes = $types;
+
+        return $new;
     }
 
     public function reduce(callable $callback, mixed $initial = null): mixed
     {
         $result = $initial;
-        foreach ($this->items as $key => $value) {
-            $result = $callback($result, $value, $key);
+        foreach ($this->items as $key => $item) {
+            $hydrated = $this->hydrate($item, $this->itemTypes[$key] ?? null);
+            $result = $callback($result, $hydrated, $key);
         }
 
         return $result;
@@ -261,12 +335,25 @@ final class MapCollection implements \ArrayAccess, \Countable, \IteratorAggregat
 
     public function merge(self $other): self
     {
-        return new static(array_merge($this->items, $other->toArray()));
+        $new = clone $this;
+        foreach ($other->items as $key => $value) {
+            $new->items[$key] = $value;
+            $new->itemTypes[$key] = $other->itemTypes[$key] ?? null;
+        }
+
+        return $new;
     }
 
     public function mergeArray(array $items): self
     {
-        return new static(array_merge($this->items, $items));
+        $new = clone $this;
+        foreach ($items as $key => $value) {
+            $normalizedKey = $this->normalizeKey($key);
+            $new->items[$normalizedKey] = $value;
+            $new->itemTypes[$normalizedKey] = $this->detectType($value);
+        }
+
+        return $new;
     }
 
     // ==================== UTILITY ====================
@@ -290,12 +377,22 @@ final class MapCollection implements \ArrayAccess, \Countable, \IteratorAggregat
 
     public function toJson(): string
     {
-        return json_encode($this->toArray(), JSON_THROW_ON_ERROR);
+        $normalized = [];
+        foreach ($this->items as $key => $item) {
+            $normalized[$key] = $this->normalize($item);
+        }
+
+        return json_encode($normalized, JSON_THROW_ON_ERROR);
     }
 
     public function jsonSerialize(): mixed
     {
-        return $this->toArray();
+        $normalized = [];
+        foreach ($this->items as $key => $item) {
+            $normalized[$key] = $this->normalize($item);
+        }
+
+        return $normalized;
     }
 
     public function __toString(): string
@@ -307,7 +404,12 @@ final class MapCollection implements \ArrayAccess, \Countable, \IteratorAggregat
 
     public function getIterator(): \ArrayIterator
     {
-        return new \ArrayIterator($this->items);
+        $hydrated = [];
+        foreach ($this->items as $key => $item) {
+            $hydrated[$key] = $this->hydrate($item, $this->itemTypes[$key] ?? null);
+        }
+
+        return new \ArrayIterator($hydrated);
     }
 
     // ==================== ARRAY ACCESS ====================

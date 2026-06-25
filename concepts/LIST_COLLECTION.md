@@ -18,7 +18,13 @@ ListCollection
 
 ## Rôle principal
 
-`ListCollection` est une collection **non-typée** (contrairement à `AbstractTypedCollection`) qui accepte n'importe quel type d'éléments et les normalise via `NormalizerChain`. Elle est **immutable** : chaque opération retourne une nouvelle instance.
+`ListCollection` est une collection **non-typée** qui accepte n'importe quel type d'éléments et les normalise via `NormalizerChain`. Elle est **immutable** : chaque opération retourne une nouvelle instance.
+
+### Particularité : Préservation des types
+
+Contrairement à une version qui normaliserait immédiatement, `ListCollection` **stocker les éléments bruts** tout en préservant leur type d'origine. Lors de la récupération (`get()`, `first()`, `last()`, etc.), les éléments sont **hydratés** via leur méthode `::from()` si disponible.
+
+---
 
 ## Installation
 
@@ -38,7 +44,7 @@ use AndyDefer\DomainStructures\Utils\ListCollection;
 
 | Paramètre | Type | Description |
 |-----------|------|-------------|
-| `$items` | `array<int, mixed>` | Éléments initiaux (normalisés via `NormalizerChain`) |
+| `$items` | `array<int, mixed>` | Éléments initiaux (non normalisés, types préservés) |
 
 **Retourne :** `void`
 
@@ -55,7 +61,7 @@ Ajoute un élément à la fin de la liste.
 
 | Paramètre | Type | Description |
 |-----------|------|-------------|
-| `$item` | `mixed` | Élément à ajouter (sera normalisé) |
+| `$item` | `mixed` | Élément à ajouter (type préservé) |
 
 **Retourne :** `self` - Nouvelle instance avec l'élément ajouté
 
@@ -73,7 +79,7 @@ Ajoute un élément au début de la liste.
 
 | Paramètre | Type | Description |
 |-----------|------|-------------|
-| `$item` | `mixed` | Élément à ajouter (sera normalisé) |
+| `$item` | `mixed` | Élément à ajouter (type préservé) |
 
 **Retourne :** `self` - Nouvelle instance avec l'élément ajouté
 
@@ -92,7 +98,7 @@ Insère un élément à une position spécifique.
 | Paramètre | Type | Description |
 |-----------|------|-------------|
 | `$index` | `int` | Position (0-based) |
-| `$item` | `mixed` | Élément à insérer (sera normalisé) |
+| `$item` | `mixed` | Élément à insérer (type préservé) |
 
 **Retourne :** `self` - Nouvelle instance avec l'élément inséré
 
@@ -151,7 +157,7 @@ Remplace un élément à une position spécifique.
 | Paramètre | Type | Description |
 |-----------|------|-------------|
 | `$index` | `int` | Position (0-based) |
-| `$item` | `mixed` | Nouvel élément (sera normalisé) |
+| `$item` | `mixed` | Nouvel élément (type préservé) |
 
 **Retourne :** `self` - Nouvelle instance avec l'élément remplacé
 
@@ -167,9 +173,9 @@ $newList = $list->replace(2, 99); // [1, 2, 99, 4, 5]
 
 ### `first(): mixed|null`
 
-Récupère le premier élément.
+Récupère le premier élément (hydraté).
 
-**Retourne :** `mixed|null` - Le premier élément ou `null` si la liste est vide
+**Retourne :** `mixed|null` - Le premier élément hydraté ou `null` si la liste est vide
 
 **Exemple :**
 ```php
@@ -181,9 +187,9 @@ $first = $list->first(); // 1
 
 ### `last(): mixed|null`
 
-Récupère le dernier élément.
+Récupère le dernier élément (hydraté).
 
-**Retourne :** `mixed|null` - Le dernier élément ou `null` si la liste est vide
+**Retourne :** `mixed|null` - Le dernier élément hydraté ou `null` si la liste est vide
 
 **Exemple :**
 ```php
@@ -195,13 +201,13 @@ $last = $list->last(); // 3
 
 ### `get(int $index): mixed|null`
 
-Récupère un élément par son index.
+Récupère un élément par son index (hydraté).
 
 | Paramètre | Type | Description |
 |-----------|------|-------------|
 | `$index` | `int` | Position (0-based) |
 
-**Retourne :** `mixed|null` - L'élément ou `null` si non trouvé
+**Retourne :** `mixed|null` - L'élément hydraté ou `null` si non trouvé
 
 **Exemple :**
 ```php
@@ -252,7 +258,7 @@ $list->contains('apple');  // false (case sensitive)
 
 ### `filter(callable $callback): self`
 
-Filtre les éléments selon un critère.
+Filtre les éléments selon un critère. Les éléments sont hydratés avant d'être passés au callback.
 
 | Paramètre | Type | Description |
 |-----------|------|-------------|
@@ -270,7 +276,7 @@ $even = $list->filter(fn($n) => $n % 2 === 0); // [2, 4, 6]
 
 ### `map(callable $callback): self`
 
-Transforme chaque élément.
+Transforme chaque élément. Les éléments sont hydratés avant d'être passés au callback.
 
 | Paramètre | Type | Description |
 |-----------|------|-------------|
@@ -288,7 +294,7 @@ $doubled = $list->map(fn($n) => $n * 2); // [2, 4, 6]
 
 ### `reduce(callable $callback, mixed $initial = null): mixed`
 
-Réduit la liste à une seule valeur.
+Réduit la liste à une seule valeur. Les éléments sont hydratés avant d'être passés au callback.
 
 | Paramètre | Type | Description |
 |-----------|------|-------------|
@@ -321,7 +327,7 @@ $reversed = $list->reverse(); // [3, 2, 1]
 
 ### `sort(?callable $callback = null): self`
 
-Trie les éléments.
+Trie les éléments. Les éléments sont hydratés pour la comparaison.
 
 | Paramètre | Type | Description |
 |-----------|------|-------------|
@@ -456,15 +462,29 @@ Compte les éléments.
 
 ### `toArray(): array`
 
-Retourne tous les éléments.
+Retourne tous les éléments **hydratés**.
 
-**Retourne :** `array<int, mixed>` - Tableau des éléments
+**Retourne :** `array<int, mixed>` - Tableau des éléments hydratés
+
+---
+
+### `toRawArray(): array`
+
+Retourne les données brutes **normalisées** (scalaires). Utilisé pour le débogage et l'export.
+
+**Retourne :** `array<int, mixed>` - Tableau des données normalisées
+
+**Exemple :**
+```php
+$list = new ListCollection([TestIntVO::from(42)]);
+$raw = $list->toRawArray(); // [42]
+```
 
 ---
 
 ### `toJson(): string`
 
-Convertit la liste en chaîne JSON.
+Convertit la liste en chaîne JSON (les éléments sont normalisés).
 
 **Retourne :** `string` - Représentation JSON
 
@@ -494,7 +514,7 @@ Interface `JsonSerializable`.
 
 ### `getIterator(): ArrayIterator`
 
-Interface `IteratorAggregate`.
+Interface `IteratorAggregate`. Retourne un itérateur sur les éléments **hydratés**.
 
 **Retourne :** `\ArrayIterator<int, mixed>`
 
@@ -547,11 +567,12 @@ Collecte des sources et les transforme en une liste.
 
 ---
 
-## Cas d'utilisation avancés
+## Cas d'utilisation
 
 ### Cas 1 : Liste de Notifications (Records)
 
 ```php
+use AndyDefer\DomainStructures\Utils\ListCollection;
 use AndyDefer\LaravelNotification\Records\NotificationRecord;
 use AndyDefer\LaravelNotification\Enums\NotificationStatus;
 
@@ -580,27 +601,28 @@ $topPriority = $notifications
 
 ---
 
-### Cas 2 : Liste de Value Objects
+### Cas 2 : Liste de ValueObjects
 
 ```php
-use AndyDefer\LaravelNotification\ValueObjects\UuidVO;
-use AndyDefer\LaravelNotification\ValueObjects\MessageBodyVO;
+use AndyDefer\DomainStructures\Utils\ListCollection;
+use AndyDefer\PhpVo\ValueObjects\Types\IntVO;
+use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
 
 // Création
 $messages = new ListCollection([
-    new MessageBodyVO('Bienvenue'),
-    new MessageBodyVO('Commande confirmée'),
-    new MessageBodyVO('Erreur de paiement'),
+    StringVO::from('Bienvenue'),
+    StringVO::from('Commande confirmée'),
+    StringVO::from('Erreur de paiement'),
 ]);
 
 // Transformer en majuscules
 $uppercase = $messages->map(
-    fn(MessageBodyVO $body) => strtoupper($body->getValue())
+    fn(StringVO $body) => $body->toUpper()
 );
 
 // Filtrer les messages longs
 $longMessages = $messages->filter(
-    fn(MessageBodyVO $body) => strlen($body->getValue()) > 20
+    fn(StringVO $body) => $body->length()->greaterThan(20)->getValue()
 );
 ```
 
@@ -610,6 +632,7 @@ $longMessages = $messages->filter(
 
 ```php
 use App\Models\User;
+use AndyDefer\DomainStructures\Utils\ListCollection;
 
 // Récupération depuis la base de données
 $users = User::where('active', true)->get();
@@ -629,23 +652,33 @@ if ($userList->contains($targetUser)) {
 
 ---
 
-### Cas 4 : Liste Mixte avec `collect()`
+### Cas 4 : Liste avec Préservation des Types
 
 ```php
-// Collecter depuis des objets transformables
-$records = [
-    new NotificationRecord(...),
-    new NotificationRecord(...),
-];
+use AndyDefer\DomainStructures\Utils\ListCollection;
+use AndyDefer\PhpVo\ValueObjects\Types\IntVO;
+use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
 
-$collection = ListCollection::collect($records);
+// Création avec des ValueObjects
+$list = new ListCollection([
+    IntVO::from(42),
+    StringVO::from('Hello'),
+]);
 
-// Chaining puissant
-$result = $notifications
-    ->filter(fn(NotificationRecord $r) => $r->status === NotificationStatus::PENDING)
-    ->sort(fn($a, $b) => $a->priority <=> $b->priority)
-    ->map(fn(NotificationRecord $r) => $r->message)
-    ->take(5);
+// Les types sont préservés
+$first = $list->first(); // IntVO(42)
+$last = $list->last();   // StringVO('Hello')
+
+// toArray() retourne des éléments hydratés
+$array = $list->toArray(); // [IntVO(42), StringVO('Hello')]
+
+// toRawArray() retourne des données normalisées
+$raw = $list->toRawArray(); // [42, 'Hello']
+
+// Itération sur des éléments hydratés
+foreach ($list as $item) {
+    // $item est hydraté
+}
 ```
 
 ---
@@ -655,13 +688,13 @@ $result = $notifications
 ```
 Création
     ↓
-Normalisation via NormalizerChain
-    ↓
-Stockage en array indexé
+Stockage des éléments bruts + types
     ↓
 Opération (add, insert, filter, map, etc.)
     ↓
 Création d'une nouvelle instance (clone)
+    ↓
+Hydratation à la lecture (get, first, last, iterator)
     ↓
 Résultat disponible
 ```
@@ -690,6 +723,18 @@ $newList->toArray(); // [1, 2, 3, 4] - nouvelle instance
 | Objet sans propriétés | `InvalidArgumentException` | `Cannot create ListCollection from ... Object has no public properties.` |
 | Modification directe (offsetSet) | `RuntimeException` | `ListCollection is immutable. Use add() or insert()...` |
 | Suppression directe (offsetUnset) | `RuntimeException` | `ListCollection is immutable. Use removeAt()...` |
+
+---
+
+## Intégration
+
+`ListCollection` s'intègre avec :
+
+- **`SetCollection`** : via `toArray()`, `merge()`
+- **`MapCollection`** : via `keys()`, `values()`
+- **`Transformable`** : pour la normalisation et l'hydratation
+- **`NormalizerChain`** : pour la normalisation automatique
+- **`ValueObjects`** : via `from()` et la préservation des types
 
 ---
 
@@ -731,56 +776,45 @@ $newList->toArray(); // [1, 2, 3, 4] - nouvelle instance
 declare(strict_types=1);
 
 use AndyDefer\DomainStructures\Utils\ListCollection;
-use AndyDefer\LaravelNotification\Records\NotificationRecord;
-use AndyDefer\LaravelNotification\Enums\NotificationStatus;
+use AndyDefer\PhpVo\ValueObjects\Types\IntVO;
+use AndyDefer\PhpVo\ValueObjects\Types\StringVO;
 
-// Création avec des records
-$notifications = new ListCollection([
-    new NotificationRecord(
-        id: UuidVO::generate(),
-        status: NotificationStatus::PENDING,
-        message: 'Bienvenue',
-        priority: 1
-    ),
-    new NotificationRecord(
-        id: UuidVO::generate(),
-        status: NotificationStatus::SENT,
-        message: 'Commande confirmée',
-        priority: 3
-    ),
-    new NotificationRecord(
-        id: UuidVO::generate(),
-        status: NotificationStatus::PENDING,
-        message: 'Alerte importante',
-        priority: 2
-    ),
+// Création avec des ValueObjects
+$list = new ListCollection([
+    IntVO::from(10),
+    IntVO::from(20),
+    IntVO::from(30),
+    StringVO::from('Hello'),
+    StringVO::from('World'),
 ]);
 
 // Chaînage d'opérations
-$result = $notifications
-    ->filter(fn(NotificationRecord $r) => $r->status === NotificationStatus::PENDING)
-    ->sort(fn(NotificationRecord $a, NotificationRecord $b) => $a->priority <=> $b->priority)
-    ->map(fn(NotificationRecord $r) => $r->message)
-    ->take(5);
+$result = $list
+    ->filter(fn($item) => $item instanceof IntVO)  // Garder les IntVO
+    ->map(fn(IntVO $item) => $item->divide(2))     // Diviser par 2
+    ->filter(fn(IntVO $item) => $item->isEven()->getValue()) // Garder pairs
+    ->add(IntVO::from(25))                         // Ajouter
+    ->sort(fn(IntVO $a, IntVO $b) => $a->getValue() <=> $b->getValue()); // Trier
 
 // Accès
-$first = $result->first();    // Premier message
-$last = $result->last();      // Dernier message
-$index = $result->indexOf('Alerte importante');
+$first = $result->first();   // IntVO(5)
+$last = $result->last();     // IntVO(25)
+$item = $result->get(1);     // IntVO(10)
 
 // Vérification
-if ($result->contains('Bienvenue')) {
-    echo 'Message trouvé';
+if ($result->contains(IntVO::from(10))) {
+    echo '10 est présent';
 }
 
 // Itération
-foreach ($result as $index => $message) {
-    echo "{$index}: {$message}\n";
+foreach ($result as $index => $item) {
+    echo "{$index}: {$item->getValue()}\n";
 }
 
 // Export
-$array = $result->toArray();
-$json = $result->toJson();
+$array = $result->toArray();      // [IntVO(5), IntVO(10), IntVO(15), IntVO(25)]
+$json = $result->toJson();        // '[5,10,15,25]'
+$raw = $result->toRawArray();     // [5, 10, 15, 25]
 
 echo $result; // JSON
 ```

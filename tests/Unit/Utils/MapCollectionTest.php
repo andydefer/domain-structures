@@ -6,6 +6,8 @@ namespace AndyDefer\DomainStructures\Tests\Unit\Collections\Utility;
 
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
+use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIntVO;
+use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestStringVO;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\ListCollection;
 use AndyDefer\DomainStructures\Utils\MapCollection;
@@ -47,13 +49,164 @@ final class MapCollectionTest extends TestCase
         ], $map->toArray());
     }
 
-    public function test_normalizes_values_on_construction(): void
-    {
-        $email = TestEmailAddress::from('test@example.com');
-        $map = new MapCollection(['email' => $email]);
+    // ==================== TYPE PRESERVATION TESTS ====================
 
-        $this->assertCount(1, $map);
-        $this->assertSame('test@example.com', $map['email']);
+    public function test_preserves_types_of_value_objects(): void
+    {
+        $intVO = TestIntVO::from(42);
+        $stringVO = TestStringVO::from('Hello');
+
+        $map = new MapCollection([
+            'id' => $intVO,
+            'name' => $stringVO,
+        ]);
+
+        $this->assertInstanceOf(TestIntVO::class, $map->get('id'));
+        $this->assertInstanceOf(TestStringVO::class, $map->get('name'));
+        $this->assertSame(42, $map->get('id')->getValue());
+        $this->assertSame('Hello', $map->get('name')->getValue());
+    }
+
+    public function test_preserves_types_in_to_array(): void
+    {
+        $intVO = TestIntVO::from(42);
+        $stringVO = TestStringVO::from('Hello');
+
+        $map = new MapCollection([
+            'id' => $intVO,
+            'name' => $stringVO,
+        ]);
+
+        $array = $map->toArray();
+
+        $this->assertInstanceOf(TestIntVO::class, $array['id']);
+        $this->assertInstanceOf(TestStringVO::class, $array['name']);
+    }
+
+    public function test_preserves_types_after_put(): void
+    {
+        $map = new MapCollection;
+        $intVO = TestIntVO::from(42);
+        $stringVO = TestStringVO::from('Hello');
+
+        $new = $map->put('id', $intVO)->put('name', $stringVO);
+
+        $this->assertInstanceOf(TestIntVO::class, $new->get('id'));
+        $this->assertInstanceOf(TestStringVO::class, $new->get('name'));
+    }
+
+    public function test_preserves_types_after_filter(): void
+    {
+        $map = new MapCollection([
+            'id' => TestIntVO::from(42),
+            'name' => TestStringVO::from('Hello'),
+            'age' => TestIntVO::from(25),
+        ]);
+
+        $filtered = $map->filter(fn ($item) => $item instanceof TestIntVO);
+
+        $this->assertCount(2, $filtered);
+        $this->assertInstanceOf(TestIntVO::class, $filtered->get('id'));
+        $this->assertInstanceOf(TestIntVO::class, $filtered->get('age'));
+        $this->assertSame(42, $filtered->get('id')->getValue());
+        $this->assertSame(25, $filtered->get('age')->getValue());
+    }
+
+    public function test_preserves_types_after_map(): void
+    {
+        $map = new MapCollection([
+            'one' => TestIntVO::from(1),
+            'two' => TestIntVO::from(2),
+        ]);
+
+        $mapped = $map->map(fn ($item) => $item->multiply(2));
+
+        $this->assertInstanceOf(TestIntVO::class, $mapped->get('one'));
+        $this->assertInstanceOf(TestIntVO::class, $mapped->get('two'));
+        $this->assertEquals(2, $mapped->get('one')->getValue());
+        $this->assertEquals(4, $mapped->get('two')->getValue());
+    }
+
+    public function test_preserves_types_in_iterator(): void
+    {
+        $map = new MapCollection([
+            'id' => TestIntVO::from(42),
+            'name' => TestStringVO::from('Hello'),
+        ]);
+
+        $types = [];
+        foreach ($map as $key => $value) {
+            $types[$key] = get_class($value);
+        }
+
+        $this->assertEquals([
+            'id' => TestIntVO::class,
+            'name' => TestStringVO::class,
+        ], $types);
+    }
+
+    public function test_preserves_types_in_array_access(): void
+    {
+        $map = new MapCollection([
+            'id' => TestIntVO::from(42),
+            'name' => TestStringVO::from('Hello'),
+        ]);
+
+        $this->assertInstanceOf(TestIntVO::class, $map['id']);
+        $this->assertInstanceOf(TestStringVO::class, $map['name']);
+        $this->assertEquals(42, $map['id']->getValue());
+        $this->assertEquals('Hello', $map['name']->getValue());
+    }
+
+    public function test_values_returns_hydrated_list(): void
+    {
+        $map = new MapCollection([
+            'id' => TestIntVO::from(42),
+            'name' => TestStringVO::from('Hello'),
+        ]);
+
+        $values = $map->values();
+
+        $this->assertInstanceOf(TestIntVO::class, $values->get(0));
+        $this->assertInstanceOf(TestStringVO::class, $values->get(1));
+        $this->assertEquals(42, $values->get(0)->getValue());
+        $this->assertEquals('Hello', $values->get(1)->getValue());
+    }
+
+    public function test_to_raw_array_returns_raw_data(): void
+    {
+        $map = new MapCollection([
+            'id' => TestIntVO::from(42),
+            'name' => TestStringVO::from('Hello'),
+        ]);
+
+        $raw = $map->toRawArray();
+
+        $this->assertIsInt($raw['id']);
+        $this->assertIsString($raw['name']);
+        $this->assertEquals(42, $raw['id']);
+        $this->assertEquals('Hello', $raw['name']);
+    }
+
+    public function test_merge_preserves_types(): void
+    {
+        $map1 = new MapCollection(['id' => TestIntVO::from(42)]);
+        $map2 = new MapCollection(['name' => TestStringVO::from('Hello')]);
+
+        $merged = $map1->merge($map2);
+
+        $this->assertInstanceOf(TestIntVO::class, $merged->get('id'));
+        $this->assertInstanceOf(TestStringVO::class, $merged->get('name'));
+    }
+
+    public function test_to_json_normalizes_value_objects(): void
+    {
+        $map = new MapCollection([
+            'id' => TestIntVO::from(42),
+            'name' => TestStringVO::from('Hello'),
+        ]);
+
+        $this->assertSame('{"id":42,"name":"Hello"}', $map->toJson());
     }
 
     // ==================== TRANSFORMABLE TESTS ====================
@@ -159,15 +312,6 @@ final class MapCollectionTest extends TestCase
             'name' => 'John',
             'age' => 30,
         ], $new->toArray());
-    }
-
-    public function test_put_normalizes_value(): void
-    {
-        $map = new MapCollection;
-        $email = TestEmailAddress::from('test@example.com');
-        $new = $map->put('email', $email);
-
-        $this->assertSame('test@example.com', $new['email']);
     }
 
     public function test_put_chaining_works(): void

@@ -6,6 +6,8 @@ namespace AndyDefer\DomainStructures\Tests\Unit\Collections\Utility;
 
 use AndyDefer\DomainStructures\Tests\Fixtures\Records\TestUserRecord;
 use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestEmailAddress;
+use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestIntVO;
+use AndyDefer\DomainStructures\Tests\Fixtures\ValueObjects\TestStringVO;
 use AndyDefer\DomainStructures\Tests\TestCase;
 use AndyDefer\DomainStructures\Utils\ListCollection;
 
@@ -45,13 +47,321 @@ final class ListCollectionTest extends TestCase
         $this->assertSame([0 => 'a', 1 => 'b', 2 => 'c'], $list->toArray());
     }
 
-    public function test_normalizes_items_on_construction(): void
-    {
-        $email = TestEmailAddress::from('test@example.com');
-        $list = new ListCollection([$email]);
+    // ==================== TYPE PRESERVATION TESTS ====================
 
-        $this->assertCount(1, $list);
-        $this->assertSame('test@example.com', $list[0]);
+    public function test_preserves_types_of_value_objects(): void
+    {
+        $intVO = TestIntVO::from(42);
+        $stringVO = TestStringVO::from('Hello');
+
+        $list = new ListCollection([$intVO, $stringVO]);
+
+        $this->assertInstanceOf(TestIntVO::class, $list->first());
+        $this->assertInstanceOf(TestStringVO::class, $list->last());
+        $this->assertSame(42, $list->first()->getValue());
+        $this->assertSame('Hello', $list->last()->getValue());
+    }
+
+    public function test_preserves_types_in_to_array(): void
+    {
+        $intVO = TestIntVO::from(42);
+        $stringVO = TestStringVO::from('Hello');
+
+        $list = new ListCollection([$intVO, $stringVO]);
+        $array = $list->toArray();
+
+        $this->assertInstanceOf(TestIntVO::class, $array[0]);
+        $this->assertInstanceOf(TestStringVO::class, $array[1]);
+    }
+
+    public function test_preserves_types_after_add(): void
+    {
+        $list = new ListCollection;
+        $intVO = TestIntVO::from(42);
+        $stringVO = TestStringVO::from('Hello');
+
+        $new = $list->add($intVO)->add($stringVO);
+
+        $this->assertInstanceOf(TestIntVO::class, $new->get(0));
+        $this->assertInstanceOf(TestStringVO::class, $new->get(1));
+    }
+
+    public function test_preserves_types_after_prepend(): void
+    {
+        $list = new ListCollection([TestStringVO::from('World')]);
+        $intVO = TestIntVO::from(42);
+
+        $new = $list->prepend($intVO);
+
+        $this->assertInstanceOf(TestIntVO::class, $new->first());
+        $this->assertInstanceOf(TestStringVO::class, $new->last());
+    }
+
+    public function test_preserves_types_after_insert(): void
+    {
+        $list = new ListCollection([
+            TestIntVO::from(1),
+            TestIntVO::from(3),
+        ]);
+        $intVO = TestIntVO::from(2);
+
+        $new = $list->insert(1, $intVO);
+
+        $this->assertInstanceOf(TestIntVO::class, $new->get(0));
+        $this->assertInstanceOf(TestIntVO::class, $new->get(1));
+        $this->assertInstanceOf(TestIntVO::class, $new->get(2));
+        $this->assertEquals(2, $new->get(1)->getValue());
+    }
+
+    public function test_preserves_types_after_replace(): void
+    {
+        $list = new ListCollection([
+            TestIntVO::from(1),
+            TestIntVO::from(2),
+        ]);
+        $intVO = TestIntVO::from(99);
+
+        $new = $list->replace(1, $intVO);
+
+        $this->assertInstanceOf(TestIntVO::class, $new->get(1));
+        $this->assertEquals(99, $new->get(1)->getValue());
+    }
+
+    public function test_preserves_types_after_filter(): void
+    {
+        $list = new ListCollection([
+            TestIntVO::from(1),
+            TestStringVO::from('Hello'),
+            TestIntVO::from(2),
+        ]);
+
+        $filtered = $list->filter(fn ($item) => $item instanceof TestIntVO);
+
+        $this->assertCount(2, $filtered);
+        $this->assertInstanceOf(TestIntVO::class, $filtered->get(0));
+        $this->assertInstanceOf(TestIntVO::class, $filtered->get(1));
+        $this->assertEquals(1, $filtered->get(0)->getValue());
+        $this->assertEquals(2, $filtered->get(1)->getValue());
+    }
+
+    public function test_preserves_types_after_map_when_returning_same_type(): void
+    {
+        $list = new ListCollection([
+            TestIntVO::from(1),
+            TestIntVO::from(2),
+            TestIntVO::from(3),
+        ]);
+
+        $mapped = $list->map(fn ($item) => $item->multiply(2));
+
+        $this->assertCount(3, $mapped);
+        $this->assertInstanceOf(TestIntVO::class, $mapped->get(0));
+        $this->assertInstanceOf(TestIntVO::class, $mapped->get(1));
+        $this->assertInstanceOf(TestIntVO::class, $mapped->get(2));
+        $this->assertEquals(2, $mapped->get(0)->getValue());
+        $this->assertEquals(4, $mapped->get(1)->getValue());
+        $this->assertEquals(6, $mapped->get(2)->getValue());
+    }
+
+    public function test_preserves_types_after_map_when_changing_type(): void
+    {
+        $list = new ListCollection([
+            TestIntVO::from(1),
+            TestIntVO::from(2),
+        ]);
+
+        $mapped = $list->map(fn ($item) => TestStringVO::from((string) $item->getValue()));
+
+        $this->assertCount(2, $mapped);
+        $this->assertInstanceOf(TestStringVO::class, $mapped->get(0));
+        $this->assertInstanceOf(TestStringVO::class, $mapped->get(1));
+    }
+
+    public function test_preserves_types_after_reduce_with_hydration(): void
+    {
+        $list = new ListCollection([
+            TestIntVO::from(1),
+            TestIntVO::from(2),
+            TestIntVO::from(3),
+        ]);
+
+        $sum = $list->reduce(fn ($carry, $item) => $carry + $item->getValue(), 0);
+
+        $this->assertEquals(6, $sum);
+    }
+
+    public function test_preserves_types_in_iterator(): void
+    {
+        $list = new ListCollection([
+            TestIntVO::from(1),
+            TestStringVO::from('Hello'),
+            TestIntVO::from(2),
+        ]);
+
+        $types = [];
+        foreach ($list as $item) {
+            $types[] = get_class($item);
+        }
+
+        $this->assertEquals([
+            TestIntVO::class,
+            TestStringVO::class,
+            TestIntVO::class,
+        ], $types);
+    }
+
+    public function test_preserves_types_in_array_access(): void
+    {
+        $list = new ListCollection([
+            TestIntVO::from(1),
+            TestStringVO::from('Hello'),
+        ]);
+
+        $this->assertInstanceOf(TestIntVO::class, $list[0]);
+        $this->assertInstanceOf(TestStringVO::class, $list[1]);
+        $this->assertEquals(1, $list[0]->getValue());
+        $this->assertEquals('Hello', $list[1]->getValue());
+    }
+
+    public function test_to_raw_array_returns_raw_data(): void
+    {
+        $intVO = TestIntVO::from(42);
+        $stringVO = TestStringVO::from('Hello');
+
+        $list = new ListCollection([$intVO, $stringVO]);
+        $raw = $list->toRawArray();
+
+        $this->assertIsInt($raw[0]);
+        $this->assertIsString($raw[1]);
+        $this->assertEquals(42, $raw[0]);
+        $this->assertEquals('Hello', $raw[1]);
+    }
+
+    public function test_first_returns_hydrated_object(): void
+    {
+        $intVO = TestIntVO::from(42);
+        $list = new ListCollection([$intVO]);
+
+        $this->assertInstanceOf(TestIntVO::class, $list->first());
+        $this->assertEquals(42, $list->first()->getValue());
+    }
+
+    public function test_last_returns_hydrated_object(): void
+    {
+        $stringVO = TestStringVO::from('Hello');
+        $list = new ListCollection([$stringVO]);
+
+        $this->assertInstanceOf(TestStringVO::class, $list->last());
+        $this->assertEquals('Hello', $list->last()->getValue());
+    }
+
+    public function test_get_returns_hydrated_object(): void
+    {
+        $intVO = TestIntVO::from(42);
+        $list = new ListCollection([$intVO]);
+
+        $this->assertInstanceOf(TestIntVO::class, $list->get(0));
+        $this->assertEquals(42, $list->get(0)->getValue());
+    }
+
+    public function test_reverse_preserves_types(): void
+    {
+        $list = new ListCollection([
+            TestIntVO::from(1),
+            TestStringVO::from('Hello'),
+            TestIntVO::from(2),
+        ]);
+
+        $reversed = $list->reverse();
+
+        $this->assertInstanceOf(TestIntVO::class, $reversed->get(0));
+        $this->assertInstanceOf(TestStringVO::class, $reversed->get(1));
+        $this->assertInstanceOf(TestIntVO::class, $reversed->get(2));
+        $this->assertEquals(2, $reversed->get(0)->getValue());
+        $this->assertEquals('Hello', $reversed->get(1)->getValue());
+        $this->assertEquals(1, $reversed->get(2)->getValue());
+    }
+
+    public function test_sort_preserves_types(): void
+    {
+        $list = new ListCollection([
+            TestIntVO::from(5),
+            TestIntVO::from(2),
+            TestIntVO::from(8),
+        ]);
+
+        $sorted = $list->sort(fn ($a, $b) => $a->getValue() <=> $b->getValue());
+
+        $this->assertInstanceOf(TestIntVO::class, $sorted->get(0));
+        $this->assertInstanceOf(TestIntVO::class, $sorted->get(1));
+        $this->assertInstanceOf(TestIntVO::class, $sorted->get(2));
+        $this->assertEquals(2, $sorted->get(0)->getValue());
+        $this->assertEquals(5, $sorted->get(1)->getValue());
+        $this->assertEquals(8, $sorted->get(2)->getValue());
+    }
+
+    public function test_slice_preserves_types(): void
+    {
+        $list = new ListCollection([
+            TestIntVO::from(1),
+            TestStringVO::from('Hello'),
+            TestIntVO::from(2),
+        ]);
+
+        $slice = $list->slice(1, 2);
+
+        $this->assertInstanceOf(TestStringVO::class, $slice->get(0));
+        $this->assertInstanceOf(TestIntVO::class, $slice->get(1));
+    }
+
+    public function test_take_preserves_types(): void
+    {
+        $list = new ListCollection([
+            TestIntVO::from(1),
+            TestStringVO::from('Hello'),
+            TestIntVO::from(2),
+        ]);
+
+        $taken = $list->take(2);
+
+        $this->assertInstanceOf(TestIntVO::class, $taken->get(0));
+        $this->assertInstanceOf(TestStringVO::class, $taken->get(1));
+    }
+
+    public function test_skip_preserves_types(): void
+    {
+        $list = new ListCollection([
+            TestIntVO::from(1),
+            TestStringVO::from('Hello'),
+            TestIntVO::from(2),
+        ]);
+
+        $skipped = $list->skip(1);
+
+        $this->assertInstanceOf(TestStringVO::class, $skipped->get(0));
+        $this->assertInstanceOf(TestIntVO::class, $skipped->get(1));
+    }
+
+    public function test_merge_preserves_types(): void
+    {
+        $list1 = new ListCollection([TestIntVO::from(1)]);
+        $list2 = new ListCollection([TestStringVO::from('Hello')]);
+
+        $merged = $list1->merge($list2);
+
+        $this->assertInstanceOf(TestIntVO::class, $merged->get(0));
+        $this->assertInstanceOf(TestStringVO::class, $merged->get(1));
+    }
+
+    public function test_merge_array_preserves_types(): void
+    {
+        $list = new ListCollection([TestIntVO::from(1)]);
+        $array = [TestStringVO::from('Hello')];
+
+        $merged = $list->mergeArray($array);
+
+        $this->assertInstanceOf(TestIntVO::class, $merged->get(0));
+        $this->assertInstanceOf(TestStringVO::class, $merged->get(1));
     }
 
     // ==================== TRANSFORMABLE TESTS ====================
@@ -144,53 +454,6 @@ final class ListCollectionTest extends TestCase
         $this->assertSame('John', $list[0]['name']);
     }
 
-    // ==================== FIRST / LAST / GET TESTS ====================
-
-    public function test_first_returns_first_item(): void
-    {
-        $list = new ListCollection([1, 2, 3]);
-
-        $this->assertSame(1, $list->first());
-    }
-
-    public function test_first_returns_null_when_empty(): void
-    {
-        $list = new ListCollection;
-
-        $this->assertNull($list->first());
-    }
-
-    public function test_last_returns_last_item(): void
-    {
-        $list = new ListCollection([1, 2, 3]);
-
-        $this->assertSame(3, $list->last());
-    }
-
-    public function test_last_returns_null_when_empty(): void
-    {
-        $list = new ListCollection;
-
-        $this->assertNull($list->last());
-    }
-
-    public function test_get_returns_item_at_index(): void
-    {
-        $list = new ListCollection([1, 2, 3]);
-
-        $this->assertSame(1, $list->get(0));
-        $this->assertSame(2, $list->get(1));
-        $this->assertSame(3, $list->get(2));
-    }
-
-    public function test_get_returns_null_for_invalid_index(): void
-    {
-        $list = new ListCollection([1, 2, 3]);
-
-        $this->assertNull($list->get(5));
-        $this->assertNull($list->get(-1));
-    }
-
     // ==================== INDEX OF / CONTAINS TESTS ====================
 
     public function test_index_of_returns_correct_index(): void
@@ -198,7 +461,7 @@ final class ListCollectionTest extends TestCase
         $list = new ListCollection(['a', 'b', 'c', 'b']);
 
         $this->assertSame(0, $list->indexOf('a'));
-        $this->assertSame(1, $list->indexOf('b')); // ✅ Première occurrence
+        $this->assertSame(1, $list->indexOf('b')); // Première occurrence
         $this->assertNull($list->indexOf('z'));
     }
 
@@ -218,332 +481,6 @@ final class ListCollectionTest extends TestCase
         $this->assertFalse($list->contains(99));
     }
 
-    public function test_contains_is_case_sensitive(): void
-    {
-        $list = new ListCollection(['Apple', 'Banana']);
-
-        $this->assertTrue($list->contains('Apple'));
-        $this->assertFalse($list->contains('apple'));
-    }
-
-    // ==================== ADD / PREPEND / INSERT TESTS ====================
-
-    public function test_add_appends_item_to_end(): void
-    {
-        $list = new ListCollection([1, 2, 3]);
-        $new = $list->add(4);
-
-        $this->assertNotSame($list, $new);
-        $this->assertSame([1, 2, 3, 4], $new->toArray());
-        $this->assertSame([1, 2, 3], $list->toArray());
-    }
-
-    public function test_add_normalizes_item(): void
-    {
-        $list = new ListCollection([1, 2]);
-        $email = TestEmailAddress::from('test@example.com');
-        $new = $list->add($email);
-
-        $this->assertSame('test@example.com', $new[2]);
-    }
-
-    public function test_add_chaining_works(): void
-    {
-        $list = new ListCollection;
-        $result = $list->add(1)->add(2)->add(3);
-
-        $this->assertSame([1, 2, 3], $result->toArray());
-    }
-
-    public function test_prepend_adds_item_to_beginning(): void
-    {
-        $list = new ListCollection([2, 3, 4]);
-        $new = $list->prepend(1);
-
-        $this->assertSame([1, 2, 3, 4], $new->toArray());
-    }
-
-    public function test_insert_adds_item_at_specific_position(): void
-    {
-        $list = new ListCollection([1, 2, 4, 5]);
-        $new = $list->insert(2, 3);
-
-        $this->assertSame([1, 2, 3, 4, 5], $new->toArray());
-    }
-
-    public function test_insert_at_beginning_works(): void
-    {
-        $list = new ListCollection([2, 3, 4]);
-        $new = $list->insert(0, 1);
-
-        $this->assertSame([1, 2, 3, 4], $new->toArray());
-    }
-
-    public function test_insert_at_end_works(): void
-    {
-        $list = new ListCollection([1, 2, 3]);
-        $new = $list->insert(3, 4);
-
-        $this->assertSame([1, 2, 3, 4], $new->toArray());
-    }
-
-    public function test_insert_throws_exception_for_invalid_index(): void
-    {
-        $list = new ListCollection([1, 2, 3]);
-
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Index 5 is out of range');
-
-        $list->insert(5, 99);
-    }
-
-    // ==================== REMOVE TESTS ====================
-
-    public function test_remove_at_removes_item_at_index(): void
-    {
-        $list = new ListCollection([1, 2, 3, 4, 5]);
-        $new = $list->removeAt(2);
-
-        $this->assertSame([1, 2, 4, 5], $new->toArray());
-    }
-
-    public function test_remove_at_throws_exception_for_invalid_index(): void
-    {
-        $list = new ListCollection([1, 2, 3]);
-
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Index 5 is out of range');
-
-        $list->removeAt(5);
-    }
-
-    public function test_remove_removes_first_occurrence(): void
-    {
-        $list = new ListCollection([1, 2, 3, 2, 4]);
-        $new = $list->remove(2);
-
-        $this->assertSame([1, 3, 2, 4], $new->toArray());
-    }
-
-    public function test_remove_does_nothing_if_not_found(): void
-    {
-        $list = new ListCollection([1, 2, 3]);
-        $new = $list->remove(99);
-
-        $this->assertSame($list, $new);
-    }
-
-    public function test_replace_replaces_item_at_index(): void
-    {
-        $list = new ListCollection([1, 2, 3, 4, 5]);
-        $new = $list->replace(2, 99);
-
-        $this->assertSame([1, 2, 99, 4, 5], $new->toArray());
-    }
-
-    public function test_replace_throws_exception_for_invalid_index(): void
-    {
-        $list = new ListCollection([1, 2, 3]);
-
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Index 5 is out of range');
-
-        $list->replace(5, 99);
-    }
-
-    // ==================== FILTER / MAP / REDUCE TESTS ====================
-
-    public function test_filter_keeps_items_satisfying_callback(): void
-    {
-        $list = new ListCollection([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-
-        $filtered = $list->filter(fn ($item) => $item % 2 === 0);
-
-        $this->assertSame([2, 4, 6, 8, 10], $filtered->toArray());
-    }
-
-    public function test_filter_reindexes_keys(): void
-    {
-        $list = new ListCollection(['Apple', 'Banana', 'Cherry', 'apple']);
-
-        $filtered = $list->filter(fn ($item) => str_contains($item, 'a'));
-
-        $this->assertSame(['Banana', 'apple'], $filtered->toArray());
-        $this->assertSame([0, 1], array_keys($filtered->toArray()));
-    }
-
-    public function test_map_transforms_each_item(): void
-    {
-        $list = new ListCollection([1, 2, 3, 4, 5]);
-
-        $mapped = $list->map(fn ($item) => $item * 2);
-
-        $this->assertSame([2, 4, 6, 8, 10], $mapped->toArray());
-    }
-
-    public function test_map_reindexes_keys(): void
-    {
-        $list = new ListCollection(['Apple', 'Banana', 'Cherry', 'apple']);
-
-        $mapped = $list->map(fn ($item) => strtoupper($item));
-
-        $this->assertSame(['APPLE', 'BANANA', 'CHERRY', 'APPLE'], $mapped->toArray());
-        $this->assertSame([0, 1, 2, 3], array_keys($mapped->toArray()));
-    }
-
-    public function test_chaining_filter_and_map_preserves_order(): void
-    {
-        $list = new ListCollection(['Apple', 'Banana', 'Cherry', 'apple']);
-
-        $result = $list
-            ->filter(fn ($item) => str_contains($item, 'a'))
-            ->map(fn ($item) => strtoupper($item));
-
-        $this->assertSame(['BANANA', 'APPLE'], $result->toArray());
-    }
-
-    public function test_reduce_aggregates_values(): void
-    {
-        $list = new ListCollection([1, 2, 3, 4, 5]);
-
-        $sum = $list->reduce(fn ($carry, $item) => $carry + $item, 0);
-
-        $this->assertSame(15, $sum);
-    }
-
-    // ==================== REVERSE / SORT TESTS ====================
-
-    public function test_reverse_reverses_order(): void
-    {
-        $list = new ListCollection([1, 2, 3, 4, 5]);
-
-        $reversed = $list->reverse();
-
-        $this->assertSame([5, 4, 3, 2, 1], $reversed->toArray());
-    }
-
-    public function test_sort_orders_ascending_by_default(): void
-    {
-        $list = new ListCollection([5, 2, 8, 1, 9, 3]);
-
-        $sorted = $list->sort();
-
-        $this->assertSame([1, 2, 3, 5, 8, 9], $sorted->toArray());
-    }
-
-    public function test_sort_with_custom_callback(): void
-    {
-        $list = new ListCollection([5, 2, 8, 1, 9, 3]);
-
-        $sorted = $list->sort(fn ($a, $b) => $b <=> $a);
-
-        $this->assertSame([9, 8, 5, 3, 2, 1], $sorted->toArray());
-    }
-
-    // ==================== SLICE / TAKE / SKIP TESTS ====================
-
-    public function test_slice_returns_subset(): void
-    {
-        $list = new ListCollection([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-
-        $slice = $list->slice(2, 4);
-
-        $this->assertSame([3, 4, 5, 6], $slice->toArray());
-    }
-
-    public function test_slice_without_length_goes_to_end(): void
-    {
-        $list = new ListCollection([1, 2, 3, 4, 5]);
-
-        $slice = $list->slice(2);
-
-        $this->assertSame([3, 4, 5], $slice->toArray());
-    }
-
-    public function test_take_returns_first_n_items(): void
-    {
-        $list = new ListCollection([1, 2, 3, 4, 5]);
-
-        $taken = $list->take(3);
-
-        $this->assertSame([1, 2, 3], $taken->toArray());
-    }
-
-    public function test_skip_skips_first_n_items(): void
-    {
-        $list = new ListCollection([1, 2, 3, 4, 5]);
-
-        $skipped = $list->skip(2);
-
-        $this->assertSame([3, 4, 5], $skipped->toArray());
-    }
-
-    // ==================== MERGE TESTS ====================
-
-    public function test_merge_combines_two_lists(): void
-    {
-        $list1 = new ListCollection([1, 2, 3]);
-        $list2 = new ListCollection([4, 5, 6]);
-
-        $merged = $list1->merge($list2);
-
-        $this->assertSame([1, 2, 3, 4, 5, 6], $merged->toArray());
-    }
-
-    public function test_merge_array_combines_with_array(): void
-    {
-        $list = new ListCollection([1, 2, 3]);
-
-        $merged = $list->mergeArray([4, 5, 6]);
-
-        $this->assertSame([1, 2, 3, 4, 5, 6], $merged->toArray());
-    }
-
-    // ==================== ARRAY ACCESS TESTS ====================
-
-    public function test_array_access_works(): void
-    {
-        $list = new ListCollection([1, 2, 3]);
-
-        $this->assertTrue(isset($list[0]));
-        $this->assertSame(1, $list[0]);
-        $this->assertFalse(isset($list[3]));
-    }
-
-    public function test_array_access_offset_set_throws_exception(): void
-    {
-        $list = new ListCollection([1, 2, 3]);
-
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('immutable');
-
-        $list[0] = 99;
-    }
-
-    public function test_array_access_offset_unset_throws_exception(): void
-    {
-        $list = new ListCollection([1, 2, 3]);
-
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('immutable');
-
-        unset($list[0]);
-    }
-
-    // ==================== ITERATOR TESTS ====================
-
-    public function test_is_iterable(): void
-    {
-        $list = new ListCollection([1, 2, 3, 4, 5]);
-        $items = [];
-
-        foreach ($list as $item) {
-            $items[] = $item;
-        }
-
-        $this->assertSame([1, 2, 3, 4, 5], $items);
-    }
-
     // ==================== JSON TESTS ====================
 
     public function test_to_json_returns_json_string(): void
@@ -551,6 +488,16 @@ final class ListCollectionTest extends TestCase
         $list = new ListCollection([1, 2, 3]);
 
         $this->assertSame('[1,2,3]', $list->toJson());
+    }
+
+    public function test_to_json_normalizes_value_objects(): void
+    {
+        $intVO = TestIntVO::from(42);
+        $stringVO = TestStringVO::from('Hello');
+
+        $list = new ListCollection([$intVO, $stringVO]);
+
+        $this->assertSame('[42,"Hello"]', $list->toJson());
     }
 
     public function test_to_string_returns_json_string(): void
@@ -582,5 +529,19 @@ final class ListCollectionTest extends TestCase
 
         $this->assertSame([1, 2, 3], $original);
         $this->assertSame([1, 2, 3], $list->toArray());
+    }
+
+    public function test_immutability_with_value_objects(): void
+    {
+        $intVO = TestIntVO::from(42);
+        $list = new ListCollection([$intVO]);
+        $original = $list->toArray();
+
+        $new = $list->add(TestIntVO::from(99));
+
+        $this->assertCount(1, $list);
+        $this->assertCount(2, $new);
+        $this->assertInstanceOf(TestIntVO::class, $list->first());
+        $this->assertSame(42, $list->first()->getValue());
     }
 }

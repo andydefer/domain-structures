@@ -27,20 +27,49 @@ final class ListCollection implements \ArrayAccess, \Countable, \IteratorAggrega
     private array $items;
 
     /**
+     * @var array<int, class-string|null>
+     */
+    private array $itemTypes;
+
+    /**
      * @param  array<int, T>  $items
      */
     public function __construct(array $items = [])
     {
-        $normalized = [];
+        $this->items = [];
+        $this->itemTypes = [];
+
         foreach ($items as $item) {
-            $normalized[] = $this->normalize($item);
+            $this->items[] = $item;
+            $this->itemTypes[] = $this->detectType($item);
         }
-        $this->items = array_values($normalized);
+    }
+
+    private function detectType(mixed $item): ?string
+    {
+        if (is_object($item)) {
+            return get_class($item);
+        }
+
+        return null;
     }
 
     private function normalize(mixed $value): mixed
     {
         return NormalizerChain::get()->normalize($value);
+    }
+
+    private function hydrate(mixed $item, ?string $type): mixed
+    {
+        if ($type !== null && class_exists($type) && method_exists($type, 'from')) {
+            try {
+                return $type::from($item);
+            } catch (\Throwable $e) {
+                return $item;
+            }
+        }
+
+        return $item;
     }
 
     // ==================== TRANSFORMABLE ====================
@@ -59,7 +88,6 @@ final class ListCollection implements \ArrayAccess, \Countable, \IteratorAggrega
             if ($source instanceof Transformable) {
                 $normalized = NormalizerChain::get()->normalize($source);
 
-                // ✅ Garder comme un seul élément
                 return new self([$normalized]);
             }
 
@@ -151,30 +179,56 @@ final class ListCollection implements \ArrayAccess, \Countable, \IteratorAggrega
 
     public function toArray(): array
     {
-        return $this->items;
+        // On hydrate les éléments avant de les retourner
+        $result = [];
+        foreach ($this->items as $index => $item) {
+            $result[] = $this->hydrate($item, $this->itemTypes[$index] ?? null);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Retourne les données brutes (non hydratées)
+     */
+    public function toRawArray(): array
+    {
+        return NormalizerChain::get()->normalize($this->items);
     }
 
     // ==================== BASIC METHODS ====================
 
     public function first(): mixed
     {
-        return $this->items[0] ?? null;
+        $item = $this->items[0] ?? null;
+        $type = $this->itemTypes[0] ?? null;
+
+        return $this->hydrate($item, $type);
     }
 
     public function last(): mixed
     {
         $count = count($this->items);
+        if ($count === 0) {
+            return null;
+        }
+        $item = $this->items[$count - 1];
+        $type = $this->itemTypes[$count - 1] ?? null;
 
-        return $count > 0 ? $this->items[$count - 1] : null;
+        return $this->hydrate($item, $type);
     }
 
     public function get(int $index): mixed
     {
-        return $this->items[$index] ?? null;
+        $item = $this->items[$index] ?? null;
+        $type = $this->itemTypes[$index] ?? null;
+
+        return $this->hydrate($item, $type);
     }
 
     public function indexOf(mixed $item): ?int
     {
+        // On cherche dans les items bruts
         $index = array_search($item, $this->items, true);
 
         return $index !== false ? $index : null;
@@ -190,7 +244,8 @@ final class ListCollection implements \ArrayAccess, \Countable, \IteratorAggrega
     public function add(mixed $item): self
     {
         $new = clone $this;
-        $new->items[] = $this->normalize($item);
+        $new->items[] = $item;
+        $new->itemTypes[] = $this->detectType($item);
 
         return $new;
     }
@@ -198,7 +253,8 @@ final class ListCollection implements \ArrayAccess, \Countable, \IteratorAggrega
     public function prepend(mixed $item): self
     {
         $new = clone $this;
-        array_unshift($new->items, $this->normalize($item));
+        array_unshift($new->items, $item);
+        array_unshift($new->itemTypes, $this->detectType($item));
 
         return $new;
     }
@@ -214,7 +270,8 @@ final class ListCollection implements \ArrayAccess, \Countable, \IteratorAggrega
         }
 
         $new = clone $this;
-        array_splice($new->items, $index, 0, [$this->normalize($item)]);
+        array_splice($new->items, $index, 0, [$item]);
+        array_splice($new->itemTypes, $index, 0, [$this->detectType($item)]);
 
         return $new;
     }
@@ -231,6 +288,7 @@ final class ListCollection implements \ArrayAccess, \Countable, \IteratorAggrega
 
         $new = clone $this;
         array_splice($new->items, $index, 1);
+        array_splice($new->itemTypes, $index, 1);
 
         return $new;
     }
@@ -256,7 +314,8 @@ final class ListCollection implements \ArrayAccess, \Countable, \IteratorAggrega
         }
 
         $new = clone $this;
-        $new->items[$index] = $this->normalize($item);
+        $new->items[$index] = $item;
+        $new->itemTypes[$index] = $this->detectType($item);
 
         return $new;
     }
@@ -265,63 +324,125 @@ final class ListCollection implements \ArrayAccess, \Countable, \IteratorAggrega
 
     public function filter(callable $callback): self
     {
-        return new static(array_values(array_filter($this->items, $callback)));
+        $filtered = [];
+        $types = [];
+        foreach ($this->items as $index => $item) {
+            $hydrated = $this->hydrate($item, $this->itemTypes[$index] ?? null);
+            if ($callback($hydrated, $index)) {
+                $filtered[] = $item;
+                $types[] = $this->itemTypes[$index];
+            }
+        }
+        $new = clone $this;
+        $new->items = array_values($filtered);
+        $new->itemTypes = array_values($types);
+
+        return $new;
     }
 
     public function map(callable $callback): self
     {
-        return new static(array_values(array_map($callback, $this->items)));
+        $mapped = [];
+        $types = [];
+        foreach ($this->items as $index => $item) {
+            $hydrated = $this->hydrate($item, $this->itemTypes[$index] ?? null);
+            $result = $callback($hydrated, $index);
+            $mapped[] = $result;
+            $types[] = $this->detectType($result);
+        }
+        $new = clone $this;
+        $new->items = array_values($mapped);
+        $new->itemTypes = array_values($types);
+
+        return $new;
     }
 
     public function reduce(callable $callback, mixed $initial = null): mixed
     {
-        return array_reduce($this->items, $callback, $initial);
+        $carry = $initial;
+        foreach ($this->items as $index => $item) {
+            $hydrated = $this->hydrate($item, $this->itemTypes[$index] ?? null);
+            $carry = $callback($carry, $hydrated, $index);
+        }
+
+        return $carry;
     }
 
     public function reverse(): self
     {
-        return new static(array_reverse($this->items));
+        $new = clone $this;
+        $new->items = array_reverse($this->items);
+        $new->itemTypes = array_reverse($this->itemTypes);
+
+        return $new;
     }
 
     public function sort(?callable $callback = null): self
     {
         $items = $this->items;
+        $types = $this->itemTypes;
+
         if ($callback === null) {
             sort($items);
         } else {
-            usort($items, $callback);
+            usort($items, function ($a, $b) use ($callback) {
+                $indexA = array_search($a, $this->items, true);
+                $indexB = array_search($b, $this->items, true);
+                $hydratedA = $this->hydrate($a, $this->itemTypes[$indexA] ?? null);
+                $hydratedB = $this->hydrate($b, $this->itemTypes[$indexB] ?? null);
+
+                return $callback($hydratedA, $hydratedB);
+            });
         }
 
-        return new static($items);
+        $new = clone $this;
+        $new->items = $items;
+        $new->itemTypes = $types;
+
+        return $new;
     }
 
     // ==================== SLICE / TAKE / SKIP ====================
 
     public function slice(int $start, ?int $length = null): self
     {
-        return new static(array_slice($this->items, $start, $length));
+        $new = clone $this;
+        $new->items = array_slice($this->items, $start, $length);
+        $new->itemTypes = array_slice($this->itemTypes, $start, $length);
+
+        return $new;
     }
 
     public function take(int $n): self
     {
-        return new static(array_slice($this->items, 0, $n));
+        return $this->slice(0, $n);
     }
 
     public function skip(int $n): self
     {
-        return new static(array_slice($this->items, $n));
+        return $this->slice($n);
     }
 
     // ==================== MERGE ====================
 
     public function merge(self $other): self
     {
-        return new static(array_merge($this->items, $other->toArray()));
+        $new = clone $this;
+        $new->items = array_merge($this->items, $other->items);
+        $new->itemTypes = array_merge($this->itemTypes, $other->itemTypes);
+
+        return $new;
     }
 
     public function mergeArray(array $items): self
     {
-        return new static(array_merge($this->items, $items));
+        $new = clone $this;
+        foreach ($items as $item) {
+            $new->items[] = $item;
+            $new->itemTypes[] = $this->detectType($item);
+        }
+
+        return $new;
     }
 
     // ==================== UTILITY ====================
@@ -345,12 +466,23 @@ final class ListCollection implements \ArrayAccess, \Countable, \IteratorAggrega
 
     public function toJson(): string
     {
-        return json_encode($this->toArray(), JSON_THROW_ON_ERROR);
+        // On normalise les items pour le JSON
+        $normalized = [];
+        foreach ($this->items as $item) {
+            $normalized[] = $this->normalize($item);
+        }
+
+        return json_encode($normalized, JSON_THROW_ON_ERROR);
     }
 
     public function jsonSerialize(): mixed
     {
-        return $this->toArray();
+        $normalized = [];
+        foreach ($this->items as $item) {
+            $normalized[] = $this->normalize($item);
+        }
+
+        return $normalized;
     }
 
     public function __toString(): string
@@ -362,7 +494,12 @@ final class ListCollection implements \ArrayAccess, \Countable, \IteratorAggrega
 
     public function getIterator(): \ArrayIterator
     {
-        return new \ArrayIterator($this->items);
+        $hydrated = [];
+        foreach ($this->items as $index => $item) {
+            $hydrated[] = $this->hydrate($item, $this->itemTypes[$index] ?? null);
+        }
+
+        return new \ArrayIterator($hydrated);
     }
 
     // ==================== ARRAY ACCESS ====================
@@ -374,7 +511,13 @@ final class ListCollection implements \ArrayAccess, \Countable, \IteratorAggrega
 
     public function offsetGet(mixed $offset): mixed
     {
-        return is_int($offset) ? ($this->items[$offset] ?? null) : null;
+        if (! is_int($offset)) {
+            return null;
+        }
+        $item = $this->items[$offset] ?? null;
+        $type = $this->itemTypes[$offset] ?? null;
+
+        return $this->hydrate($item, $type);
     }
 
     public function offsetSet(mixed $offset, mixed $value): void
