@@ -86,8 +86,6 @@ use InvalidArgumentException;
  * echo $money->amount;        // Pour les Records (PHP 8.0+)
  *
  * @author Andy Defer
- *
- * @deprecated since 2.0.0, will be removed in 3.0.0
  */
 trait HasPropertiesAccess
 {
