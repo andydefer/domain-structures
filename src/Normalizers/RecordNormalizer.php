@@ -9,6 +9,13 @@ use AndyDefer\DomainStructures\Normalizers\Core\AbstractNormalizer;
 
 final class RecordNormalizer extends AbstractNormalizer
 {
+    private bool $preserveRecordCase = false;
+
+    public function __construct(bool $preserveRecordCase = false)
+    {
+        $this->preserveRecordCase = $preserveRecordCase;
+    }
+
     public function supports(mixed $value): bool
     {
         return $value instanceof AbstractRecord;
@@ -26,7 +33,9 @@ final class RecordNormalizer extends AbstractNormalizer
 
         foreach ($properties as $property) {
             $propValue = $property->getValue($value);
-            $key = $this->convertCamelToSnake($property->getName());
+            $key = $this->preserveRecordCase
+                ? $property->getName()
+                : $this->convertCamelToSnake($property->getName());
             $result[$key] = $this->next($propValue);
         }
 

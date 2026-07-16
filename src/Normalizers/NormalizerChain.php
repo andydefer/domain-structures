@@ -10,12 +10,16 @@ final class NormalizerChain
 {
     private static ?NormalizerInterface $instance = null;
 
+    private static bool $currentPreserveCase = false;
+
     private function __construct() {}
 
-    public static function get(): NormalizerInterface
+    public static function get(bool $preserveRecordCase = false): NormalizerInterface
     {
-        if (self::$instance === null) {
-            self::$instance = new RootNormalizer;
+        // Si on change le paramètre, on recrée l'instance
+        if (self::$instance === null || self::$currentPreserveCase !== $preserveRecordCase) {
+            self::$instance = new RootNormalizer($preserveRecordCase);
+            self::$currentPreserveCase = $preserveRecordCase;
         }
 
         return self::$instance;

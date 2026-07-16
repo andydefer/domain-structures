@@ -16,9 +16,11 @@ final class RootNormalizer implements NormalizerInterface
 
     private bool $initialized = false;
 
-    public function __construct()
+    private bool $preserveRecordCase = false;
+
+    public function __construct(bool $preserveRecordCase = false)
     {
-        // Ne rien faire dans le constructeur pour éviter les cycles
+        $this->preserveRecordCase = $preserveRecordCase;
     }
 
     private function initialize(): void
@@ -31,8 +33,8 @@ final class RootNormalizer implements NormalizerInterface
         $null = new NullNormalizer;
         $scalar = new ScalarNormalizer;
         $enum = new EnumNormalizer;
-        $dateTime = new DateTimeNormalizer;  // ← AJOUTER ICI
-        $record = new RecordNormalizer;
+        $dateTime = new DateTimeNormalizer;
+        $record = new RecordNormalizer($this->preserveRecordCase);  // ← on passe le paramètre
         $vo = new ValueObjectNormalizer;
         $data = new DataNormalizer;
         $collection = new TypedCollectionNormalizer;
@@ -44,7 +46,7 @@ final class RootNormalizer implements NormalizerInterface
             $null,
             $scalar,
             $enum,
-            $dateTime,  // ← PLACER ICI (après enum, avant record)
+            $dateTime,
             $record,
             $vo,
             $data,

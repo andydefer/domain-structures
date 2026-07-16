@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Tests\Unit\Normalizers;
 
+use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Normalizers\Core\NormalizerInterface;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\DomainStructures\Tests\Fixtures\Collections\TestProductRecordCollection;
@@ -43,6 +44,187 @@ final class NormalizerChainTest extends TestCase
         $second = NormalizerChain::get();
 
         $this->assertSame($first, $second);
+    }
+
+    // ==================== PRESERVE RECORD CASE TESTS ====================
+
+    public function test_get_with_preserve_record_case_true_returns_different_instance(): void
+    {
+        $default = NormalizerChain::get();
+        $preserve = NormalizerChain::get(true);
+
+        $this->assertNotSame($default, $preserve);
+    }
+
+    public function test_get_with_preserve_record_case_false_returns_same_as_default(): void
+    {
+        $default = NormalizerChain::get();
+        $explicitFalse = NormalizerChain::get(false);
+
+        $this->assertSame($default, $explicitFalse);
+    }
+
+    public function test_record_normalization_converts_to_snake_case_by_default(): void
+    {
+        $email = TestEmailAddress::from('test@example.com');
+        $record = new TestUserRecord(name: 'John Doe', email: $email);
+        $normalized = $this->chain->normalize($record);
+
+        $this->assertIsArray($normalized);
+        $this->assertArrayHasKey('name', $normalized);
+        $this->assertArrayHasKey('email', $normalized);
+        // Les propriétés en camelCase doivent être converties en snake_case
+        $this->assertArrayNotHasKey('userName', $normalized);
+        $this->assertArrayNotHasKey('EmailAddress', $normalized);
+    }
+
+    public function test_record_normalization_preserves_original_case_when_preserve_record_case_is_true(): void
+    {
+        $chain = NormalizerChain::get(true);
+        $email = TestEmailAddress::from('test@example.com');
+
+        // Créer un record avec des propriétés en camelCase
+        $record = new class($email) extends AbstractRecord
+        {
+            public function __construct(
+                public readonly TestEmailAddress $emailAddress,
+                public readonly string $userName = 'John Doe',
+                public readonly int $userId = 123
+            ) {}
+        };
+
+        $normalized = $chain->normalize($record);
+
+        $this->assertIsArray($normalized);
+        // Les propriétés doivent garder leur cas d'origine
+        $this->assertArrayHasKey('emailAddress', $normalized);
+        $this->assertArrayHasKey('userName', $normalized);
+        $this->assertArrayHasKey('userId', $normalized);
+        // Elles ne doivent PAS être en snake_case
+        $this->assertArrayNotHasKey('email_address', $normalized);
+        $this->assertArrayNotHasKey('user_name', $normalized);
+        $this->assertArrayNotHasKey('user_id', $normalized);
+    }
+
+    public function test_preserve_record_case_works_with_nested_records(): void
+    {
+        $chain = NormalizerChain::get(true);
+
+        // Record imbriqué avec camelCase
+        $nestedRecord = new class extends AbstractRecord
+        {
+            public function __construct(
+                public readonly string $nestedProperty = 'nested value',
+                public readonly int $nestedId = 999
+            ) {}
+        };
+
+        $parentRecord = new class($nestedRecord) extends AbstractRecord
+        {
+            public function __construct(
+                public readonly object $nested,
+                public readonly string $parentName = 'parent',
+                public readonly bool $isActive = true
+            ) {}
+        };
+
+        $normalized = $chain->normalize($parentRecord);
+
+        $this->assertIsArray($normalized);
+        // Parent garde sa casse
+        $this->assertArrayHasKey('parentName', $normalized);
+        $this->assertArrayHasKey('isActive', $normalized);
+        $this->assertArrayNotHasKey('parent_name', $normalized);
+        $this->assertArrayNotHasKey('is_active', $normalized);
+
+        // Nested garde aussi sa casse
+        $this->assertIsArray($normalized['nested']);
+        $this->assertArrayHasKey('nestedProperty', $normalized['nested']);
+        $this->assertArrayHasKey('nestedId', $normalized['nested']);
+        $this->assertArrayNotHasKey('nested_property', $normalized['nested']);
+        $this->assertArrayNotHasKey('nested_id', $normalized['nested']);
+    }
+
+    public function test_preserve_record_case_does_not_affect_other_normalizers(): void
+    {
+        $chain = NormalizerChain::get(true);
+
+        // Les ValueObjects doivent toujours être normalisés normalement
+        $email = TestEmailAddress::from('test@example.com');
+        $normalizedEmail = $chain->normalize($email);
+        $this->assertSame('test@example.com', $normalizedEmail);
+
+        // Les enums doivent toujours être normalisés normalement
+        $enum = TestBackedStringEnum::VALUE_ONE;
+        $normalizedEnum = $chain->normalize($enum);
+        $this->assertSame('one', $normalizedEnum);
+
+        // Les DataObjects doivent toujours être normalisés normalement
+        $data = new TestProductData(id: 1, name: 'Product', price: 99.99);
+        $normalizedData = $chain->normalize($data);
+        $this->assertIsArray($normalizedData);
+        $this->assertArrayHasKey('id', $normalizedData);
+        $this->assertArrayHasKey('name', $normalizedData);
+        $this->assertArrayHasKey('price', $normalizedData);
+    }
+
+    public function test_preserve_record_case_with_multiple_instances_works_independently(): void
+    {
+        $chainDefault = NormalizerChain::get();
+        $chainPreserve = NormalizerChain::get(true);
+
+        // Record avec camelCase
+        $record = new class extends AbstractRecord
+        {
+            public function __construct(
+                public readonly string $firstName = 'John',
+                public readonly string $lastName = 'Doe'
+            ) {}
+        };
+
+        $normalizedDefault = $chainDefault->normalize($record);
+        $normalizedPreserve = $chainPreserve->normalize($record);
+
+        // Avec preserve = false (défaut) : snake_case
+        $this->assertArrayHasKey('first_name', $normalizedDefault);
+        $this->assertArrayHasKey('last_name', $normalizedDefault);
+        $this->assertArrayNotHasKey('firstName', $normalizedDefault);
+        $this->assertArrayNotHasKey('lastName', $normalizedDefault);
+
+        // Avec preserve = true : camelCase conservé
+        $this->assertArrayHasKey('firstName', $normalizedPreserve);
+        $this->assertArrayHasKey('lastName', $normalizedPreserve);
+        $this->assertArrayNotHasKey('first_name', $normalizedPreserve);
+        $this->assertArrayNotHasKey('last_name', $normalizedPreserve);
+    }
+
+    public function test_preserve_record_case_with_mixed_property_names(): void
+    {
+        $chain = NormalizerChain::get(true);
+
+        $record = new class extends AbstractRecord
+        {
+            public function __construct(
+                public readonly string $alreadySnakeCase = 'value1',
+                public readonly string $camelCaseProperty = 'value2',
+                public readonly string $UPPERCase = 'value3',
+                public readonly string $PascalCase = 'value4'
+            ) {}
+        };
+
+        $normalized = $chain->normalize($record);
+
+        // Tous les noms de propriétés sont conservés tels quels
+        $this->assertArrayHasKey('alreadySnakeCase', $normalized);
+        $this->assertArrayHasKey('camelCaseProperty', $normalized);
+        $this->assertArrayHasKey('UPPERCase', $normalized);
+        $this->assertArrayHasKey('PascalCase', $normalized);
+
+        // Aucun n'est converti
+        $this->assertArrayNotHasKey('already_snake_case', $normalized);
+        $this->assertArrayNotHasKey('camel_case_property', $normalized);
+        $this->assertArrayNotHasKey('upper_case', $normalized);
+        $this->assertArrayNotHasKey('pascal_case', $normalized);
     }
 
     // ==================== NORMALIZATION THROUGH CHAIN TESTS ====================
@@ -206,5 +388,23 @@ final class NormalizerChainTest extends TestCase
 
         $this->assertSame($first, $second);
         $this->assertSame($second, $third);
+    }
+
+    public function test_preserve_record_case_returns_consistent_results(): void
+    {
+        $chain = NormalizerChain::get(true);
+
+        $record = new class extends AbstractRecord
+        {
+            public function __construct(
+                public readonly string $camelProperty = 'value'
+            ) {}
+        };
+
+        $first = $chain->normalize($record);
+        $second = $chain->normalize($record);
+
+        $this->assertSame($first, $second);
+        $this->assertArrayHasKey('camelProperty', $first);
     }
 }
