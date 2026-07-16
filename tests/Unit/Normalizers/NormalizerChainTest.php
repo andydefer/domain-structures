@@ -332,6 +332,40 @@ final class NormalizerChainTest extends TestCase
         $this->assertSame([1, 2, 3, 4, 5], $normalized);
     }
 
+    public function test_std_class_is_normalized_correctly_through_chain(): void
+    {
+        $obj = new \stdClass;
+        $obj->name = 'John Doe';
+        $obj->age = 30;
+        $obj->active = true;
+
+        $normalized = $this->chain->normalize($obj);
+
+        $this->assertIsArray($normalized);
+        $this->assertSame('John Doe', $normalized['name']);
+        $this->assertSame(30, $normalized['age']);
+        $this->assertTrue($normalized['active']);
+    }
+
+    public function test_nested_std_class_is_normalized_correctly_through_chain(): void
+    {
+        $nested = new \stdClass;
+        $nested->city = 'Paris';
+        $nested->country = 'France';
+
+        $obj = new \stdClass;
+        $obj->name = 'John';
+        $obj->address = $nested;
+
+        $normalized = $this->chain->normalize($obj);
+
+        $this->assertIsArray($normalized);
+        $this->assertSame('John', $normalized['name']);
+        $this->assertIsArray($normalized['address']);
+        $this->assertSame('Paris', $normalized['address']['city']);
+        $this->assertSame('France', $normalized['address']['country']);
+    }
+
     // ==================== NESTED NORMALIZATION THROUGH CHAIN TESTS ====================
 
     public function test_nested_array_with_objects_is_normalized_correctly(): void

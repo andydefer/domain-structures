@@ -41,6 +41,7 @@ final class RootNormalizer implements NormalizerInterface
         $dataObject = new DataObjectNormalizer;
         $sequential = new SequentialNormalizer;
         $array = new ArrayNormalizer;
+        $stdClass = new StdClassNormalizer;
 
         $normalizers = [
             $null,
@@ -54,6 +55,7 @@ final class RootNormalizer implements NormalizerInterface
             $dataObject,
             $sequential,
             $array,
+            $stdClass,
         ];
 
         // Configurer le normaliseur récursif pour chacun
