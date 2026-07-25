@@ -27,7 +27,7 @@ final class HydrationService
     public function __construct()
     {
         $this->itemHydration = new ItemHydrationService;
-        $this->collectionHydration = new CollectionHydrationService($this->itemHydration);
+        $this->collectionHydration = new CollectionHydrationService;
     }
 
     /**

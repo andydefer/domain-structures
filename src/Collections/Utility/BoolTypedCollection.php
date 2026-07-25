@@ -12,7 +12,7 @@ use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
  * Provides specialized methods for boolean operations including filtering,
  * counting, and validation of boolean states across the collection.
  *
- * @extends TypedCollection<bool>
+ * @extends AbstractTypedCollection<bool>
  */
 final class BoolTypedCollection extends AbstractTypedCollection
 {
