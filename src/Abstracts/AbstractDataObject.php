@@ -305,6 +305,24 @@ abstract class AbstractDataObject implements \ArrayAccess, Transformable
     }
 
     /**
+     * Retourne toutes les clés du tableau.
+     *
+     * @return array<int, string|int>
+     */
+    public function keys(): array
+    {
+        return array_keys($this->data);
+    }
+
+    /**
+     * Vérifie si le tableau est vide.
+     */
+    public function isEmpty(): bool
+    {
+        return empty($this->data);
+    }
+
+    /**
      * Représentation JSON.
      */
     public function __toString(): string
