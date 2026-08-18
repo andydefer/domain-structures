@@ -223,6 +223,9 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
                     return $converter->convert($source, $typeName, $paramName);
                 }
             }
+        } elseif (is_null($source) && $type->allowsNull()) {
+
+            return null;
         }
 
         throw new InvalidArgumentException(
