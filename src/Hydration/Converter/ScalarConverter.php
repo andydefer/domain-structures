@@ -1,5 +1,7 @@
 <?php
 
+// src/Hydration/Converter/ScalarConverter.php
+
 declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Hydration\Converter;
@@ -12,20 +14,17 @@ final class ScalarConverter implements TypeConverterInterface
     public function supports(string $typeName): bool
     {
         try {
-            // Normaliser les alias de types
             $normalizedType = $this->normalizeTypeName($typeName);
             $phpType = PhpType::fromTypeString($normalizedType);
 
             return $phpType->isScalarOrNull();
         } catch (InvalidArgumentException) {
-            // Le type n'est pas reconnu par PhpType (ex: 'array', 'object', 'resource', 'callable')
             return false;
         }
     }
 
     public function convert(mixed $value, string $typeName, string $paramName): mixed
     {
-        // Normaliser le type cible
         $normalizedType = $this->normalizeTypeName($typeName);
 
         return match ($normalizedType) {
@@ -40,9 +39,6 @@ final class ScalarConverter implements TypeConverterInterface
         };
     }
 
-    /**
-     * Normalize type aliases to their short form.
-     */
     private function normalizeTypeName(string $typeName): string
     {
         return match ($typeName) {
@@ -53,15 +49,37 @@ final class ScalarConverter implements TypeConverterInterface
         };
     }
 
+    /**
+     * Check if the value is an object that has a 'from' method and a 'value' property.
+     *
+     * @param  mixed  $value  The value to check
+     * @return bool True if the object has 'from' method and 'value' property
+     */
+    private function isFromableWithValue(mixed $value): bool
+    {
+        if (! is_object($value)) {
+            return false;
+        }
+
+        if (! property_exists($value, 'value')) {
+            return false;
+        }
+
+        return method_exists($value, 'from');
+    }
+
     private function toInt(mixed $value, string $paramName): int
     {
-        // Gérer les booléens
         if (is_bool($value)) {
             return $value ? 1 : 0;
         }
 
         if (is_numeric($value)) {
             return (int) $value;
+        }
+
+        if ($this->isFromableWithValue($value)) {
+            return (int) $value->value;
         }
 
         throw new InvalidArgumentException(
@@ -71,13 +89,16 @@ final class ScalarConverter implements TypeConverterInterface
 
     private function toFloat(mixed $value, string $paramName): float
     {
-        // Gérer les booléens
         if (is_bool($value)) {
             return $value ? 1.0 : 0.0;
         }
 
         if (is_numeric($value)) {
             return (float) $value;
+        }
+
+        if ($this->isFromableWithValue($value)) {
+            return (float) $value->value;
         }
 
         throw new InvalidArgumentException(
@@ -93,14 +114,16 @@ final class ScalarConverter implements TypeConverterInterface
             );
         }
 
-        // Vérifier d'abord si c'est un scalaire
         if (is_scalar($value)) {
             return (string) $value;
         }
 
-        // Ensuite vérifier si c'est un objet avec __toString
         if (is_object($value) && method_exists($value, '__toString')) {
             return (string) $value;
+        }
+
+        if ($this->isFromableWithValue($value)) {
+            return (string) $value->value;
         }
 
         throw new InvalidArgumentException(
@@ -120,6 +143,10 @@ final class ScalarConverter implements TypeConverterInterface
 
         if (is_string($value)) {
             return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
+        }
+
+        if ($this->isFromableWithValue($value)) {
+            return (bool) $value->value;
         }
 
         throw new InvalidArgumentException(
