@@ -66,9 +66,7 @@ trait Hydratable
             ));
         }
 
-        $allowedTypes = method_exists(static::class, 'getAllowedTypes')
-            ? static::getAllowedTypes()
-            : [static::class];
+        $allowedTypes = [static::class];
 
         $collection = new $collectionClass(...$allowedTypes);
 

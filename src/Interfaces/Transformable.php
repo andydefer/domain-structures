@@ -10,19 +10,12 @@ use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 use AndyDefer\DomainStructures\Utils\Sequential;
 
 /**
- * Interface for objects that can be hydrated from a source and normalized.
+ * Interface for objects that can be hydrated from a source, JSON, and collections.
+ *
+ * @extends Fromable
  */
-interface Transformable
+interface Transformable extends Fromable
 {
-    /**
-     * Creates an instance from a source.
-     *
-     * @param  mixed  $source  The source data (array, object, string, int, etc.)
-     *
-     * @throws \InvalidArgumentException If the source cannot be converted
-     */
-    public static function from(mixed $source): static;
-
     /**
      * Creates an instance from a JSON string.
      *

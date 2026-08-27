@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Hydration\Converter;
 
-use AndyDefer\DomainStructures\Interfaces\Transformable;
+use AndyDefer\DomainStructures\Interfaces\Fromable;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 
 final class TransformableConverter implements TypeConverterInterface
 {
     public function supports(string $typeName): bool
     {
-        return is_subclass_of($typeName, Transformable::class);
+        return is_subclass_of($typeName, Fromable::class);
     }
 
     public function convert(mixed $value, string $typeName, string $paramName): mixed
@@ -25,7 +25,7 @@ final class TransformableConverter implements TypeConverterInterface
         }
 
         // Normaliser uniquement si c'est un Transformable
-        if ($value instanceof Transformable) {
+        if ($value instanceof Fromable) {
             $flattened = NormalizerChain::get()->normalize($value);
 
             return $typeName::from($flattened);

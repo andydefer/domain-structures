@@ -38,7 +38,7 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
     private static array $cachedAllowedTypes = [];
 
     // ==================== CONSTRUCTOR & VALIDATION ====================
-    final protected static function getAllowedTypesList(): array
+    protected static function getAllowedTypesList(): array
     {
         return static::$allowedTypesList ??= PhpType::getAllowedTypesList();
     }

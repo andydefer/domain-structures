@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Hydration\Strategy;
 
-use AndyDefer\DomainStructures\Interfaces\Transformable;
+use AndyDefer\DomainStructures\Interfaces\Fromable;
 use ReflectionClass;
 
 /**
@@ -32,7 +32,7 @@ final class ZeroParameterStrategy implements HydrationStrategyInterface
 
     public function hydrate(string $className, mixed $source): object
     {
-        if (is_subclass_of($className, Transformable::class)) {
+        if (is_subclass_of($className, Fromable::class)) {
             return $className::from($source);
         }
 
