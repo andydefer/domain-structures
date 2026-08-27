@@ -68,18 +68,33 @@ final class ScalarConverter implements TypeConverterInterface
         return method_exists($value, 'from');
     }
 
+    /**
+     * Check if the value is numeric (for int/float conversion).
+     *
+     * @param  mixed  $value  The value to check
+     * @return bool True if the value is numeric
+     */
+    private function isNumericValue(mixed $value): bool
+    {
+        if (is_numeric($value)) {
+            return true;
+        }
+
+        if ($this->isFromableWithValue($value) && is_numeric($value->value)) {
+            return true;
+        }
+
+        return false;
+    }
+
     private function toInt(mixed $value, string $paramName): int
     {
         if (is_bool($value)) {
             return $value ? 1 : 0;
         }
 
-        if (is_numeric($value)) {
-            return (int) $value;
-        }
-
-        if ($this->isFromableWithValue($value)) {
-            return (int) $value->value;
+        if ($this->isNumericValue($value)) {
+            return (int) ($this->isFromableWithValue($value) ? $value->value : $value);
         }
 
         throw new InvalidArgumentException(
@@ -93,12 +108,8 @@ final class ScalarConverter implements TypeConverterInterface
             return $value ? 1.0 : 0.0;
         }
 
-        if (is_numeric($value)) {
-            return (float) $value;
-        }
-
-        if ($this->isFromableWithValue($value)) {
-            return (float) $value->value;
+        if ($this->isNumericValue($value)) {
+            return (float) ($this->isFromableWithValue($value) ? $value->value : $value);
         }
 
         throw new InvalidArgumentException(
@@ -137,16 +148,26 @@ final class ScalarConverter implements TypeConverterInterface
             return $value;
         }
 
-        if (is_numeric($value)) {
-            return (bool) $value;
-        }
-
         if (is_string($value)) {
             return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
         }
 
         if ($this->isFromableWithValue($value)) {
-            return (bool) $value->value;
+            if (is_string($value->value)) {
+                return filter_var($value->value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
+            }
+
+            if (is_bool($value->value)) {
+                return $value->value;
+            }
+
+            if (is_numeric($value->value)) {
+                return (bool) $value->value;
+            }
+        }
+
+        if (is_numeric($value)) {
+            return (bool) $value;
         }
 
         throw new InvalidArgumentException(
