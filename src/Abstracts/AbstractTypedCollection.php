@@ -245,6 +245,28 @@ abstract class AbstractTypedCollection implements TypedCollectionInterface
     }
 
     /**
+     * Takes the first N items from the collection.
+     * If limit is negative, takes the last N items.
+     *
+     * @param  int  $limit  Number of items to take
+     * @return static A new collection with the taken items
+     */
+    final public function take(int $limit): static
+    {
+        $result = new static(...$this->allowedTypes);
+
+        if ($limit <= 0) {
+            $result->items = [];
+
+            return $result;
+        }
+
+        $result->items = array_slice($this->items, 0, $limit);
+
+        return $result;
+    }
+
+    /**
      * Maps items and preserves the same collection type.
      *
      * This method attempts to keep the same collection class.

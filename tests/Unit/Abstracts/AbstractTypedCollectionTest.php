@@ -2085,4 +2085,158 @@ final class AbstractTypedCollectionTest extends TestCase
         $this->assertInstanceOf(TestAmbiguousDataA::class, $collection[0]);
         $this->assertInstanceOf(TestAmbiguousDataB::class, $collection[1]);
     }
+
+    // ==================== TAKE METHOD TESTS ====================
+
+    public function test_take_returns_first_n_items(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3, 4, 5);
+
+        $result = $collection->take(3);
+
+        $this->assertCount(3, $result);
+        $this->assertSame([1, 2, 3], $result->toArray());
+    }
+
+    public function test_take_returns_new_collection_instance(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3, 4, 5);
+
+        $result = $collection->take(3);
+
+        $this->assertNotSame($collection, $result);
+        $this->assertSame([1, 2, 3, 4, 5], $collection->toArray());
+    }
+
+    public function test_take_with_limit_greater_than_count_returns_all_items(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3);
+
+        $result = $collection->take(10);
+
+        $this->assertCount(3, $result);
+        $this->assertSame([1, 2, 3], $result->toArray());
+    }
+
+    public function test_take_with_limit_equal_to_count_returns_all_items(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3);
+
+        $result = $collection->take(3);
+
+        $this->assertCount(3, $result);
+        $this->assertSame([1, 2, 3], $result->toArray());
+    }
+
+    public function test_take_with_limit_zero_returns_empty_collection(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3);
+
+        $result = $collection->take(0);
+
+        $this->assertCount(0, $result);
+        $this->assertEmpty($result->toArray());
+    }
+
+    public function test_take_with_negative_limit_returns_empty_collection(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3);
+
+        $result = $collection->take(-1);
+
+        $this->assertCount(0, $result);
+        $this->assertEmpty($result->toArray());
+    }
+
+    public function test_take_on_empty_collection_returns_empty_collection(): void
+    {
+        $collection = new TypedCollection('int');
+
+        $result = $collection->take(5);
+
+        $this->assertCount(0, $result);
+        $this->assertEmpty($result->toArray());
+        $this->assertNotSame($collection, $result);
+    }
+
+    public function test_take_preserves_collection_type(): void
+    {
+        $collection = new IntTypedCollection;
+        $collection->add(1, 2, 3, 4, 5);
+
+        $result = $collection->take(3);
+
+        $this->assertInstanceOf(IntTypedCollection::class, $result);
+        $this->assertSame(['int'], $result->getAllowedTypes());
+    }
+
+    public function test_take_on_string_collection_preserves_type(): void
+    {
+        $collection = new StringTypedCollection;
+        $collection->add('a', 'b', 'c', 'd', 'e');
+
+        $result = $collection->take(2);
+
+        $this->assertInstanceOf(StringTypedCollection::class, $result);
+        $this->assertSame(['a', 'b'], $result->toArray());
+    }
+
+    public function test_take_on_collection_with_objects_preserves_type(): void
+    {
+        $collection = new TypedCollection(TestUserRecord::class);
+        $user1 = new TestUserRecord(name: 'Alice', email: $this->testEmail);
+        $user2 = new TestUserRecord(name: 'Bob', email: $this->testEmail);
+        $user3 = new TestUserRecord(name: 'Charlie', email: $this->testEmail);
+        $collection->add($user1, $user2, $user3);
+
+        $result = $collection->take(2);
+
+        $this->assertInstanceOf(TypedCollection::class, $result);
+        $this->assertSame([TestUserRecord::class], $result->getAllowedTypes());
+        $this->assertCount(2, $result);
+        $this->assertSame($user1, $result[0]);
+        $this->assertSame($user2, $result[1]);
+    }
+
+    public function test_take_chaining_works(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+
+        $result = $collection
+            ->filter(fn ($item) => $item % 2 === 0)
+            ->take(3);
+
+        $this->assertSame([2, 4, 6], $result->toArray());
+    }
+
+    public function test_take_after_sort_preserves_order(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(5, 2, 8, 1, 9, 3);
+
+        $result = $collection
+            ->sort()
+            ->take(3);
+
+        $this->assertSame([1, 2, 3], $result->toArray());
+    }
+
+    public function test_take_after_reverse_preserves_order(): void
+    {
+        $collection = new TypedCollection('int');
+        $collection->add(1, 2, 3, 4, 5);
+
+        $result = $collection
+            ->reverse()
+            ->take(3);
+
+        $this->assertSame([5, 4, 3], $result->toArray());
+    }
 }

@@ -434,9 +434,9 @@ $stringCollection = $collection->mapToType(
 ### 13.1. Pour les Records
 
 ```php
-use AndyDefer\DomainStructures\Collections\Core\TypedCollection;
+use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 
-final class UserRecordCollection extends TypedCollection
+final class UserRecordCollection extends AbstractTypedCollection
 {
     public function __construct()
     {
@@ -560,7 +560,7 @@ $normalized = NormalizerChain::get()->normalize($collection);
 ### 16.1. Collection de UserRecord avec méthodes métier
 
 ```php
-final class UserRecordCollection extends TypedCollection
+final class UserRecordCollection extends AbstractTypedCollection
 {
     public function __construct()
     {

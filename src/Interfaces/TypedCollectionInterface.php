@@ -191,4 +191,12 @@ interface TypedCollectionInterface extends ArrayAccess, Countable, IteratorAggre
      * @param  TypedCollectionInterface<TValue>  $collection
      */
     public function merge(TypedCollectionInterface $collection): static;
+
+    /**
+     * Takes the first N items from the collection.
+     *
+     * @param  int  $limit  Number of items to take
+     * @return static A new collection with only the first N items
+     */
+    public function take(int $limit): static;
 }
