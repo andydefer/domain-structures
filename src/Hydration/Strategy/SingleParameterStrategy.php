@@ -8,8 +8,6 @@ use AndyDefer\DomainStructures\Abstracts\AbstractAssociative;
 use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\DomainStructures\Abstracts\AbstractDataObject;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
-use AndyDefer\DomainStructures\Abstracts\AbstractSequential;
-use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 use AndyDefer\DomainStructures\Enums\PhpType;
 use AndyDefer\DomainStructures\Hydration\Converter\TypeConverterInterface;
@@ -93,9 +91,7 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
             AbstractData::class,
             AbstractRecord::class,
             AbstractDataObject::class,
-            AbstractTypedCollection::class,
             AbstractAssociative::class,
-            AbstractSequential::class,
         ];
 
         if (! class_exists($targetTypeName) && ! interface_exists($targetTypeName)) {
