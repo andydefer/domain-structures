@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 namespace AndyDefer\DomainStructures\Hydration\Strategy;
 
+use AndyDefer\DomainStructures\Abstracts\AbstractAssociative;
+use AndyDefer\DomainStructures\Abstracts\AbstractData;
+use AndyDefer\DomainStructures\Abstracts\AbstractDataObject;
+use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
+use AndyDefer\DomainStructures\Abstracts\AbstractSequential;
+use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
+use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 use AndyDefer\DomainStructures\Enums\PhpType;
 use AndyDefer\DomainStructures\Hydration\Converter\TypeConverterInterface;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
@@ -53,8 +60,13 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
         // Si le paramètre attend un array, on ne modifie pas le source
         if ($targetTypeName !== 'array') {
             // Cas spécial : tableau associatif à une seule clé -> extraire la valeur
-            // MAIS uniquement si la valeur extraite n'est pas un tableau complexe qui pourrait être une payload
-            if ($this->isSingleKeyAssociativeArray($source) && ! $this->shouldKeepNestedArray($source, $paramType)) {
+            // Uniquement si :
+            //   - la cible n'est pas une sous-classe des abstractions Domain Structures
+            //   - la valeur extraite n'est pas un tableau complexe pouvant être une payload
+            if (! $this->isDomainStructuresSubclass($targetTypeName)
+                && $this->isSingleKeyAssociativeArray($source)
+                && ! $this->shouldKeepNestedArray($source, $paramType)
+            ) {
                 $source = reset($source);
             }
         }
@@ -67,6 +79,36 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
         }
 
         return $this->handleNamedType($className, $source, $paramType, $param);
+    }
+
+    /**
+     * Indique si le type cible est une sous-classe des abstractions Domain Structures.
+     *
+     * @param  class-string  $targetTypeName
+     */
+    private function isDomainStructuresSubclass(string $targetTypeName): bool
+    {
+        static $abstracts = [
+            AbstractValueObject::class,
+            AbstractData::class,
+            AbstractRecord::class,
+            AbstractDataObject::class,
+            AbstractTypedCollection::class,
+            AbstractAssociative::class,
+            AbstractSequential::class,
+        ];
+
+        if (! class_exists($targetTypeName) && ! interface_exists($targetTypeName)) {
+            return false;
+        }
+
+        foreach ($abstracts as $abstract) {
+            if ($targetTypeName === $abstract || is_a($targetTypeName, $abstract, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
