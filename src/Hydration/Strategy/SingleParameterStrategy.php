@@ -57,6 +57,23 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
 
         // Si le paramètre attend un array, on ne modifie pas le source
         if ($targetTypeName !== 'array') {
+
+            // ✅ CAS 1 : $source est déjà une instance du type cible → on la retourne
+            if (is_object($source) && $source instanceof $targetTypeName) {
+                return $source;
+            }
+
+            // ✅ CAS 2 : $source est un tableau à une seule clé dont la valeur
+            //            est déjà une instance du type cible → on extrait la valeur
+            //            dans $source (pas de return), le flux continue vers handleNamedType
+            if (is_array($source)
+                && $this->isSingleKeyAssociativeArray($source)
+                && is_object(reset($source))
+                && reset($source) instanceof $targetTypeName
+            ) {
+                $source = reset($source);
+            }
+
             // Cas spécial : tableau associatif à une seule clé -> extraire la valeur
             // Uniquement si :
             //   - la cible n'est pas une sous-classe des abstractions Domain Structures
@@ -174,7 +191,7 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
         return $source;
     }
 
-    private function handleUnionType(string $className, mixed $source, ReflectionUnionType $unionType, $param): object
+    private function handleUnionType(string $className, mixed $source, ReflectionUnionType $unionType, mixed $param): object
     {
         foreach ($unionType->getTypes() as $type) {
             if ($type instanceof ReflectionNamedType) {
@@ -193,7 +210,7 @@ final class SingleParameterStrategy implements HydrationStrategyInterface
         );
     }
 
-    private function handleNamedType(string $className, mixed $source, ReflectionNamedType $type, $param): object
+    private function handleNamedType(string $className, mixed $source, ReflectionNamedType $type, mixed $param): object
     {
         $converted = $this->convertValue($source, $type, $param->getName());
 
